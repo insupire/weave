@@ -44,7 +44,11 @@ viewer-check:
 	python3 tools/build_viewer.py --check
 
 # 그리는 쪽의 고정 케이스. node 가 있어야 돈다 (개발용이고 런타임 의존이 아니다).
+# 없으면 이름을 대고 실패한다 — 조용히 건너뛰면 통과와 구별되지 않는다.
 viewer-test:
+	@command -v node >/dev/null 2>&1 || { \
+		echo "node 가 없어 그리는 쪽의 고정 케이스를 돌리지 못했다. 건너뛰지 않는다 — node 를 깔거나 CI 에서 돌린다" >&2; \
+		exit 1; }
 	node --test tests/viewer.test.mjs
 
 clean:

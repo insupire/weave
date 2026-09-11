@@ -1,0 +1,42 @@
+# 필수 전체 회귀. 게이트 목록의 정본은 Makefile 하나이고 여기에 다시 적지 않는다.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [develop]
+
+# 같은 브랜치에 연달아 push 하면 앞 회차를 취소한다.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  all:
+    name: make all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 얕은 클론을 쓰지 않는다
+
+      # 실행기 둘을 여기서 못박는다. python 은 검사기와 빌더, node 는 그리는 쪽의 고정 케이스.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: 실행기를 적어 둔다
+        run: |
+          python3 --version
+          node --version
+
+      # test · types-check · check · viewer-check · viewer-test.
+      # node 가 없으면 viewer-test 가 건너뛰지 않고 이름을 대고 실패한다.
+      - name: make all
+        run: make all

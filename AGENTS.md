@@ -25,6 +25,7 @@
 | **`viewer.html`** | 빌드 산출물. **파일을 브라우저로 열면 바로 돈다.** 손으로 고치지 않는다 |
 | `viewer/samples.mjs` | 마찬가지로 빌드 산출물 |
 | `tools/build_viewer.py` | 위 둘을 만든다 |
+| `.github/workflows/ci.yml` | 필수 전체 회귀. `make all` 한 줄을 부른다 |
 | `tools/emit_types.py` | 닫힌 어휘를 소비자 언어로 내보낸다 |
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
 | `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플은 `test_samples.py`, 그리는 쪽은 `viewer.test.mjs` |
@@ -72,6 +73,8 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `make viewer-test` | 그리는 쪽의 고정 케이스. `node` 가 있어야 돈다 |
 | `make all` | `test` · `types-check` · `check` · `viewer-check` · `viewer-test` |
 
+**CI 는 PR 과 `develop` push 에서 `make all` 을 돌린다**([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). 게이트 목록의 정본은 `Makefile` 하나이고 워크플로는 그것을 부르기만 한다 — 워크플로에 검사를 따로 적지 않는다. 실행기는 python 3.13 과 node 24 이고 워크플로가 못박는다. **로컬 통과는 필수 CI 를 대체하지 않는다.**
+
 | 무엇을 고쳤나 | 돌릴 것 |
 | --- | --- |
 | `schema/` | `make all` — 어휘가 바뀌면 `generated/` 도 같이 커밋한다 |
@@ -80,6 +83,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `samples/` | `make viewer check test viewer-test` — 마찬가지로 `viewer.html` 을 같이 커밋한다 |
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
+| `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다 |
 | `docs/` · `AGENTS.md` 만 | 없음 |
 
 ## 검사기가 못 보는 것

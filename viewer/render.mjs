@@ -7,7 +7,9 @@
 // **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
 // 자리를 표시하고 무엇이 이상한지 적기만 한다.
 
-export const KIND_LABEL = { quote: "근거", tip: "팁", note: "설명", caution: "주의" };
+// 주석 갈래 넷의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
+// 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
+export const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
 
 export const NO_VALUE = "값 없음";
 export const UNANALYZED = "아직 분석 중";

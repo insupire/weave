@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "node:test";
 
-import { ELEMENTS, NO_ITEMS, NO_VALUE, UNANALYZED, UNDRAWABLE, formatScalar, renderView } from "../viewer/render.mjs";
+import { ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNANALYZED, UNDRAWABLE, formatScalar, renderView } from "../viewer/render.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), "utf-8"));
@@ -189,6 +189,15 @@ test("없는 id 면 focus 만 사라진다", () => {
 test("주석 네 갈래가 각각 보인다", () => {
   const { html } = draw(COMPARE);
   for (const kind of ["quote", "tip", "note", "caution"]) assert.match(html, new RegExp(`note-${kind}`));
+});
+
+test("주석 갈래를 정본 이름으로 부른다", () => {
+  // glossary §2.4 — 인용·팁·보충·주의. 참조 뷰어는 언어를 배우는 자리라 딴 이름을 쓰지 않는다.
+  assert.deepEqual(KIND_LABEL, { quote: "인용", tip: "팁", note: "보충", caution: "주의" });
+  const kinds = read("schema/weave-common.schema.json").$defs.AnnotationKind.enum;
+  assert.deepEqual(Object.keys(KIND_LABEL).sort(), [...kinds].sort());
+  const shown = textOf(draw(COMPARE).html);
+  for (const name of Object.values(KIND_LABEL)) assert.ok(shown.includes(` ${name} `), name);
 });
 
 test("값에 붙은 것과 facet 에 붙은 것이 모두 보인다", () => {
