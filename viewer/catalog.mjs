@@ -354,7 +354,7 @@ export const PAGES = [
     "compare": "overlay",
     "compareSaid": "겹친다",
     "draws": "축 위의 변화. subject 마다 선 하나가 한 좌표에 겹친다",
-    "note": "축이 둘이라 선끼리 갈린다. 색이 아니라 점선 무늬로 구별하고 가로축은 age·date·duration·number 만 된다",
+    "note": "축이 둘이라 선끼리 갈린다. 색이 아니라 점선 무늬와 선 끝의 이름으로 구별하고 가로축은 age·date·duration·number 만 된다",
     "fields": "1",
     "shapes": [
       "series"

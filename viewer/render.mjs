@@ -20,12 +20,10 @@ export const NO_VALUE = "값 없음";
 export const NO_ITEMS = "항목 없음";
 export const UNDRAWABLE = "그리지 못한다";
 
-// 선을 subject 별로 구별하는 방법. 색이 아니라 점선 무늬다 — 무늬는 우열을 말하지 않는다.
-const DASHES = ["", "7 4", "2 3", "10 4 2 4", "1 4", "6 3 1 3"];
-
-/** subject 를 가르는 색의 가짓수. **자리 차례로 돌려 쓴다 — 값의 크기와 무관하다.**
- *  색만으로 가르지 않는다. 선은 무늬로도 갈리고 이름은 늘 글로 적힌다. */
-export const TONES = 6;
+// **선을 subject 별로 가르는 유일한 방법.** 색을 쓰지 않는다 — 무늬는 우열을 말하지 않고,
+// 인쇄와 색각 이상에서도 그대로 갈린다. 자리 차례로 돌려 쓰며 값의 크기와 무관하다.
+// 이름은 늘 선 끝에 글로 함께 선다 — 무늬만으로 가르지 않는다.
+export const DASHES = ["", "7 4", "2 3", "11 4 2 4", "1 3", "6 3 1 3 1 3"];
 
 export function esc(text) {
   return String(text)
@@ -141,10 +139,6 @@ function stateSpan() {
   return `<span class="miss empty">${NO_VALUE}</span>`;
 }
 
-function subClass(subject, focus) {
-  return subject.id === focus ? "subject is-focus" : "subject";
-}
-
 // 그리지 못한 자리. 렌더는 멈추지 않고 자리를 표시하고 까닭을 적는다.
 function undrawable(report, where, why, shown) {
   report.push(`${where}: ${why}`);
@@ -178,8 +172,8 @@ export const COMPARE = { stat: "focus", facts: "focus", bars: "focus", line: "ov
 function blankRow(blanks) {
   if (blanks.length === 0) return "";
   const said = blanks
-    .map((b) => `<span class="off ${b.tone}${b.focused ? " is-focus" : ""}">` +
-      `<span class="swatch" aria-hidden="true"></span><b class="who">${esc(b.name)}</b> ${b.said}</span>`)
+    .map((b) => `<span class="off${b.focused ? " is-focus" : ""}">` +
+      `<b class="who">${esc(b.name)}</b> ${b.said}</span>`)
     .join("");
   return `<div class="offs">${said}</div>`;
 }
@@ -278,9 +272,8 @@ function line(ctx, facet) {
     if (state !== "filled") {
       // 문장을 쓰지 않는다. **이름이 흐리게 남는 것**이 「이 자리에 못 그렸다」를 말한다.
       misses.push(
-        `<span class="off ${subject.tone}${subject.id === ctx.focus ? " is-focus" : ""}">` +
-          `<span class="swatch" aria-hidden="true"></span><b class="who">${esc(subject.name)}</b>` +
-          `${notePop(entry?.notes)}</span>`,
+        `<span class="off${subject.id === ctx.focus ? " is-focus" : ""}">` +
+          `<b class="who">${esc(subject.name)}</b>${notePop(entry?.notes)}</span>`,
       );
       continue;
     }
@@ -300,8 +293,8 @@ function line(ctx, facet) {
       }
     if (broken || points.length === 0) {
       misses.push(
-        `<span class="off ${subject.tone}${subject.id === ctx.focus ? " is-focus" : ""}">` +
-          `<span class="swatch" aria-hidden="true"></span><b class="who">${esc(subject.name)}</b> ` +
+        `<span class="off${subject.id === ctx.focus ? " is-focus" : ""}">` +
+          `<b class="who">${esc(subject.name)}</b> ` +
           `${undrawable(ctx.report, where, broken ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</span>`,
       );
       continue;
@@ -345,7 +338,7 @@ function lineSvg(series, axis, type, focus) {
   ];
   series.forEach(({ subject, points }, index) => {
     const focused = subject.id === focus;
-    const klass = `series ${subject.tone}${focused ? " is-focus" : ""}`;
+    const klass = `series${focused ? " is-focus" : ""}`;
     if (points.length === 1) {
       parts.push(`<circle class="${klass}" cx="${px(points[0].x).toFixed(1)}" cy="${py(points[0].y).toFixed(1)}" r="3.5"/>`);
     } else {
@@ -358,7 +351,7 @@ function lineSvg(series, axis, type, focus) {
     }
     const last = points[points.length - 1];
     parts.push(
-      `<text class="series-label ${subject.tone}${focused ? " is-focus" : ""}" x="${(px(last.x) + 8).toFixed(1)}" ` +
+      `<text class="series-label${focused ? " is-focus" : ""}" x="${(px(last.x) + 8).toFixed(1)}" ` +
         `y="${(py(last.y) + 4).toFixed(1)}">${esc(subject.name)}</text>`,
     );
   });
@@ -404,8 +397,7 @@ function list(ctx, facet) {
   const head = [`<th class="corner">${esc(key.label ?? key.key)}</th>`];
   for (const { subject } of reads) {
     head.push(
-      `<th class="${subject.tone}${subject.focused ? " is-focus" : ""}">` +
-        `<span class="swatch" aria-hidden="true"></span>${esc(subject.name)}</th>`,
+      `<th${subject.focused ? ' class="is-focus"' : ""}>${esc(subject.name)}</th>`,
     );
   }
   const body = [...rows.entries()].map(([name, held]) => {
@@ -427,7 +419,10 @@ function list(ctx, facet) {
 
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-    `<table class="items"><thead><tr>${head.join("")}</tr></thead><tbody>${body.join("")}</tbody></table>` +
+    // **표만 옆으로 굴린다.** subject 가 늘수록 넓어지는 유일한 자리라, 페이지 전체가 밀리는
+    // 대신 표가 자기 상자 안에서 굴러간다. 열 너비는 균일하다 — 넓이가 우열을 말하지 않는다.
+    `<div class="table-scroll"><table class="items"><thead><tr>${head.join("")}</tr></thead>` +
+    `<tbody>${body.join("")}</tbody></table></div>` +
     // 문장을 덧붙이지 않는다 — 그 subject 의 칸이 이미 「값 없음」이라고 말한다.
     fieldNotes(reads)
   );
@@ -476,12 +471,8 @@ export function renderView({ template, values = [], focus = null } = {}) {
   }
 
   // 자리는 값 한 벌들이 정한다. 차례는 넘어온 차례이고 배치일 뿐 우열이 아니다.
-  // **가르는 색은 그 차례로만 배정한다** — 값의 크기와 아무 관계가 없다.
-  const seats = [...byId.entries()].map(([id, doc], index) => ({
-    id,
-    name: doc.subjectLabel || id,
-    tone: `sub-${(index % TONES) + 1}`,
-  }));
+  // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 무늬다.
+  const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
 
   const wanted = focus;
   const seated = seats.some((s) => s.id === wanted) ? wanted : null;

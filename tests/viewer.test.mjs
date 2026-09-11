@@ -15,7 +15,7 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, TONES, UNDRAWABLE, formatScalar, renderView,
+  COMPARE, DASHES, ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNDRAWABLE, formatScalar, renderView,
 } from "../viewer/render.mjs";
 import { ICON } from "../viewer/icons.mjs";
 
@@ -105,9 +105,9 @@ test("line 과 list 는 subject 를 한 좌표에 겹친다", () => {
   const { html } = fix();
   // list 는 항목이 좌표다. subject 마다 표를 따로 두지 않는다.
   assert.equal((sectionOf(html, "list").match(/<table/g) ?? []).length, 1);
-  // 가르는 색은 자리 차례로 붙는다. 이름은 늘 글로 함께 선다 — 색만으로 가르지 않는다.
-  for (let i = 0; i < FIX.values.length; i += 1) {
-    assert.match(sectionOf(html, "list"), new RegExp(`sub-${i + 1}`), `${i + 1} 번째 자리의 색`);
+  // 자리를 가르는 것은 **이름**이다. 겹친 자리마다 누구 것인지 글로 서 있어야 한다.
+  for (const name of Object.values(NAMES)) {
+    assert.ok(sectionOf(html, "list").includes(name), `열 머리에 ${name} 가 없다`);
   }
   // 겹치는 쪽은 focus 를 옮겨도 subject 가 전부 그대로 서 있다.
   for (const id of Object.keys(NAMES)) {
@@ -512,14 +512,14 @@ test("평가를 시각으로 말하지 않는다", () => {
   // 기계가 볼 수 있는 것만 여기 있다 — 「이 빨강이 나쁨을 뜻하는가」는 사람이 본다(AGENTS.md).
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
 
-  // 색이 나오는 자리는 둘뿐이다 — subject 팔레트(자리 차례)와 주석 갈래(통용 시맨틱).
+  // **색이 나오는 자리는 하나뿐이다** — 주석 갈래(통용 시맨틱). subject 팔레트는 걷었다.
   const byKind = [...css.matchAll(/\.note-([a-z]+)\s*\{\s*--kind:([^;]+);\s*\}/g)];
   const kindColors = new Set(
     byKind.map((m) => m[2].trim()).filter((v) => v.startsWith("#")).map((v) => v.toLowerCase()),
   );
 
-  // 0. **색 있는 값이 설 수 있는 자리는 그 둘의 선언뿐이다.** 다른 규칙은 무채색이거나
-  //    var(--subject)·var(--kind) 를 거쳐야 한다 — 값에 색을 직접 칠하는 길을 막는다.
+  // 0. **색 있는 값이 설 수 있는 자리는 갈래 선언뿐이다.** 다른 규칙은 무채색이거나
+  //    var(--kind) 를 거쳐야 한다 — 값·subject·facet 에 색을 칠하는 길을 전부 막는다.
   const isChromatic = (hex) => {
     const parts = hex.length <= 4
       ? [...hex].slice(0, 3).map((c) => c + c)
@@ -531,24 +531,18 @@ test("평가를 시각으로 말하지 않는다", () => {
     if (hues.length === 0) continue;
     assert.match(
       body.trim(),
-      /^--(subject|kind):\s*#[0-9a-fA-F]{3,8};$/,
+      /^--kind:\s*#[0-9a-fA-F]{3,8};$/,
       `색을 직접 칠한다: ${selector.trim()} { ${body.trim()} }`,
     );
   }
 
-  // 1. 그 둘 말고는 색이 없다. 뼈대는 무채색으로 남는다.
-  const palette = [...css.matchAll(/\.sub-(\d+)\s*\{\s*--subject:\s*(#[0-9a-fA-F]{6});\s*\}/g)];
-  assert.equal(palette.length, TONES, "팔레트가 TONES 와 다르다");
-  assert.deepEqual(palette.map((m) => Number(m[1])), [...Array(TONES)].map((_, i) => i + 1));
-  const paletteColors = new Set(palette.map((m) => m[2].toLowerCase()));
-
+  // 1. 갈래 말고는 색이 없다. 뼈대도 subject 도 무채색으로 남는다.
   const chromatic = [];
   for (const [, hex] of css.matchAll(/#([0-9a-fA-F]{3,8})\b/g)) {
     const pairs = hex.length <= 4
       ? [...hex].slice(0, 3).map((c) => c + c)
       : [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)];
     if (new Set(pairs.map((p) => parseInt(p, 16))).size === 1) continue; // 무채색
-    if (paletteColors.has(`#${hex.toLowerCase()}`)) continue; // 자리 차례로 배정되는 팔레트
     if (kindColors.has(`#${hex.toLowerCase()}`)) continue; // 주석 갈래의 통용색
     chromatic.push(`#${hex}`);
   }
@@ -556,7 +550,7 @@ test("평가를 시각으로 말하지 않는다", () => {
     const channels = body.split(",").slice(0, 3).map((p) => Number(p.trim()));
     if (new Set(channels).size !== 1) chromatic.push(`rgb(${body})`);
   }
-  assert.deepEqual(chromatic, [], `팔레트 밖의 색: ${chromatic.join(", ")}`);
+  assert.deepEqual(chromatic, [], `갈래 밖의 색: ${chromatic.join(", ")}`);
 
   // 2. 값에 따라 달라지는 색이 없다. 렌더가 넣는 inline style 은 **길이뿐**이다.
   for (const html of [fix({ focus: "proposal-a" }).html, ...sampleNames.map((n) => drawSample(sample(n)).html)]) {
@@ -586,18 +580,68 @@ test("평가를 시각으로 말하지 않는다", () => {
   }
 });
 
-test("subject 색은 값이 아니라 자리로 배정된다", () => {
-  // 값이 커지면 색이 달라지는 일이 있어서는 안 된다.
-  const big = structuredClone(FIX.values);
-  big[2].facets["monthly-premium"].fields["premium"] = { state: "filled", value: 999999999 };
-  const before = [...fix().html.matchAll(/sub-(\d)/g)].map((m) => m[1]).join("");
-  const after = [...fix({ values: big }).html.matchAll(/sub-(\d)/g)].map((m) => m[1]).join("");
-  assert.equal(after, before, "값이 색을 바꿨다");
+test("subject 를 색으로 가르지 않는다", () => {
+  // 「값이 색을 바꾸지 않는다」를 좁힌 자리다. 이제 **색이 아예 없다** —
+  // subject 를 가르는 일은 이름과 무늬가 한다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  assert.ok(!/--subject/.test(css), "subject 색 변수가 남아 있다");
+  assert.ok(!/\.sub-\d/.test(css), "subject 팔레트가 남아 있다");
+  assert.ok(!/\.swatch/.test(css), "색 조각이 남아 있다");
+  const { html, view } = fix({ focus: "proposal-b" });
+  assert.ok(!/sub-\d|swatch/.test(html), "렌더가 subject 에 색을 붙인다");
+  assert.ok(view.seats.every((s) => !("tone" in s)), "자리가 아직 색을 들고 있다");
+  // 앱의 focus 단추도 이름만 세운다 — 색 조각을 앞에 두지 않는다.
+  assert.ok(!/swatch/.test(fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8")));
 
-  // 차례가 바뀌면 색도 그 차례를 따른다 — 값이 아니라 자리다.
+  // 무엇이 대신 가르는지는 「선은 색이 아니라 점선 무늬로 갈린다」가 본다.
+
+  // 차례는 여전히 값이 아니라 넘어온 순서다 — 자리가 우열이 아님을 지키던 신호다.
   const swapped = fix({ values: [FIX.mixed, FIX.empty, FIX.filled] });
-  assert.equal(swapped.view.seats.map((s) => s.tone).join(" "), "sub-1 sub-2 sub-3");
-  assert.equal(swapped.view.seats[0].id, FIX.mixed.subjectId);
+  assert.deepEqual(swapped.view.seats.map((s) => s.id),
+    [FIX.mixed, FIX.empty, FIX.filled].map((d) => d.subjectId));
+});
+
+test("세로 리듬이 자 셋에서만 나온다", () => {
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const rules = new Map();
+  for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    rules.set(selector.trim().replace(/\s*\/\*[\s\S]*?\*\/\s*/g, "").trim(), body.trim());
+  }
+  // 1. **선은 두 facet 의 한가운데 선다.** 위 여백(앞 facet 의 아래)과 아래 여백이 같아야 한다.
+  const pad = rules.get(".facet").match(/padding:([^;]+);/)[1].trim().split(/\s+/);
+  assert.equal(pad.length >= 3 ? pad[2] : pad[0], pad[0],
+    `divider 가 한가운데 서지 않는다: padding:${pad.join(" ")}`);
+
+  // 2. **주석 줄 사이가 전부 같다.** 묶음 안이든 묶음과 묶음 사이든 한 자다.
+  const gapOf = (sel) => (rules.get(sel)?.match(/gap:([^;]+);/) ?? [])[1]?.trim();
+  assert.ok(gapOf(".notes"), "주석이 줄 간격을 자로 갖지 않는다");
+  assert.equal(gapOf(".said"), gapOf(".notes"), "말 묶음 사이가 줄 사이와 다르다");
+  // 묶음 사이만 따로 벌리면 간격이 둘이 된다 — 그 길을 막는다.
+  for (const [selector, body] of rules) {
+    if (!/\.notes\s*\+\s*\.notes|\.said[^,]*\.notes\s*\{?$/.test(selector)) continue;
+    assert.ok(!/margin|padding/.test(body), `말 묶음 사이를 따로 벌린다: ${selector} { ${body} }`);
+  }
+
+  // 3. 자는 셋뿐이고 리듬을 정하는 자리는 그것만 쓴다.
+  for (const token of ["--row", "--step", "--gap"]) {
+    assert.match(css, new RegExp(`${token}:\\s*\\d`), `${token} 자가 없다`);
+  }
+  for (const sel of [".facet", ".body", ".said"]) {
+    assert.match(rules.get(sel), /var\(--(row|step|gap)\)/, `${sel} 이 자를 쓰지 않는다`);
+  }
+});
+
+test("list 의 열은 균일하고 표만 옆으로 굴린다", () => {
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  // 표는 자기 스크롤 상자 안에 있다 — 페이지 전체가 옆으로 밀리면 띠도 목차도 사라진다.
+  assert.match(sectionOf(fix().html, "list"), /<div class="table-scroll"><table class="items"/);
+  assert.match(css, /\.table-scroll \{[^}]*overflow-x:auto/);
+  // 열 너비를 자리마다 달리 주지 않는다. 넓은 칸이 중요해 보이면 그것도 우열이다.
+  assert.match(css, /table \{[^}]*table-layout:fixed/);
+  assert.match(css, /thead th \{[^}]*width:\d+px/);
+  // 스크롤은 그 상자만의 것이다. 판이나 페이지가 옆으로 굴러서는 안 된다.
+  assert.ok(!/\.(viewport|scroll|page|content) \{[^}]*overflow-x:(auto|scroll)/.test(css),
+    "페이지가 옆으로 밀린다");
 });
 
 test("오른쪽 판의 띠는 스크롤 영역 밖에 있다", () => {
@@ -652,11 +696,19 @@ test("선은 색이 아니라 점선 무늬로 갈린다", () => {
     state: "filled",
     value: [{ at: 40, value: 60000 }, { at: 50, value: 90000 }, { at: 60, value: 140000 }],
   };
-  const { html } = fix({ values });
-  assert.equal((html.match(/<polyline/g) ?? []).length, 2);
-  assert.ok(html.includes("stroke-dasharray"));
+  const svg = sectionOf(fix({ values }).html, "line");
+  const drawn = [...svg.matchAll(/<polyline[^>]*>/g)].map((m) => m[0]);
+  assert.equal(drawn.length, 2);
   // 색으로 가르지 않는다 — 선에 stroke 색을 따로 주지 않는다.
-  assert.ok(!/<polyline[^>]*stroke="/.test(html));
+  assert.ok(!drawn.some((tag) => /stroke="/.test(tag)));
+  // **색을 걷은 뒤로 무늬가 유일한 가름이다.** 두 선이 같은 무늬로 서면 안 된다.
+  const patterns = drawn.map((tag) => (tag.match(/stroke-dasharray="([^"]+)"/) ?? [, "solid"])[1]);
+  assert.equal(new Set(patterns).size, 2, `두 선이 같은 무늬다: ${patterns.join(" / ")}`);
+  assert.equal(new Set(DASHES).size, DASHES.length, "무늬 자체가 겹친다");
+  // **이름이 무늬를 글로 받는다.** 무늬만으로 가르지 않는다 — 겹친 자리는 이름으로 읽는다.
+  const labelled = [...svg.matchAll(/<text class="series-label[^"]*"[^>]*>([^<]+)</g)].map((m) => m[1]);
+  assert.equal(labelled.length, 2, "이름 없는 선이 있다");
+  assert.ok(labelled.every((name) => Object.values(NAMES).includes(name)), labelled.join(" / "));
 });
 
 test("순위·등급 어휘가 화면으로 새지 않는다", () => {

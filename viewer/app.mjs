@@ -200,13 +200,12 @@ function drawEditor() {
 function drawFocus(seats) {
   const box = $("focus-buttons");
   box.innerHTML = "";
-  const add = (label, value, title, tone) => {
+  // 이름만 선다. subject 를 색으로 가르지 않으므로 색 조각을 앞에 두지 않는다.
+  const add = (label, value, title) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = tone ? `pick ${tone}` : "pick";
-    button.innerHTML = tone
-      ? `<span class="swatch" aria-hidden="true"></span>${escapeText(label)}`
-      : escapeText(label);
+    button.className = "pick";
+    button.textContent = label;
     if (title) button.setAttribute("title", title);
     button.setAttribute("aria-pressed", String(state.focus === value));
     button.addEventListener("click", () => {
@@ -216,7 +215,7 @@ function drawFocus(seats) {
     box.appendChild(button);
   };
   add("none", null, "아무도 고르지 않음 — 겹치는 것은 강조를 풀고, 고르는 것은 첫 subject 로 돌아간다");
-  for (const seat of seats) add(seat.name, seat.id, seat.id, seat.tone);
+  for (const seat of seats) add(seat.name, seat.id, seat.id);
 }
 
 function refresh() {
