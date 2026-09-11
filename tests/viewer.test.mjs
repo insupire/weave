@@ -193,8 +193,9 @@ test("값 한 벌이 없는 subject 는 아직 분석 중으로 보인다", () =
   assert.ok(shown.includes("아직 안 본 제안서"));
   assert.ok(html.includes('class="miss unanalyzed"'));
   assert.ok(html.includes('class="miss empty"'));
-  // 명단 chip 이 아니라 facet 이 직접 말한다.
-  assert.ok(html.includes(`<span class="badge">${UNANALYZED}</span>`), "표 머리가 말해야 한다");
+  // 명단 chip 이 아니라 facet 이 직접 말한다. 알약이 아니라 글이다.
+  assert.ok(!html.includes('class="badge"'), "알약을 두르지 않는다");
+  assert.ok(html.includes(`<small class="seat-note">${UNANALYZED}</small>`), "표 머리가 말해야 한다");
 });
 
 test("아무것도 분석되지 않아도 명단과 골격이 남는다", () => {
@@ -290,6 +291,29 @@ test("쓰는 색이 전부 무채색이다", () => {
     if (new Set(channels).size !== 1) chromatic.push(`rgb(${body})`);
   }
   assert.deepEqual(chromatic, [], `무채색이 아닌 색: ${chromatic.join(", ")}`);
+});
+
+test("장식으로 위계를 만들지 않는다", () => {
+  // 띠와 상자로 말하던 것을 글자로 말하게 한다. 되살아나면 여기서 걸린다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+
+  // 둥근 상자에 왼쪽 띠를 덧댄 것 · 왼쪽 띠를 흉내 낸 inset 그림자
+  assert.ok(!/border-left\s*:/.test(css), "왼쪽 띠");
+  assert.ok(!/box-shadow/.test(css), "그림자");
+
+  // 주석 네 갈래가 시각을 달리 갖지 않는다 — 갈래이지 심각도가 아니다
+  for (const kind of ["quote", "tip", "note", "caution"]) {
+    assert.ok(!css.includes(`.note-${kind}`), `갈래별 시각: ${kind}`);
+  }
+
+  // 모서리는 하나뿐이다. 덩어리마다 제각각 굴리지 않는다.
+  const radii = new Set([...css.matchAll(/border-radius:\s*([^;]+);/g)].map((m) => m[1].trim()));
+  assert.deepEqual([...radii], ["var(--r)"], `모서리가 여럿: ${[...radii]}`);
+
+  // 점선·겹선 장식과 빗금 텍스처와 가운데 정렬
+  assert.ok(!/\b(dashed|dotted|double)\b/.test(css), "점선·겹선 장식");
+  assert.ok(!css.includes("repeating-linear-gradient"), "빗금 텍스처");
+  assert.ok(!/text-align:\s*center/.test(css), "가운데 정렬");
 });
 
 test("선은 색이 아니라 점선 무늬로 갈린다", () => {

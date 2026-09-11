@@ -144,7 +144,7 @@ function stat(ctx, facet) {
 function facts(ctx, facet) {
   const head = ['<th class="corner">항목</th>'];
   for (const subject of ctx.subjects) {
-    const badge = ctx.byId.has(subject.id) ? "" : `<span class="badge">${UNANALYZED}</span>`;
+    const badge = ctx.byId.has(subject.id) ? "" : `<small class="seat-note">${UNANALYZED}</small>`;
     head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}${badge}</th>`);
   }
   const rows = facet.fields.map((decl) => {
@@ -239,7 +239,7 @@ function line(ctx, facet) {
   }
   const body = series.length
     ? lineSvg(series, axis, decl.type, ctx.focus)
-    : `<div class="empty-frame">${stateSpan("empty")}</div>`;
+    : `<div class="blank">${stateSpan("empty")}</div>`;
   const notes = series
     .map(({ subject, notes: n }) => notesHtml(n, subject.name))
     .join("");
@@ -302,11 +302,11 @@ function list(ctx, facet) {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     let body;
     if (state !== "filled") {
-      body = `<div class="empty-frame">${stateSpan(state)}</div>`;
+      body = `<div class="blank">${stateSpan(state)}</div>`;
     } else if (!Array.isArray(entry.value)) {
-      body = `<div class="empty-frame">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
+      body = `<div class="blank">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
     } else if (entry.value.length === 0) {
-      body = `<div class="empty-frame"><span class="miss empty">${NO_ITEMS}</span></div>`;
+      body = `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>`;
     } else {
       const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
       const rows = entry.value.map((item) => {

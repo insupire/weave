@@ -9,11 +9,25 @@
   의존성이 없다 — CDN 도 서버도 쓰지 않는다. 파일을 브라우저로 열면 바로 돈다.
 -->
 <style>
-/* 설명서의 시각. **구조가 보이는 최소한만**이다.
-   쓰는 색은 전부 무채색이다 — 색으로 좋고 나쁨을 말하지 않는다.
-   앱의 시각은 claim-design-system 것이고 이 파일이 아니다. */
+/* 설명서의 시각.
+ *
+ * 규칙 넷 — 취향이 아니라 이 저장소가 서 있는 이유다.
+ *   1. 색은 무채색이다. 강조색을 들이지 않는다. 대비는 굵기·크기·여백이 만든다.
+ *   2. 순위·등급·경고를 시각으로 되살리지 않는다. 주석 네 갈래도 시각이 같다 — 갈래이지 심각도가 아니다.
+ *   3. 렌더 출력에 도구 껍데기가 없다.
+ *   4. 파일 하나로 열린다. 웹폰트도 네트워크를 타지 않으므로 시스템 글꼴로 간다.
+ *
+ * **띠와 상자로 말하던 것을 글자로 말하게 한다.** 테두리·채움·모서리는 각각 별개의 물건이라는
+ * 뜻이므로 역할을 보고만 쓴다. radius 는 한 값뿐이고 진짜 컨테이너에만 붙는다.
+ */
 
-:root { --ink:#1a1a1a; --mute:#767676; --line:#d8d8d8; --soft:#f4f4f4; --sunk:#ededed; }
+:root {
+  --ink:#1a1a1a;       /* 본문 */
+  --mute:#6b6b6b;      /* 딸린 말 */
+  --line:#d4d4d4;      /* 구조선 */
+  --surface:#f5f5f5;   /* 옅은 면 */
+  --r:3px;             /* 하나뿐인 모서리. 진짜 컨테이너에만 */
+}
 * { box-sizing:border-box; }
 html, body { height:100%; }
 body { margin:0; color:var(--ink); background:#ffffff;
@@ -21,163 +35,172 @@ body { margin:0; color:var(--ink); background:#ffffff;
 
 /* ---------------------------------------------------------------- 설명서의 뼈대 */
 
-.site { display:grid; grid-template-columns:220px 1fr; height:100%; }
-.nav { border-right:1px solid var(--line); background:var(--soft); overflow:auto; padding-bottom:24px; }
-.brand { font-size:14px; font-weight:700; letter-spacing:.02em; padding:14px 16px 10px; }
-.nav .group { font-size:11px; color:var(--mute); padding:14px 16px 4px; letter-spacing:.04em; }
+.site { display:grid; grid-template-columns:216px 1fr; height:100%; }
+.nav { border-right:1px solid var(--line); overflow:auto; padding-bottom:24px; }
+.brand { font-size:14px; font-weight:700; letter-spacing:.02em; padding:16px 18px 12px; }
+.nav .group { font-size:11px; color:var(--mute); padding:16px 18px 4px; letter-spacing:.04em; }
 .toc-link { display:block; width:100%; text-align:left; border:none; background:none;
-  padding:5px 16px; font:inherit; font-size:13.5px; color:var(--ink); cursor:pointer; }
-.toc-link:hover { background:var(--sunk); }
-.toc-link[aria-pressed="true"] { font-weight:700; box-shadow:inset 2px 0 0 var(--ink); }
+  padding:5px 18px; font:inherit; font-size:13.5px; color:var(--mute); cursor:pointer; }
+.toc-link:hover { color:var(--ink); }
+/* 고른 것은 굵기로 말한다. 왼쪽 띠를 대지 않는다. */
+.toc-link[aria-pressed="true"] { color:var(--ink); font-weight:700; background:var(--surface); }
 
 .content { min-width:0; min-height:0; overflow:auto; }
-.page { max-width:760px; padding:28px 28px 80px; margin:0 auto; }
-.page-head { margin-bottom:18px; }
-h1 { font-size:24px; margin:0 0 6px; }
-h1 code { font-size:24px; }
-.lead { font-size:15px; color:var(--mute); margin:0; max-width:64ch; }
-.page p { max-width:70ch; }
-.page h2 { font-size:13px; color:var(--mute); font-weight:600; margin:24px 0 8px;
-  display:block; letter-spacing:.02em; }
-code { font:12px ui-monospace,monospace; }
-.limits { display:grid; grid-template-columns:max-content 1fr; gap:3px 14px; margin:18px 0 0; font-size:13.5px; }
+.page { max-width:720px; padding:36px 32px 96px; margin:0 auto; }
+.page-head { margin-bottom:20px; }
+h1 { font-size:25px; margin:0 0 8px; letter-spacing:-.01em; }
+h1 code { font-size:25px; }
+.lead { font-size:15px; color:var(--mute); margin:0; max-width:62ch; }
+.page p { max-width:68ch; }
+.page > h2 { font-size:12px; color:var(--mute); font-weight:600; margin:32px 0 10px;
+  display:block; letter-spacing:.04em; }
+code { font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.limits { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; margin:20px 0 0; font-size:13.5px; }
 .limits dt { color:var(--mute); }
 .limits dd { margin:0; }
-.note-line { font-size:13.5px; color:var(--mute); margin:10px 0 0; }
-pre { margin:0; padding:12px 14px; overflow-x:auto; background:var(--soft);
-  border:1px solid var(--line); border-radius:4px;
-  font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
-.demo { border:1px solid var(--line); border-radius:4px; padding:14px 16px; }
-.demo h1 { font-size:12px; color:var(--mute); font-weight:600; margin:0 0 8px; }
+.note-line { font-size:13.5px; color:var(--mute); margin:12px 0 0; max-width:68ch; }
+/* 코드는 회색 상자가 아니라 글꼴로 갈린다 */
+pre { margin:0; padding:0; overflow-x:auto; color:var(--ink);
+  font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; }
+/* 산 렌더와 산문 사이는 진짜 경계라 틀이 하나 선다 */
+.demo { border:1px solid var(--line); border-radius:var(--r); padding:18px 20px; }
+.demo h1 { font-size:11px; color:var(--mute); font-weight:600; margin:0 0 10px; letter-spacing:.04em; }
 .demo .facet { border-top:none; padding:0; }
 
 /* ---------------------------------------------------------------- 플레이그라운드 */
 
 .playground { display:flex; flex-direction:column; height:100%; }
 .playground[hidden] { display:none; }
-.playground .page-head { padding:20px 24px 12px; margin:0; }
+.playground .page-head { padding:24px 28px 14px; margin:0; }
 .playground h1 { font-size:19px; }
 .panes { display:grid; grid-template-columns:minmax(320px, 44%) 1fr; flex:1; min-height:0;
   border-top:1px solid var(--line); }
 .pane { min-width:0; min-height:0; display:flex; flex-direction:column; }
-.pane.edit { border-right:1px solid var(--line); background:var(--soft); }
+.pane.edit { border-right:1px solid var(--line); }
 .pane.view { overflow:auto; }
-.viewport { padding:20px; max-width:900px; margin:0 auto; }
+.viewport { padding:24px 24px 48px; max-width:880px; margin:0 auto; }
 
-.bar { display:flex; flex-wrap:wrap; gap:6px; align-items:center;
-  padding:8px 12px; border-bottom:1px solid var(--line); background:#ffffff; }
+.bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  padding:10px 14px; border-bottom:1px solid var(--line); }
 .bar .push { margin-left:auto; }
-select, input[type="text"], button { font:inherit; font-size:13px; color:var(--ink);
-  background:#ffffff; border:1px solid var(--line); border-radius:4px; padding:4px 8px; }
+select, button { font:inherit; font-size:13px; color:var(--ink);
+  background:#ffffff; border:1px solid var(--line); border-radius:var(--r); padding:4px 9px; }
 button { cursor:pointer; }
-button:hover { background:var(--soft); }
+button:hover { background:var(--surface); }
 button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
 /* focus 나열. 항목에 none 이 있어 무엇을 고르는 줄인지 스스로 읽힌다 — 라벨을 두지 않는다. */
 #focus-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-button.pick { padding:2px 9px; font-size:12.5px; }
+button.pick { padding:3px 10px; font-size:12.5px; }
 label { font-size:12px; color:var(--mute); }
-label:has(input) { display:inline-flex; align-items:center; gap:4px; }
+label:has(input) { display:inline-flex; align-items:center; gap:5px; }
 
-.tabs { display:flex; flex-wrap:wrap; gap:4px; padding:8px 12px 0; }
-.tab { border:1px solid var(--line); border-bottom:none; border-radius:4px 4px 0 0;
-  padding:4px 9px; font-size:12.5px; background:var(--sunk); }
-.tab[aria-pressed="true"] { background:#ffffff; color:var(--ink); border-color:var(--line); font-weight:700; }
-.tab .bad { color:var(--ink); font-weight:700; }
-textarea { flex:1; width:100%; margin:0; border:none; border-top:1px solid var(--line);
-  padding:12px; resize:none; background:#ffffff; color:var(--ink);
-  font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
+/* 탭은 고른 것을 굵기와 밑줄로 말한다. 테두리 상자를 두르지 않는다. */
+.tabs { display:flex; flex-wrap:wrap; gap:2px; padding:0 10px; border-bottom:1px solid var(--line); }
+.tab { border:none; border-bottom:2px solid transparent; background:none;
+  padding:8px 8px 6px; font-size:12.5px; color:var(--mute); }
+.tab:hover { background:none; color:var(--ink); }
+.tab[aria-pressed="true"] { background:none; color:var(--ink); font-weight:700; border-bottom-color:var(--ink); }
+.tab .bad { font-weight:700; }
+textarea { flex:1; width:100%; margin:0; border:none; padding:14px;
+  resize:none; background:#ffffff; color:var(--ink);
+  font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
 textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
-.strip { border-top:1px solid var(--line); background:#ffffff; padding:8px 12px;
-  font:12px/1.5 ui-monospace,monospace; max-height:26vh; overflow:auto; }
+.strip { border-top:1px solid var(--line); padding:10px 14px;
+  font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; max-height:26vh; overflow:auto; }
 .strip:empty { display:none; }
-.strip b { display:block; margin-bottom:3px; }
+.strip b { display:block; margin-bottom:4px; }
 .strip ul { margin:0; padding-left:16px; }
-.strip li { color:#333333; }
+.strip li { color:var(--ink); }
 
 /* ---------------------------------------------------------------- 분석뷰 */
 
 h2 { font-size:16px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; }
-/* primitive element 이름은 설명서가 켤 때만 붙는다. 렌더가 낸 글에는 이 이름이 없다. */
+/* primitive element 이름은 설명서가 켤 때만 붙는다. 알약이 아니라 작은 글이다. */
 .show-elements h2[data-element]::after { content:attr(data-element);
-  font:11px/1 ui-monospace,monospace; color:var(--mute);
-  border:1px solid var(--line); border-radius:3px; padding:3px 5px; }
+  font:11px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--mute); font-weight:400; }
 /* focus 는 색이 아니라 테두리와 굵기로 말한다 */
 th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
   outline:2px solid var(--ink); outline-offset:1px; }
 .is-focus > .who, th.is-focus { font-weight:700; }
-.badge { margin-left:6px; font-size:11px; color:var(--mute); white-space:nowrap;
-  border:1px solid var(--line); border-radius:3px; padding:1px 4px; }
-.facet { border-top:1px solid var(--line); padding:22px 0 4px; }
-.body { margin-top:8px; }
-.field-label { font-size:12.5px; color:var(--mute); margin-bottom:6px; }
+.facet { border-top:1px solid var(--line); padding:26px 0 4px; }
+.facet:first-of-type { border-top:none; padding-top:8px; }
+.body { margin-top:10px; }
+.field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 .who { font-size:12.5px; color:var(--mute); }
+/* 열 머리에 붙는 말. 알약이 아니다. */
+.seat-note { display:block; font-size:11px; font-weight:400; font-style:italic; color:var(--mute); white-space:nowrap; }
 .miss { font-size:12.5px; color:var(--mute); }
+/* 「아직 분석 중」과 「값 없음」은 말이 다르고 기울기가 다르다. 빗금을 치지 않는다. */
 .miss.unanalyzed { font-style:italic; }
 .dash { color:var(--mute); }
-.empty-frame { border:1px dashed var(--line); border-radius:4px; padding:14px; text-align:center; }
-.broken, .undrawable { font-size:12.5px; color:var(--ink);
-  border:1px solid var(--ink); border-radius:3px; padding:1px 6px; display:inline-block;
-  font-family:ui-monospace,monospace; }
-/* 아직 분석 중 — 값이 비어 있는 것과 눈으로 구별되는 자리 */
-td.unanalyzed { background-image:repeating-linear-gradient(
-  135deg, transparent, transparent 5px, rgba(0,0,0,.05) 5px, rgba(0,0,0,.05) 10px); }
+/* 틀이 아니라 자리다 */
+.blank { padding:4px 0 8px; }
+/* 그리지 못한 자리. 테두리 친 알약이 아니라 굵은 monospace 다. */
+.broken, .undrawable { font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-weight:700; color:var(--ink); }
 
-.stat-row { display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; }
+/* stat 의 카드는 진짜 별개 물건이라 카드가 맞다 */
+.stat-row { display:flex; flex-wrap:wrap; gap:12px; align-items:stretch; }
 .stat-row .field-label { width:100%; }
-.card { border:1px solid var(--line); border-radius:5px; padding:12px 14px; min-width:150px; flex:1 1 150px; }
-.card .big { font-size:24px; margin-top:2px; }
+.card { border:1px solid var(--line); border-radius:var(--r); padding:14px 16px;
+  min-width:150px; flex:1 1 150px; }
+.card .big { font-size:25px; margin-top:4px; letter-spacing:-.01em; }
 .card .big .miss, .card .big .undrawable { font-size:14px; }
 
 table { border-collapse:collapse; width:100%; font-size:14px; }
-th, td { border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
-thead th { background:var(--soft); font-weight:600; font-size:13px; }
-th.corner, th.row-label { background:var(--soft); font-weight:600; width:1%; white-space:nowrap; }
+th, td { border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top; }
+thead th { font-weight:600; font-size:13px; }
+th.corner, th.row-label { font-weight:600; width:1%; white-space:nowrap; color:var(--mute); }
 
-.bar-group { margin-bottom:16px; }
+.bar-group { margin-bottom:18px; }
 .bar-row { display:grid; grid-template-columns:110px 1fr 160px; gap:10px; align-items:center; padding:3px 2px; }
 .bar-row .notes { grid-column:1 / -1; }
-.track { display:block; height:12px; background:var(--soft); border:1px solid var(--line); border-radius:2px; }
+.track { display:block; height:10px; background:var(--surface); }
 .fill { display:block; height:100%; background:var(--ink); opacity:.62; }
 .bar-row.is-focus .fill { opacity:1; }
 .val { font-size:13px; text-align:right; }
 
-svg.line { width:100%; height:auto; border:1px solid var(--line); border-radius:4px; background:#ffffff; }
+/* 축이 이미 틀이다. 테두리를 두르지 않는다. */
+svg.line { width:100%; height:auto; background:#ffffff; }
 svg .axis { stroke:var(--line); stroke-width:1; }
 svg .tick { font-size:11px; fill:var(--mute); }
 svg .ty { text-anchor:end; }
 svg .tx { text-anchor:start; }
 svg .tx.end { text-anchor:end; }
 /* 선은 색이 아니라 점선 무늬로 구별한다 */
-svg .series { fill:none; stroke:var(--ink); stroke-width:1.6; opacity:.6; }
+svg .series { fill:none; stroke:var(--ink); stroke-width:1.6; opacity:.55; }
 svg .series.is-focus { stroke-width:2.6; opacity:1; }
 svg circle.series, svg circle.dot { fill:var(--ink); stroke:none; }
 svg .series-label { font-size:11px; fill:var(--mute);
   paint-order:stroke; stroke:#ffffff; stroke-width:3px; stroke-linejoin:round; }
 svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 
-.miss-rows { margin-top:8px; }
+.miss-rows { margin-top:10px; }
 .miss-row { display:grid; grid-template-columns:110px 1fr; gap:2px 10px; padding:2px; }
 .miss-row .notes { grid-column:2 / -1; margin-top:0; }
-.list-block { margin-bottom:14px; padding:10px; border:1px solid var(--line); border-radius:5px; }
+/* 표를 또 상자로 감싸지 않는다. 이름과 여백이 가른다. */
+.list-block { margin-bottom:20px; }
 .list-block .who { margin-bottom:6px; }
 
-.notes { list-style:none; margin:6px 0 0; padding:0; }
-.note { display:flex; gap:7px; font-size:12.5px; color:#333333; padding:3px 0 3px 8px;
-  border-left:2px solid var(--line); margin-bottom:2px; }
-.note-quote { border-left-style:solid; }
-.note-tip { border-left-style:double; }
-.note-note { border-left-style:dotted; }
-.note-caution { border-left-style:dashed; border-left-width:3px; }
-.note .kind { flex:0 0 auto; color:var(--mute); font-size:11px; padding-top:1px; }
+/* 주석은 띠가 아니라 **글**로 읽힌다. 네 갈래의 시각이 같다 — 갈래이지 심각도가 아니다. */
+.notes { list-style:none; margin:8px 0 0; padding:0; }
+.note { display:grid; grid-template-columns:2.8em 1fr; gap:0 10px;
+  font-size:12.5px; padding:1px 0; }
+.note .kind { color:var(--mute); font-size:11px; line-height:1.85; }
+.note .text { color:var(--ink); }
+/* 좁은 자리에서는 매달린 라벨이 폭을 먹는다. 같은 줄에 흘려 보낸다. */
+.card .note, td .note { display:block; }
+.card .note .kind, td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
 .note .who { font-weight:600; color:var(--mute); }
-.subject-notes { margin-top:10px; }
+.subject-notes { margin-top:12px; }
 
 @media (max-width: 900px) {
   .site { grid-template-columns:1fr; grid-template-rows:auto 1fr; height:auto; }
   .nav { border-right:none; border-bottom:1px solid var(--line); }
-  .nav nav { display:flex; flex-wrap:wrap; gap:2px; padding:0 10px 10px; }
-  .nav .group { width:100%; padding:8px 6px 2px; }
-  .toc-link { width:auto; padding:4px 10px; border:1px solid var(--line); border-radius:4px; background:#fff; }
+  .nav nav { display:flex; flex-wrap:wrap; gap:2px; padding:0 12px 12px; }
+  .nav .group { width:100%; padding:10px 6px 2px; }
+  .toc-link { width:auto; padding:4px 10px; }
+  .page { padding:24px 20px 64px; }
   .panes { grid-template-columns:1fr; grid-template-rows:minmax(280px, 45%) 1fr; }
   .pane.edit { border-right:none; border-bottom:1px solid var(--line); }
   .bar-row { grid-template-columns:90px 1fr; }
@@ -375,7 +398,7 @@ function stat(ctx, facet) {
 function facts(ctx, facet) {
   const head = ['<th class="corner">항목</th>'];
   for (const subject of ctx.subjects) {
-    const badge = ctx.byId.has(subject.id) ? "" : `<span class="badge">${UNANALYZED}</span>`;
+    const badge = ctx.byId.has(subject.id) ? "" : `<small class="seat-note">${UNANALYZED}</small>`;
     head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}${badge}</th>`);
   }
   const rows = facet.fields.map((decl) => {
@@ -470,7 +493,7 @@ function line(ctx, facet) {
   }
   const body = series.length
     ? lineSvg(series, axis, decl.type, ctx.focus)
-    : `<div class="empty-frame">${stateSpan("empty")}</div>`;
+    : `<div class="blank">${stateSpan("empty")}</div>`;
   const notes = series
     .map(({ subject, notes: n }) => notesHtml(n, subject.name))
     .join("");
@@ -533,11 +556,11 @@ function list(ctx, facet) {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     let body;
     if (state !== "filled") {
-      body = `<div class="empty-frame">${stateSpan(state)}</div>`;
+      body = `<div class="blank">${stateSpan(state)}</div>`;
     } else if (!Array.isArray(entry.value)) {
-      body = `<div class="empty-frame">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
+      body = `<div class="blank">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
     } else if (entry.value.length === 0) {
-      body = `<div class="empty-frame"><span class="miss empty">${NO_ITEMS}</span></div>`;
+      body = `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>`;
     } else {
       const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
       const rows = entry.value.map((item) => {
