@@ -7,7 +7,7 @@ import json
 import pathlib
 import unittest
 
-from weave import check_template, check_valueset
+from weave import check_render_args, check_template, check_valueset
 from weave.schemas import RENDER_ARGS, documents, validator
 
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
@@ -227,6 +227,29 @@ class RenderArgs(unittest.TestCase):
         args = validator(RENDER_ARGS)
         self.assertFalse(args.is_valid({"focus": 0}))
         self.assertFalse(args.is_valid({"sortBy": "score"}))
+
+    def test_subjects_are_part_of_the_contract(self) -> None:
+        """아직 분석되지 않은 subject 는 값 한 벌이 없다. 부르는 쪽이 말해 주지 않으면 그릴 수 없다."""
+        self.assertTrue(check_render_args({"subjects": [{"id": "a"}]}).ok)
+        self.assertTrue(check_render_args({"subjects": [{"id": "a", "label": "가"}], "focus": "a"}).ok)
+        self.assertTrue(check_render_args({}).ok, "주지 않으면 값 한 벌에서 뽑는다")
+
+    def test_subject_id_is_the_handle_not_an_index(self) -> None:
+        self.assertFalse(check_render_args({"subjects": ["a", "b"]}).ok)
+        self.assertFalse(check_render_args({"subjects": [{"id": 0}]}).ok)
+        self.assertFalse(check_render_args({"subjects": []}).ok)
+
+    def test_the_roster_carries_no_ranking(self) -> None:
+        for leak in ({"rank": 1}, {"score": 90}, {"grade": "A"}, {"weight": 2}, {"best": True}):
+            with self.subTest(leak):
+                result = check_render_args({"subjects": [{"id": "a", **leak}]})
+                self.assertFalse(result.ok)
+                self.assertIn("Additional properties", " | ".join(str(p) for p in result.problems))
+
+    def test_a_seat_cannot_be_claimed_twice(self) -> None:
+        result = check_render_args({"subjects": [{"id": "a"}, {"id": "a"}]})
+        self.assertFalse(result.ok)
+        self.assertIn("subject id 가 겹친다", " | ".join(str(p) for p in result.problems))
 
 
 if __name__ == "__main__":

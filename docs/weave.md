@@ -146,7 +146,30 @@ subject 하나에 한 벌. 템플릿의 facet 과 필드를 **빠짐도 덤도 �
 
 ## 렌더 인자
 
-`focus` 하나다. **index 가 아니라 subject 의 id** 로 가리킨다. `null` 이 release 이고, 없는 id 면 focus 만 사라진다.
+렌더가 템플릿·값 말고 더 받는 것 둘이다. 값이 아니라 부르는 쪽이 갖는다.
+
+| 인자 | 무엇 |
+| --- | --- |
+| `subjects` | 그릴 subject 와 그 차례. 각 자리는 `id` 와 화면에 쓸 `label` 이다. 차례는 배치일 뿐 우열이 아니다 |
+| `focus` | 강조할 subject. `null` 이 release |
+
+**`subjects` 가 계약에 있는 까닭** — 아직 분석되지 않은 subject 는 값 한 벌 자체가 없다. 부르는 쪽이
+「그런 subject 가 있다」고 말해 주지 않으면 렌더가 그릴 수가 없고, 그러면 「값 없음」과 「아직 분석 중」이
+갈리지 않는다. 주지 않으면 값 한 벌에서 뽑는다.
+
+**둘 다 index 가 아니라 subject 의 id** 로 가리킨다. `focus` 가 명단에 없는 id 면 focus 만 사라진다.
+
+```json
+{
+  "subjects": [
+    { "id": "proposal-a", "label": "가 제안서" },
+    { "id": "proposal-d", "label": "라 제안서" }
+  ],
+  "focus": "proposal-a"
+}
+```
+
+`proposal-d` 처럼 값 한 벌이 없는 subject 도 자리를 얻고 「아직 분석 중」으로 선다.
 
 ## 렌더가 하기로 돼 있는 것
 
@@ -162,19 +185,21 @@ subject 하나에 한 벌. 템플릿의 facet 과 필드를 **빠짐도 덤도 �
 - **없는 focus id 면 분석뷰가 focus 를 놓은 것과 똑같아진다.** 렌더에 안내 문구가 끼지 않는다.
 - **순위·등급을 렌더가 되살리지 않는다.** 스키마에서 뺀 것을 색이나 배치로 다시 만들지 않는다.
 
-subject 명단은 스키마가 아니라 **부르는 쪽의 인자**다. 값 한 벌이 없는 subject 도 세우려면 명단을 넘긴다.
+subject 명단은 **렌더 인자**다. 값 한 벌이 없는 subject 도 세우려면 명단을 넘긴다.
 
 ## 만져 보기
 
 저장소 뿌리의 [`viewer.html`](../viewer.html) 을 **브라우저로 연다.** 서버도 설치도 없다.
-왼쪽에서 템플릿과 값을 고치면 오른쪽 분석뷰가 그 자리에서 바뀐다. focus 도 눌러 보고 없는 id 도 쳐 볼 수 있다.
-[`samples/`](../samples) 의 샘플 넷을 골라 바로 띄운다.
+이 한 장이 weave 의 설명서다 — 왼쪽 목차에 primitive element 가 하나씩 서고, 각 쪽은 제약과
+최소 템플릿 조각과 **그 자리에서 그린 모습**을 함께 보인다. 목차의 마지막이 플레이그라운드이고,
+거기서 [`samples/`](../samples) 의 샘플 넷을 골라 직접 고쳐 가며 화면이 어떻게 되는지 본다.
 
-**뷰어는 판정하지 않는다.** JSON 으로 읽히는지만 본다. 맞는지는 검사기가 말한다.
+**설명서는 판정하지 않는다.** JSON 으로 읽히는지만 본다. 맞는지는 검사기가 말한다.
 
 ```sh
-python -m weave template samples/proposal-compare/template.json
-python -m weave values --template samples/proposal-compare/template.json samples/proposal-compare/values-*.json
+python -m weave template samples/all-elements/template.json
+python -m weave values --template samples/all-elements/template.json samples/all-elements/values-*.json
+python -m weave args args.json
 ```
 
 ## 일부러 없는 것

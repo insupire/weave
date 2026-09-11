@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>weave 참조 뷰어</title>
+<title>weave 설명서</title>
 <!--
   이 파일은 tools/build_viewer.py 가 viewer/ · samples/ · catalog/ 에서 만든다. 손으로 고치지 않는다.
   의존성이 없다 — CDN 도 서버도 쓰지 않는다. 파일을 브라우저로 열면 바로 돈다.
@@ -13,49 +13,46 @@
 </style>
 </head>
 <body>
-<div class="shell">
-  <!-- 왼쪽 — 무엇을 그릴지 쓰는 자리. 편집에 딸린 것만 둔다. -->
-  <div class="pane edit">
-    <div class="bar">
-      <h1>weave 참조 뷰어</h1>
-      <label for="sample">샘플</label>
-      <select id="sample"></select>
-      <button type="button" id="add-values">＋ 값 한 벌</button>
-      <button type="button" id="drop-values">－ 이 값 한 벌</button>
-    </div>
-    <p class="about" id="about"></p>
-    <p class="status" id="status"></p>
-    <div class="tabs" id="tabs"></div>
-    <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
-    <div class="strip" id="strip"></div>
-    <p class="about">
-      여기는 JSON 으로 읽히는지만 본다. <b>스키마 판정은 검사기가 한다</b> —
-      <code>python -m weave template tpl.json</code> ·
-      <code>python -m weave values --template tpl.json values-a.json</code>
-    </p>
-  </div>
+<div class="site">
+  <!-- 목차. 정본은 카탈로그다 — primitive element 가 늘거나 줄면 여기가 따라 바뀐다. -->
+  <aside class="nav">
+    <div class="brand">weave</div>
+    <nav id="toc"></nav>
+  </aside>
 
-  <!-- 오른쪽 — 보면서 쓰는 자리. 띠는 분석뷰 바깥이고 렌더 출력에는 들어가지 않는다. -->
-  <div class="pane view">
-    <div class="toolbar">
-      <div class="row">
-        <button type="button" class="page" id="page-view">분석뷰</button>
-        <button type="button" class="page" id="page-docs">primitive element 설명서</button>
+  <main class="content">
+    <!-- 설명서 쪽. 고른 항목 하나를 그린다. -->
+    <article class="page" id="page"></article>
+
+    <!-- 플레이그라운드. DOM 을 살려 둬야 편집 중인 글이 안 날아간다. -->
+    <section class="playground" id="playground" hidden>
+      <header class="page-head">
+        <h1 id="pg-title"></h1>
+        <p class="lead" id="pg-lead"></p>
+      </header>
+      <div class="panes">
+        <div class="pane edit">
+          <div class="bar">
+            <label for="sample">샘플</label>
+            <select id="sample"></select>
+            <button type="button" id="add-subject">＋ subject</button>
+            <button type="button" id="add-values">＋ 값 한 벌</button>
+            <button type="button" id="drop-subject">－ subject</button>
+          </div>
+          <div class="tabs" id="tabs"></div>
+          <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
+          <div class="strip" id="strip"></div>
+        </div>
+        <div class="pane view">
+          <div class="bar">
+            <span id="focus-buttons"></span>
+            <label class="push"><input type="checkbox" id="show-elements"> primitive element 이름</label>
+          </div>
+          <div class="viewport" id="view"></div>
+        </div>
       </div>
-      <div class="row" id="view-tools">
-        <label for="focus-free">focus</label>
-        <span id="focus-buttons"></span>
-        <input type="text" id="focus-free" placeholder="없는 id 를 넣어 본다" size="18">
-        <span class="lost" id="focus-lost"></span>
-      </div>
-      <div class="row" id="view-marks">
-        <label><input type="checkbox" id="show-elements"> facet 제목 옆에 primitive element 이름 붙이기</label>
-        <span class="legend"><span class="miss empty">값 없음</span> 은 분석했지만 값이 없다 ·
-          <span class="miss unanalyzed">아직 분석 중</span> 은 값 한 벌이 아직 없다</span>
-      </div>
-    </div>
-    <div class="viewport" id="view"></div>
-  </div>
+    </section>
+  </main>
 </div>
 <script type="module">
 /*__SCRIPT__*/

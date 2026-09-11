@@ -20,11 +20,12 @@
 | `docs/weave.md` | 설명서 겸 카탈로그. 템플릿을 쓰는 Procedure 의 프롬프트에 실린다 |
 | `weave/` | 검사기 (Python). **판정은 전부 여기 하나에 있다** |
 | `viewer/render.mjs` | 참조 렌더. primitive element 다섯을 그린다. 문서를 받아 HTML 문자열을 내는 순수 함수 |
-| `viewer/app.mjs` · `style.css` · `shell.html` | 실시간 편집기와 껍데기 |
+| `viewer/app.mjs` · `style.css` · `shell.html` | 설명서의 목차·본문과 그 안의 플레이그라운드 |
+| `catalog/guide.json` | element 가 아닌 쪽의 산문. 목차의 앞뒤가 여기서 나온다 |
 | `samples/` | **템플릿 샘플** 넷. 한 벌 = `sample.json`(차례·명단·focus) + `template.json` + `values-*.json` |
 | `catalog/elements.json` | primitive element 설명서의 **산문과 보기**. 제약은 적지 않는다 |
 | `tools/catalog.py` | 스키마에서 제약을 뽑아 카탈로그 하나를 만든다 |
-| **`viewer.html`** | 빌드 산출물. **파일을 브라우저로 열면 바로 돈다.** 손으로 고치지 않는다 |
+| **`viewer.html`** | 빌드 산출물. **weave 의 설명서다.** 브라우저로 열면 바로 돈다. 손으로 고치지 않는다 |
 | `viewer/samples.mjs` · `viewer/catalog.mjs` | 마찬가지로 빌드 산출물 |
 | `tools/build_viewer.py` | 위 셋과 `docs/weave.md` 의 카탈로그 표를 만든다 |
 | `.github/workflows/ci.yml` | 필수 전체 회귀. `make all` 한 줄을 부른다 |
@@ -32,7 +33,7 @@
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
 | `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플은 `test_samples.py`, 그리는 쪽은 `viewer.test.mjs` |
 
-`schema/` 넷 — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(focus).
+`schema/` 넷 — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(그릴 subject 와 focus).
 파일 사이 참조는 상대 `$ref` 라 그대로 복사해 가도 풀린다.
 
 ## 시작
@@ -51,13 +52,14 @@ CDN 도 쓰지 않는다 — 오프라인에서 죽으면 안 된다.
 검사기는 라이브러리로도 CLI 로도 쓴다.
 
 ```python
-from weave import check_template, check_valueset
+from weave import check_template, check_valueset, check_render_args
 result = check_valueset(values, template)   # result.ok / result.problems
 ```
 
 ```sh
 python -m weave template tpl.json
 python -m weave values --template tpl.json values-a.json values-b.json
+python -m weave args args.json
 ```
 
 exit 0 통과 · 1 결함 · 2 읽지 못함.
@@ -85,6 +87,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `weave/` (검사기) | `make test check` |
 | `viewer/` | `make viewer viewer-test test` — **`viewer.html` 을 같이 커밋한다** |
 | `samples/` · `catalog/` | `make viewer check test viewer-test` — 마찬가지로 산출물을 같이 커밋한다 |
+| `schema/weave-render-args` | `make all` — 소비자 둘에게 알린다 |
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다 |
@@ -127,19 +130,22 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 
 ⚠️ **배포 방법은 미정이다.** 패키지로 낼지, 서브모듈로 둘지, `schema/` 를 복사해 갈지 PM 이 정한다.
 
-## 참조 뷰어
+## 설명서 한 장
 
-`viewer.html` 을 브라우저로 연다. 왼쪽에서 템플릿과 값을 쓰면 오른쪽이 그 자리에서 바뀐다.
-**언어를 만져 보고 화면이 어떻게 되는지 보는 자리**이지 앱의 코드가 아니다. 앱은 claim-design-system 으로 자기 시각을 입힌다.
+`viewer.html` 을 브라우저로 연다. **이 한 장이 weave 의 설명서이고 플레이그라운드는 그 안의 한 자리다.**
+왼쪽에 목차, 가운데에 본문. element 쪽 본문은 제약과 최소 템플릿 조각과 **그 자리에서 그린 모습**이다.
+언어를 배우고 만져 보는 자리이지 앱의 코드가 아니다. 앱은 claim-design-system 으로 자기 시각을 입힌다.
 
+- **목차의 정본은 카탈로그다.** 손으로 적지 않는다 — primitive element 가 늘거나 줄면 목차가 따라 바뀐다.
 - **의존성이 없다.** 서버도 CDN 도 빌드 도구도 없다. `file://` 로 열어도 돌도록 스타일·스크립트·샘플을 한 장에 박는다.
-- **`renderView` 가 내는 것은 분석뷰뿐이다.** 템플릿 제목과 facet 들. 뷰어가 덧붙이는 것(도구 띠·상태 줄·범례·명단·primitive element 이름)은 전부 분석뷰 바깥에 둔다 — 앱이 이 출력을 가져다 쓸 때 따라가면 안 된다. 화면 상태는 `view` 로 따로 나간다.
+- **`renderView` 가 내는 것은 분석뷰뿐이다.** 템플릿 제목과 facet 들. 설명서가 덧붙이는 것(목차·조작 띠·primitive element 이름)은 전부 분석뷰 바깥에 둔다 — 앱이 이 출력을 가져다 쓸 때 따라가면 안 된다. 화면 상태는 `view` 로 따로 나간다.
+- **화면에 남길지는 하나로 고른다** — 그것이 없으면 사람이 못 하는 일이 있는가. 없으면 뺀다. 상태 줄·범례·샘플 설명·「없는 id」 입력칸이 그래서 없다.
 - **판정하지 않는다.** JSON 으로 읽히는지만 본다. 스키마 판정의 정본은 Python 검사기 하나이고 브라우저에서 다시 구현하지 않는다.
 - **그리지 못하는 입력에서 멈추지 않는다.** 그 자리를 표시하고 왼쪽 아래에 까닭을 적고 나머지는 그대로 그린다.
 - **primitive element 다섯을 전부 그린다.** `ELEMENTS` 표가 렌더의 분기 전부이고 facet 종류를 아는 분기는 없다.
 - **값이 없는 facet 도 자리를 남기고 없다고 말한다.** 숨기면 subject 마다 골격이 달라져 견줄 수 없다.
 - **값 한 벌이 없는 subject 는 「아직 분석 중」이다.** 필드가 비어 있는 「값 없음」과 눈으로 구별된다.
-- **subject 명단은 뷰어의 인자다.** 값 한 벌이 없는 subject 를 세우려면 부르는 쪽이 명단을 준다. 스키마에 넣지 않는다.
+- **subject 명단은 계약의 일부다.** `weave-render-args` 의 `subjects` 다. 아직 분석되지 않은 subject 는 값 한 벌이 없으므로 부르는 쪽이 말해 주지 않으면 그릴 수가 없다. 설명서에서는 사람이 JSON 으로 쓰지 않고 `＋ subject` · `－ subject` 로 더하고 뺀다.
 - **`focus` 는 subject 의 id 다.** `null` 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다 — 분석뷰가 focus 를 놓은 것과 통째로 같아지고, 그 사실은 띠가 알린다. 조작하는 자리는 **오른쪽 판 위의 띠**다. 보면서 누르는 것이라 편집기 쪽이 아니다.
 - **설명서 페이지가 같은 한 장 안에 있다.** primitive element 마다 무엇을 그리는지·어떤 필드를 받는지·최소 템플릿 조각·**그 자리에서 그린 모습**을 보인다.
 - **색이 뜻을 갖지 않는다.** 쓰는 색이 전부 무채색이고, 선은 색이 아니라 점선 무늬로 구별한다. 고정 케이스가 이것을 본다.
@@ -152,6 +158,9 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 
 지금 넷 — `all-elements`(다섯 전부·facet 여섯) · `stat-row`(같은 element 를 넷) ·
 `one-table`(facet 하나에 필드 열) · `one-axis`(축 하나를 셋으로).
+
+`sample.json` 은 `{order, name, args}` 이고 `args` 는 **`weave-render-args` 문서 그대로**다.
+뷰어가 지어낸 모양이 아니라 계약이라 고정 케이스가 검사기로 판정한다.
 
 값은 그 템플릿을 보이는 데 필요한 만큼만 딸려 온다. 다만 **값이 비는 경우와 미분석 subject 는 없애지 않는다.**
 그 상태들은 여전히 보여야 하고, 한 샘플 안에 자연스럽게 섞여 있으면 된다.
@@ -171,6 +180,7 @@ primitive element 카탈로그가 서는 자리가 둘이다 — `docs/weave.md`
 | --- | --- |
 | 제약 — 필드 수 · shape · type | `schema/weave-template.schema.json` 의 `Facet` 조건절 |
 | 산문 — 무엇을 그리는가 · 비고 · 보기 | `catalog/elements.json` |
+| 목차의 앞뒤 — 시작 · 플레이그라운드 | `catalog/guide.json` |
 | `docs/weave.md` 의 표 · 뷰어의 설명서 페이지 | **산출물.** 손으로 고치지 않는다 |
 
 산문은 **평문**으로 쓴다. markdown 강조나 backtick 을 섞으면 표에서는 살고 뷰어에서는 글자로 샌다.

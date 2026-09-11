@@ -92,6 +92,20 @@ def check_template(doc: object) -> Result:
     return result
 
 
+def check_render_args(doc: object) -> Result:
+    """렌더 인자를 판정한다. 그릴 subject 와 강조할 subject 뿐이고 구조만 본다.
+
+    명단에 없는 focus 는 결함이 아니다 — 그 경우 focus 만 사라지는 것이 규약이다.
+    """
+    result = Result()
+    if not _structural(result, schemas.RENDER_ARGS, doc):
+        return result
+    assert isinstance(doc, dict)
+    for name in _duplicates([s["id"] for s in doc.get("subjects", [])]):
+        result.add("$['subjects']", f"subject id 가 겹친다: {name}")
+    return result
+
+
 def check_valueset(doc: object, template: object | None = None) -> Result:
     """값 한 벌을 판정한다. 분석 Procedure 가 subject 하나를 끝낸 직후에 부른다.
 
@@ -194,6 +208,9 @@ def main(argv: list[str] | None = None) -> int:
     p_values.add_argument("--template", required=False, help="대조할 분석 템플릿")
     p_values.add_argument("files", nargs="+")
 
+    p_args = sub.add_parser("args", help="렌더 인자를 판정한다")
+    p_args.add_argument("files", nargs="+")
+
     args = parser.parse_args(argv)
 
     try:
@@ -210,7 +227,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"FAIL {path}\n  읽지 못했다: {exc}")
             failed = True
             continue
-        result = check_template(doc) if args.what == "template" else check_valueset(doc, template)
+        if args.what == "template":
+            result = check_template(doc)
+        elif args.what == "args":
+            result = check_render_args(doc)
+        else:
+            result = check_valueset(doc, template)
         if result.ok:
             print(f"OK   {path}")
         else:

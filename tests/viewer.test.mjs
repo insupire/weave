@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "node:test";
 
-import { CATALOG } from "../viewer/catalog.mjs";
+import { PAGES } from "../viewer/catalog.mjs";
 import {
   ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNANALYZED, UNDRAWABLE, formatScalar, renderView,
 } from "../viewer/render.mjs";
@@ -53,8 +53,12 @@ function sample(name) {
     .filter((f) => f.startsWith("values-") && f.endsWith(".json"))
     .sort()
     .map((f) => read(path.join(dir, f)));
-  return { ...meta, template: read(path.join(dir, "template.json")), values };
+  // args 는 weave-render-args 문서 그대로다.
+  return { ...meta.args, name: meta.name, template: read(path.join(dir, "template.json")), values };
 }
+
+/** 설명서 목차에서 primitive element 쪽만. */
+const elementPages = () => PAGES.filter((p) => p.kind === "element");
 
 const drawSample = (s, overrides = {}) =>
   renderView({ template: s.template, values: s.values, subjects: s.subjects, focus: s.focus ?? null, ...overrides });
@@ -116,7 +120,6 @@ test("렌더 결과에 도구가 덧붙인 것이 없다", () => {
 
 test("걷어낸 것들은 화면 상태로 나가 뷰어가 바깥에 적는다", () => {
   const { view } = fix({ subjects: WITH_UNANALYSED, focus: "proposal-b" });
-  assert.equal(view.templateId, FIX.template.id);
   assert.equal(view.focus, "proposal-b");
   assert.equal(view.focusMissing, null);
   assert.deepEqual(
@@ -409,32 +412,35 @@ test("값이 비는 경우와 미분석 subject 가 샘플에도 남아 있다",
 
 // ---------------------------------------------------------------- primitive element 설명서
 
-test("카탈로그가 스키마의 primitive element 를 빠짐없이 덮는다", () => {
+test("목차가 스키마의 primitive element 를 빠짐없이 덮는다", () => {
   const enumerated = read("schema/weave-common.schema.json").$defs.Element.enum;
-  assert.deepEqual(CATALOG.map((r) => r.element), enumerated);
+  assert.deepEqual(elementPages().map((r) => r.id), enumerated);
+  // 앞뒤로 시작 한 쪽과 플레이그라운드 한 쪽. 플레이그라운드는 설명서 안의 한 자리다.
+  assert.equal(PAGES[0].kind, "guide");
+  assert.equal(PAGES[PAGES.length - 1].kind, "playground");
 });
 
-test("카탈로그의 보기가 자기가 말한 제약 안에 있다", () => {
+test("설명서의 보기가 자기가 말한 제약 안에 있다", () => {
   // 산문과 제약이 갈리면 여기서 걸린다.
-  for (const row of CATALOG) {
+  for (const row of elementPages()) {
     const facet = row.demo.template.facets[0];
-    assert.equal(facet.element, row.element);
+    assert.equal(facet.element, row.id);
     const [low, high] = row.fields.includes("–") ? row.fields.split("–").map(Number) : [Number(row.fields), Number(row.fields)];
-    assert.ok(facet.fields.length >= low && facet.fields.length <= high, `${row.element}: 필드 수`);
+    assert.ok(facet.fields.length >= low && facet.fields.length <= high, `${row.id}: 필드 수`);
     for (const field of facet.fields) {
-      assert.ok(row.shapes.includes(field.shape), `${row.element}: shape ${field.shape}`);
-      if (field.type) assert.ok(row.types.includes(field.type), `${row.element}: type ${field.type}`);
+      assert.ok(row.shapes.includes(field.shape), `${row.id}: shape ${field.shape}`);
+      if (field.type) assert.ok(row.types.includes(field.type), `${row.id}: type ${field.type}`);
     }
   }
 });
 
-test("카탈로그의 보기가 그 자리에서 그려진다", () => {
-  for (const row of CATALOG) {
+test("설명서의 보기가 그 자리에서 그려진다", () => {
+  for (const row of elementPages()) {
     const { html, report } = renderView({
       template: row.demo.template, values: row.demo.values, subjects: row.demo.subjects, focus: null,
     });
-    assert.deepEqual(report, [], `${row.element}: ${report.join(" | ")}`);
-    assert.ok(html.includes(`element-${row.element}`), row.element);
+    assert.deepEqual(report, [], `${row.id}: ${report.join(" | ")}`);
+    assert.ok(html.includes(`element-${row.id}`), row.id);
   }
 });
 
@@ -447,14 +453,16 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   const nodes = new Map();
   const make = (tag) => ({
     tagName: tag, className: "", type: "", value: "", checked: false, hidden: false,
-    children: [], _text: "", innerHTML: "",
+    children: [], _text: "", _html: "", _on: {},
+    get innerHTML() { return this._html; },
+    set innerHTML(v) { this._html = String(v); if (v === "") this.children = []; },
     get textContent() { return this._text; },
     set textContent(v) {
       this._text = String(v);
-      this.innerHTML = this._text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+      this._html = this._text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
     },
     appendChild(child) { this.children.push(child); },
-    addEventListener() {},
+    addEventListener(type, fn) { this._on[type] = fn; },
     setAttribute(name, value) { this[name] = value; },
   });
   globalThis.document = {
@@ -469,14 +477,48 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   fs.writeFileSync(file, script, "utf-8");
   await import(pathToFileURL(file).href);
 
+  // 설명서가 상위다 — 열면 설명서가 서고 플레이그라운드는 목차의 한 자리다.
+  assert.ok(nodes.get("toc").children.length >= PAGES.length, "목차가 서야 한다");
+  assert.ok(nodes.get("page").innerHTML.includes(PAGES[0].title), "첫 쪽이 그려져야 한다");
+  assert.equal(nodes.get("page").hidden, false);
+  assert.equal(nodes.get("playground").hidden, true, "플레이그라운드는 고른 뒤에 선다");
+  // 플레이그라운드의 DOM 은 살아 있다. 편집 중인 글이 쪽을 옮겨도 안 날아간다.
   assert.ok(nodes.get("view").innerHTML.includes("element-stat"), "첫 샘플이 그려져야 한다");
-  assert.ok(nodes.get("about").textContent.length > 10, "샘플 설명이 붙어야 한다");
-  // 분석뷰에서 걷어낸 표시가 바깥에 있어야 한다 — 없애는 게 아니라 옮기는 것이다.
-  const status = nodes.get("status").textContent;
-  for (const piece of ["템플릿 ", "분석됨"]) assert.ok(status.includes(piece), `상태 줄: ${piece}`);
-  assert.ok(!status.includes("focus"), "focus 는 오른쪽 띠가 가졌다");
+  assert.ok(nodes.get("editor").value.includes('"weave"'), "편집기에 템플릿이 올라야 한다");
+  assert.ok(nodes.get("tabs").children.length >= 2, "템플릿 탭과 값 탭이 서야 한다");
   assert.equal(nodes.get("view").className, "viewport", "primitive element 이름은 기본이 꺼짐이다");
-  assert.equal(nodes.get("page-view").hidden, false);
-  assert.equal(nodes.get("view-tools").hidden, false, "분석뷰에서는 focus 조작이 보인다");
+  assert.equal(nodes.get("strip").innerHTML, "", "첫 샘플에는 그리지 못한 자리가 없어야 한다");
+
+  // 걷어낸 것들이 화면에 없다. 있던 자리를 다시 채우면 여기서 걸린다.
+  // 코드 주석이 아니라 **마크업**만 본다.
+  const markup = page.split('<script type="module">')[0];
+  for (const gone of ["focus-free", 'class="legend"', 'id="status"', 'id="about"', "명단"]) {
+    assert.ok(!markup.includes(gone), `걷어낸 것이 돌아왔다: ${gone}`);
+  }
+  // 명단은 사람이 JSON 으로 쓰는 탭이 아니라 화면의 동작이다.
+  assert.ok(markup.includes('id="add-subject"') && markup.includes('id="drop-subject"'));
+  for (const tab of nodes.get("tabs").children) assert.ok(!String(tab.innerHTML).includes("명단"));
+
+  // 값 한 벌 없이 자리만 더하면 아직 분석 중이 된다 — 그 상태를 직접 만들어 볼 수 있어야 한다.
+  const click = (id) => nodes.get(id)._on.click();
+  const seats = () => nodes.get("focus-buttons").children.length; // none + 자리들
+  const before = seats();
+  assert.ok(!nodes.get("view").innerHTML.includes(">subject-"), "새 자리는 아직 없다");
+  click("add-subject");
+  assert.equal(seats(), before + 1, "자리가 하나 늘어야 한다");
+  const added = nodes.get("view").innerHTML;
+  assert.ok(added.includes(">subject-"), "새 자리가 분석뷰에 서야 한다");
+  assert.ok(added.includes(UNANALYZED), "값 한 벌 없는 자리는 아직 분석 중이다");
+  click("drop-subject");
+  assert.equal(seats(), before, "자리가 도로 줄어야 한다");
+  assert.ok(!nodes.get("view").innerHTML.includes(">subject-"));
+
+  // 값 한 벌은 빈 자리를 먼저 채우고, 빈 자리가 없으면 자리까지 새로 만든다.
+  const tabs = nodes.get("tabs").children.length;
+  click("add-values");
+  assert.equal(nodes.get("tabs").children.length, tabs + 1, "값 탭이 하나 늘어야 한다");
+  assert.equal(seats(), before, "빈 자리가 있었으므로 그 자리를 채운다");
+  click("add-values");
+  assert.equal(seats(), before + 1, "빈 자리가 없으면 자리까지 새로 만든다");
   fs.rmSync(path.dirname(file), { recursive: true, force: true });
 });

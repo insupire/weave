@@ -15,8 +15,8 @@ import pathlib
 import sys
 import unittest
 
-from weave import check_template, check_valueset
-from weave.schemas import RENDER_ARGS, documents, validator
+from weave import check_render_args, check_template, check_valueset
+from weave.schemas import documents
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SAMPLES = ROOT / "samples"
@@ -53,16 +53,15 @@ class SamplesAreWhole(unittest.TestCase):
         ]
         self.assertEqual(len(set(shapes)), len(shapes), f"짜임이 겹친다: {shapes}")
 
-    def test_sample_metadata_is_the_viewer_s_own_shape(self) -> None:
-        """명단과 focus 는 스키마가 아니라 뷰어의 인자다. 그래서 여기서 본다."""
+    def test_sample_metadata_carries_a_render_args_document(self) -> None:
+        """명단과 focus 는 뷰어가 지어낸 모양이 아니라 발행한 계약이다."""
         for folder in sample_dirs():
             with self.subTest(folder.name):
                 meta = load(folder / "sample.json")
-                self.assertEqual(set(meta) - {"focus"}, {"order", "name", "about", "subjects"})
-                self.assertTrue(meta["name"] and meta["about"])
-                ids = [s["id"] for s in meta["subjects"]]
-                self.assertEqual(len(ids), len(set(ids)), "명단에 같은 id 가 둘 있다")
-                self.assertTrue(all(s.get("label") for s in meta["subjects"]))
+                self.assertEqual(set(meta), {"order", "name", "args"})
+                self.assertTrue(meta["name"])
+                result = check_render_args(meta["args"])
+                self.assertTrue(result.ok, [str(p) for p in result.problems])
 
 
 class CheckerPassesEverySample(unittest.TestCase):
@@ -80,20 +79,17 @@ class CheckerPassesEverySample(unittest.TestCase):
                     result = check_valueset(load(path), template)
                     self.assertTrue(result.ok, [str(p) for p in result.problems])
 
-    def test_every_focus_is_a_valid_render_arg_and_sits_in_the_roster(self) -> None:
-        args = validator(RENDER_ARGS)
+    def test_every_focus_sits_in_the_roster(self) -> None:
         for folder in sample_dirs():
             with self.subTest(folder.name):
-                meta = load(folder / "sample.json")
-                focus = meta.get("focus")
-                self.assertTrue(args.is_valid({"focus": focus}))
-                if focus is not None:
-                    self.assertIn(focus, [s["id"] for s in meta["subjects"]])
+                args = load(folder / "sample.json")["args"]
+                if args.get("focus") is not None:
+                    self.assertIn(args["focus"], [s["id"] for s in args["subjects"]])
 
     def test_the_roster_covers_every_analysed_subject(self) -> None:
         for folder in sample_dirs():
             with self.subTest(folder.name):
-                seats = {s["id"] for s in load(folder / "sample.json")["subjects"]}
+                seats = {s["id"] for s in load(folder / "sample.json")["args"]["subjects"]}
                 analysed = {load(p)["subjectId"] for p in sorted(folder.glob("values-*.json"))}
                 self.assertEqual(analysed - seats, set(), "값 한 벌이 있는데 명단에 없다")
 
@@ -113,7 +109,7 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
         """샘플을 가르는 축은 아니지만 그 상태들은 여전히 보여야 한다."""
         gaps, empties = [], []
         for folder in sample_dirs():
-            seats = {s["id"] for s in load(folder / "sample.json")["subjects"]}
+            seats = {s["id"] for s in load(folder / "sample.json")["args"]["subjects"]}
             docs = [load(p) for p in sorted(folder.glob("values-*.json"))]
             gaps.append(len(seats - {d["subjectId"] for d in docs}))
             empties.append(
@@ -152,12 +148,28 @@ class CatalogCannotDiverge(unittest.TestCase):
                 self.assertEqual(set(entry), {"draws", "note", "demo"})
 
     def test_prose_is_plain_text(self) -> None:
-        """표에서는 살고 뷰어에서는 글자로 새는 markdown 을 막는다. 두 자리에 같게 나와야 한다."""
+        """표에서는 살고 화면에서는 글자로 새는 markdown 을 막는다. 두 자리에 같게 나와야 한다."""
+        def look(where: str, text: str) -> None:
+            with self.subTest(where):
+                self.assertNotIn("**", text)
+                self.assertNotIn("`", text)
+
         for row in catalog.catalog():
             for field in ("draws", "note"):
-                with self.subTest(f"{row['element']}/{field}"):
-                    self.assertNotIn("**", row[field])
-                    self.assertNotIn("`", row[field])
+                look(f"{row['element']}/{field}", row[field])
+        for key, entry in catalog.guide().items():
+            look(f"{key}/lead", entry["lead"])
+            for index, para in enumerate(entry.get("paragraphs", [])):
+                look(f"{key}/p{index}", para)
+
+    def test_the_table_of_contents_comes_from_the_catalog(self) -> None:
+        """목차를 손으로 적지 않는다. primitive element 가 늘거나 줄면 목차가 따라 바뀐다."""
+        enum = documents()["weave-common.schema.json"]["$defs"]["Element"]["enum"]
+        pages = catalog.pages()
+        self.assertEqual([p["id"] for p in pages if p["kind"] == "element"], enum)
+        self.assertEqual([p["kind"] for p in pages][0], "guide")
+        self.assertEqual([p["kind"] for p in pages][-1], "playground")
+        self.assertEqual(len({p["id"] for p in pages}), len(pages), "목차에 같은 id 가 둘 있다")
 
     def test_every_demo_passes_the_checker(self) -> None:
         """보기가 실제로 쓸 수 있는 템플릿이어야 설명서 노릇을 한다."""

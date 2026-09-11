@@ -1,8 +1,24 @@
 // schema/ 와 catalog/elements.json 에서 생성된다. 직접 고치지 않는다 — python3 tools/build_viewer.py
 
-export const CATALOG = [
+export const PAGES = [
   {
-    "element": "stat",
+    "id": "intro",
+    "kind": "guide",
+    "group": "시작",
+    "title": "weave 란",
+    "lead": "분석뷰를 선언하는 스키마와 그것을 그리는 참조 구현이다. 보험을 모른다.",
+    "paragraphs": [
+      "분석 템플릿 하나에 subject 마다 값 한 벌이 주입되어 분석뷰가 된다. 렌더는 여러 벌을 한 화면에 함께 그리므로 모든 facet 이 본래 비교형이다.",
+      "템플릿은 facet 의 배열이고, facet 하나는 primitive element 하나와 그것이 요구하는 필드들이다. 필드 선언에 붙은 설명이 곧 분석에게 주는 추출 지시다. 무엇을 그릴지와 무엇을 찾을지를 한 문서가 함께 말한다.",
+      "순위·등급·점수·경고색·확실성 수치를 표현할 문법이 없다. 객관성을 문서가 아니라 스키마로 강제하는 자리다. 문법에 없으므로 나올 수 없다.",
+      "왼쪽에서 primitive element 를 하나씩 보고, 플레이그라운드에서 직접 고쳐 가며 화면이 어떻게 되는지 볼 수 있다."
+    ]
+  },
+  {
+    "id": "stat",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "stat",
     "draws": "값 하나를 크게. subject 수만큼 카드가 나란히 선다",
     "note": "수만 담는 자리가 아니다. 참거짓도 날짜도 값 하나다",
     "fields": "1",
@@ -107,7 +123,10 @@ export const CATALOG = [
     }
   },
   {
-    "element": "facts",
+    "id": "facts",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "facts",
     "draws": "라벨과 값 여럿. subject 가 여럿이면 행이 항목, 열이 subject 인 표가 된다",
     "note": "표는 따로 없다. 계약사항표 한 장도 이것 하나로 짠다",
     "fields": "1–12",
@@ -239,7 +258,10 @@ export const CATALOG = [
     }
   },
   {
-    "element": "bars",
+    "id": "bars",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "bars",
     "draws": "크기 비교. 눈금은 필드마다 따로 잡는다",
     "note": "비교 축이 필드라서 서로 다른 필드의 막대 길이를 견주면 안 된다",
     "fields": "1–6",
@@ -349,7 +371,10 @@ export const CATALOG = [
     }
   },
   {
-    "element": "line",
+    "id": "line",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "line",
     "draws": "축 위의 변화. subject 마다 선 하나",
     "note": "선은 색이 아니라 점선 무늬로 갈린다. 가로축은 age·date·duration·number 만 된다",
     "fields": "1",
@@ -466,7 +491,10 @@ export const CATALOG = [
     }
   },
   {
-    "element": "list",
+    "id": "list",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "list",
     "draws": "반복되는 항목. subject 마다 표 하나",
     "note": "항목이 없으면 「항목 없음」이고, 값을 읽지 못한 「값 없음」과 다르다",
     "fields": "1",
@@ -597,5 +625,16 @@ export const CATALOG = [
         }
       ]
     }
+  },
+  {
+    "id": "playground",
+    "kind": "playground",
+    "group": "해 보기",
+    "title": "플레이그라운드",
+    "lead": "왼쪽에서 템플릿과 값을 고치면 오른쪽 분석뷰가 그 자리에서 바뀐다.",
+    "paragraphs": [
+      "여기는 JSON 으로 읽히는지만 본다. 스키마 판정은 검사기가 한다 — python -m weave template tpl.json · python -m weave values --template tpl.json values-a.json · python -m weave args args.json",
+      "subject 를 더하고 빼는 것은 화면의 동작이다. 값 한 벌 없이 자리만 더하면 아직 분석 중으로 선다."
+    ]
   }
 ];

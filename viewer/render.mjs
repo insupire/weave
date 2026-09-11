@@ -335,9 +335,8 @@ export const ELEMENTS = { stat, facts, bars, line, list };
 // ---------------------------------------------------------------- 페이지
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
-function viewState(template, seats, byId, focus, wanted) {
+function viewState(seats, byId, focus, wanted) {
   return {
-    templateId: template.id ?? null,
     seats: seats.map((s) => ({ ...s, analysed: byId.has(s.id) })),
     focus,
     // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
@@ -424,5 +423,5 @@ export function renderView({ template, values = [], subjects = null, focus = nul
   // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
   const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html, report, view: viewState(template, seats, byId, seated, wanted) };
+  return { html, report, view: viewState(seats, byId, seated, wanted) };
 }

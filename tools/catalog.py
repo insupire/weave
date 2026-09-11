@@ -22,6 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 COMMON = ROOT / "schema" / "weave-common.schema.json"
 TEMPLATE = ROOT / "schema" / "weave-template.schema.json"
 PROSE = ROOT / "catalog" / "elements.json"
+GUIDE = ROOT / "catalog" / "guide.json"
 
 DOCS = ROOT / "docs" / "weave.md"
 MARK_START = "<!-- catalog:start — tools/build_viewer.py 가 쓴다. 손으로 고치지 않는다 -->"
@@ -125,20 +126,39 @@ def docs_source() -> str:
     return f"{head}{MARK_START}\n{docs_table()}\n{MARK_END}{tail}"
 
 
+def guide() -> dict:
+    """element 가 아닌 쪽의 산문. 목차의 앞뒤가 여기서 나온다."""
+    return {k: v for k, v in _load(GUIDE).items() if not k.startswith("__")}
+
+
+def pages() -> list[dict]:
+    """**설명서의 목차이자 본문이다.** element 쪽은 카탈로그가, 나머지는 guide 가 낸다.
+
+    목차를 손으로 적지 않는다 — primitive element 가 늘거나 줄면 목차가 따라 바뀐다.
+    """
+    texts = guide()
+    out: list[dict] = [{"id": "intro", "kind": "guide", "group": "시작", **texts["intro"]}]
+    for row in catalog():
+        out.append(
+            {
+                "id": row["element"],
+                "kind": "element",
+                "group": "primitive element",
+                "title": row["element"],
+                "draws": row["draws"],
+                "note": row["note"],
+                "fields": fields_text(row),
+                "shapes": row["shapes"],
+                "types": row["types"],
+                "everyType": row["every_type"],
+                "demo": row["demo"],
+            }
+        )
+    out.append({"id": "playground", "kind": "playground", "group": "해 보기", **texts["playground"]})
+    return out
+
+
 def viewer_source(banner: str) -> str:
-    """뷰어가 설명서 페이지를 그릴 때 읽는 것. 표와 같은 카탈로그다."""
-    rows = [
-        {
-            "element": row["element"],
-            "draws": row["draws"],
-            "note": row["note"],
-            "fields": fields_text(row),
-            "shapes": row["shapes"],
-            "types": row["types"],
-            "everyType": row["every_type"],
-            "demo": row["demo"],
-        }
-        for row in catalog()
-    ]
-    body = json.dumps(rows, ensure_ascii=False, indent=2)
-    return f"// {banner}\n\nexport const CATALOG = {body};\n"
+    """뷰어가 설명서를 그릴 때 읽는 것. docs 표와 같은 카탈로그에서 나온다."""
+    body = json.dumps(pages(), ensure_ascii=False, indent=2)
+    return f"// {banner}\n\nexport const PAGES = {body};\n"

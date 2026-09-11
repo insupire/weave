@@ -1,12 +1,25 @@
 {
   "order": 3,
   "name": "계약사항표 한 장",
-  "about": "짜임 — facet 하나뿐이다. facts 에 필드 열을 몰아 제안서의 계약사항표를 그대로 한 표로 세운다. 라 설계는 아직 분석되지 않았다.",
-  "subjects": [
-    { "id": "plan-a", "label": "가 설계" },
-    { "id": "plan-b", "label": "나 설계" },
-    { "id": "plan-c", "label": "다 설계" },
-    { "id": "plan-d", "label": "라 설계" }
-  ],
-  "focus": "plan-a"
+  "args": {
+    "subjects": [
+      {
+        "id": "plan-a",
+        "label": "가 설계"
+      },
+      {
+        "id": "plan-b",
+        "label": "나 설계"
+      },
+      {
+        "id": "plan-c",
+        "label": "다 설계"
+      },
+      {
+        "id": "plan-d",
+        "label": "라 설계"
+      }
+    ],
+    "focus": "plan-a"
+  }
 }

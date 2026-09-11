@@ -60,11 +60,10 @@ def sample_payload() -> dict:
             values.append({"label": f"값: {doc.get('subjectId', path.stem)}", "text": path.read_text(encoding="utf-8")})
         out[folder.name] = {
             "name": meta["name"],
-            "about": meta["about"],
             "template": (folder / "template.json").read_text(encoding="utf-8"),
-            "subjects": json.dumps(meta.get("subjects", []), ensure_ascii=False, indent=2) + "\n",
             "values": values,
-            "focus": meta.get("focus"),
+            # weave-render-args 문서 그대로. 명단은 사람이 JSON 으로 쓰는 것이 아니라 계약의 일부다.
+            "args": meta["args"],
         }
     return out
 

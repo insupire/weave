@@ -1,4 +1,4 @@
-/* 뷰어의 시각. **구조가 보이는 최소한만**이다.
+/* 설명서의 시각. **구조가 보이는 최소한만**이다.
    쓰는 색은 전부 무채색이다 — 색으로 좋고 나쁨을 말하지 않는다.
    앱의 시각은 claim-design-system 것이고 이 파일이 아니다. */
 
@@ -8,63 +8,63 @@ html, body { height:100%; }
 body { margin:0; color:var(--ink); background:#ffffff;
   font:15px/1.6 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
 
-/* ---------------------------------------------------------------- 껍데기 */
+/* ---------------------------------------------------------------- 설명서의 뼈대 */
 
-.shell { display:grid; grid-template-columns:minmax(360px, 42%) 1fr; height:100%; }
+.site { display:grid; grid-template-columns:220px 1fr; height:100%; }
+.nav { border-right:1px solid var(--line); background:var(--soft); overflow:auto; padding-bottom:24px; }
+.brand { font-size:14px; font-weight:700; letter-spacing:.02em; padding:14px 16px 10px; }
+.nav .group { font-size:11px; color:var(--mute); padding:14px 16px 4px; letter-spacing:.04em; }
+.toc-link { display:block; width:100%; text-align:left; border:none; background:none;
+  padding:5px 16px; font:inherit; font-size:13.5px; color:var(--ink); cursor:pointer; }
+.toc-link:hover { background:var(--sunk); }
+.toc-link[aria-pressed="true"] { font-weight:700; box-shadow:inset 2px 0 0 var(--ink); }
+
+.content { min-width:0; min-height:0; overflow:auto; }
+.page { max-width:760px; padding:28px 28px 80px; margin:0 auto; }
+.page-head { margin-bottom:18px; }
+h1 { font-size:24px; margin:0 0 6px; }
+h1 code { font-size:24px; }
+.lead { font-size:15px; color:var(--mute); margin:0; max-width:64ch; }
+.page p { max-width:70ch; }
+.page h2 { font-size:13px; color:var(--mute); font-weight:600; margin:24px 0 8px;
+  display:block; letter-spacing:.02em; }
+code { font:12px ui-monospace,monospace; }
+.limits { display:grid; grid-template-columns:max-content 1fr; gap:3px 14px; margin:18px 0 0; font-size:13.5px; }
+.limits dt { color:var(--mute); }
+.limits dd { margin:0; }
+.note-line { font-size:13.5px; color:var(--mute); margin:10px 0 0; }
+pre { margin:0; padding:12px 14px; overflow-x:auto; background:var(--soft);
+  border:1px solid var(--line); border-radius:4px;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.demo { border:1px solid var(--line); border-radius:4px; padding:14px 16px; }
+.demo h1 { font-size:12px; color:var(--mute); font-weight:600; margin:0 0 8px; }
+.demo .facet { border-top:none; padding:0; }
+
+/* ---------------------------------------------------------------- 플레이그라운드 */
+
+.playground { display:flex; flex-direction:column; height:100%; }
+.playground[hidden] { display:none; }
+.playground .page-head { padding:20px 24px 12px; margin:0; }
+.playground h1 { font-size:19px; }
+.panes { display:grid; grid-template-columns:minmax(320px, 44%) 1fr; flex:1; min-height:0;
+  border-top:1px solid var(--line); }
 .pane { min-width:0; min-height:0; display:flex; flex-direction:column; }
 .pane.edit { border-right:1px solid var(--line); background:var(--soft); }
 .pane.view { overflow:auto; }
-.viewport { padding:22px 20px 60px; max-width:980px; margin:0 auto; }
+.viewport { padding:20px; max-width:900px; margin:0 auto; }
 
-/* 오른쪽 도구 띠. **분석뷰 바깥이다** — 렌더 출력에는 아무것도 들어가지 않는다.
-   보면서 누르는 것이라 왼쪽 편집기가 아니라 여기 산다. 스크롤해도 붙어 있다. */
-.toolbar { position:sticky; top:0; z-index:2; background:#ffffff;
-  border-bottom:1px solid var(--line); }
-.toolbar .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 20px; }
-.toolbar .row + .row { border-top:1px solid var(--soft); }
-.toolbar .row[hidden] { display:none; }
-/* 자리가 모자라면 제 줄로 내려간다. 잘리면 범례 노릇을 못 한다. */
-.toolbar .legend { flex:1 1 340px; text-align:right; min-width:0; }
-.toolbar .lost { font-size:12px; color:var(--ink); font-family:ui-monospace,monospace;
-  border:1px solid var(--ink); border-radius:3px; padding:1px 6px; }
-.toolbar .lost:empty { display:none; }
-button.page { font-weight:600; }
-
-/* primitive element 설명서 페이지 */
-.lead { font-size:13px; color:var(--mute); margin:0 0 8px; max-width:70ch; }
-.lead.source { font-size:12px; }
-.doc { border-top:1px solid var(--line); padding:20px 0 6px; }
-.doc h2 { font-size:15px; }
-.doc h2 code { font-size:15px; }
-.doc h3 { font-size:12px; color:var(--mute); margin:14px 0 6px; font-weight:600; }
-.doc .draws { margin:0 0 8px; }
-.doc .note-line { font-size:13px; color:var(--mute); margin:8px 0 0; }
-.limits { display:grid; grid-template-columns:max-content 1fr; gap:2px 12px;
-  margin:0; font-size:13px; }
-.limits dt { color:var(--mute); }
-.limits dd { margin:0; }
-.doc pre { margin:0; padding:10px 12px; overflow-x:auto; background:var(--soft);
-  border:1px solid var(--line); border-radius:4px;
-  font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
-.demo { border:1px solid var(--line); border-radius:4px; padding:12px 14px; }
-.demo h1 { font-size:12px; color:var(--mute); font-weight:600; margin:0 0 6px; }
-.demo .facet { border-top:none; padding:0; }
-
-.bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-  padding:10px 12px; border-bottom:1px solid var(--line); background:#ffffff; }
-.bar h1 { font-size:14px; margin:0 8px 0 0; letter-spacing:.02em; }
-.bar .hint { font-size:12px; color:var(--mute); }
+.bar { display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+  padding:8px 12px; border-bottom:1px solid var(--line); background:#ffffff; }
+.bar .push { margin-left:auto; }
 select, input[type="text"], button { font:inherit; font-size:13px; color:var(--ink);
   background:#ffffff; border:1px solid var(--line); border-radius:4px; padding:4px 8px; }
 button { cursor:pointer; }
 button:hover { background:var(--soft); }
 button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
+/* focus 나열. 항목에 none 이 있어 무엇을 고르는 줄인지 스스로 읽힌다 — 라벨을 두지 않는다. */
+#focus-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+button.pick { padding:2px 9px; font-size:12.5px; }
 label { font-size:12px; color:var(--mute); }
-
-.about, .status { padding:8px 12px; font-size:12.5px; color:var(--mute);
-  border-bottom:1px solid var(--line); background:#ffffff; margin:0; }
-.status { font-family:ui-monospace,monospace; font-size:12px; }
-.legend { font-size:12px; color:var(--mute); }
 label:has(input) { display:inline-flex; align-items:center; gap:4px; }
 
 .tabs { display:flex; flex-wrap:wrap; gap:4px; padding:8px 12px 0; }
@@ -72,28 +72,24 @@ label:has(input) { display:inline-flex; align-items:center; gap:4px; }
   padding:4px 9px; font-size:12.5px; background:var(--sunk); }
 .tab[aria-pressed="true"] { background:#ffffff; color:var(--ink); border-color:var(--line); font-weight:700; }
 .tab .bad { color:var(--ink); font-weight:700; }
-
 textarea { flex:1; width:100%; margin:0; border:none; border-top:1px solid var(--line);
   padding:12px; resize:none; background:#ffffff; color:var(--ink);
   font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
 textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
-
 .strip { border-top:1px solid var(--line); background:#ffffff; padding:8px 12px;
   font:12px/1.5 ui-monospace,monospace; max-height:26vh; overflow:auto; }
 .strip:empty { display:none; }
-.strip b { display:block; font-family:inherit; margin-bottom:3px; }
+.strip b { display:block; margin-bottom:3px; }
 .strip ul { margin:0; padding-left:16px; }
 .strip li { color:#333333; }
 
 /* ---------------------------------------------------------------- 분석뷰 */
 
-h1 { font-size:22px; margin:0 0 4px; }
 h2 { font-size:16px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; }
-/* primitive element 배지는 참조 뷰어가 켤 때만 붙는다. 렌더가 낸 글에는 이 이름이 없다. */
+/* primitive element 이름은 설명서가 켤 때만 붙는다. 렌더가 낸 글에는 이 이름이 없다. */
 .show-elements h2[data-element]::after { content:attr(data-element);
   font:11px/1 ui-monospace,monospace; color:var(--mute);
   border:1px solid var(--line); border-radius:3px; padding:3px 5px; }
-code { font:12px ui-monospace,monospace; }
 /* focus 는 색이 아니라 테두리와 굵기로 말한다 */
 th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
   outline:2px solid var(--ink); outline-offset:1px; }
@@ -165,11 +161,14 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 .note .who { font-weight:600; color:var(--mute); }
 .subject-notes { margin-top:10px; }
 
-@media (max-width: 860px) {
-  .shell { grid-template-columns:1fr; grid-template-rows:minmax(300px, 45%) 1fr; height:auto; }
+@media (max-width: 900px) {
+  .site { grid-template-columns:1fr; grid-template-rows:auto 1fr; height:auto; }
+  .nav { border-right:none; border-bottom:1px solid var(--line); }
+  .nav nav { display:flex; flex-wrap:wrap; gap:2px; padding:0 10px 10px; }
+  .nav .group { width:100%; padding:8px 6px 2px; }
+  .toc-link { width:auto; padding:4px 10px; border:1px solid var(--line); border-radius:4px; background:#fff; }
+  .panes { grid-template-columns:1fr; grid-template-rows:minmax(280px, 45%) 1fr; }
   .pane.edit { border-right:none; border-bottom:1px solid var(--line); }
-  .toolbar { position:static; }
-  .toolbar .row { padding:8px 16px; }
   .bar-row { grid-template-columns:90px 1fr; }
   .bar-row .val { text-align:left; grid-column:2; }
 }

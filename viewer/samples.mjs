@@ -3,9 +3,7 @@
 export const SAMPLES = {
   "all-elements": {
     "name": "다섯 가지로 훑어보기",
-    "about": "짜임 — facet 여섯에 primitive element 다섯을 전부 쓴다. 한 화면에서 제안서 전반을 훑는 템플릿이다. 라 제안서는 아직 분석되지 않아 값 한 벌이 없다.",
     "template": "{\n  \"weave\": \"1\",\n  \"id\": \"proposal-compare-1\",\n  \"title\": \"제안서 나란히 보기\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"초회 보험료\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 회에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 합계보험료에 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"처음 한 번 내는 금액이 아니라 첫 달에 내는 월 보험료입니다.\" },\n        { \"kind\": \"caution\", \"text\": \"갱신형은 이 금액이 갱신할 때마다 달라집니다. 지금 금액만으로 견주면 안 됩니다.\" }\n      ]\n    },\n    {\n      \"id\": \"contract-terms\",\n      \"title\": \"얼마나 내고 언제까지 받나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240, 10년납이면 120. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다.\"\n        },\n        {\n          \"key\": \"entry-age\",\n          \"label\": \"가입나이\",\n          \"shape\": \"range\",\n          \"type\": \"age\",\n          \"description\": \"가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"납입기간이 짧으면 월 보험료는 비싸지지만 내는 총액은 대체로 적습니다.\" },\n        { \"kind\": \"tip\", \"text\": \"만기나이가 비어 있고 종신이라고 적혀 있으면 죽을 때까지 보장한다는 뜻입니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신되나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다. 일부 특약만 갱신형이면 거짓으로 두고 주의 주석을 단다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 나이에 맞춰 오릅니다. 비갱신형은 처음이 비싼 대신 끝까지 그대로입니다.\" },\n        { \"kind\": \"note\", \"text\": \"갱신 여부는 보험료가 앞으로 어떻게 될지를 가르는 자리라 따로 봅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"coverage-amounts\",\n      \"title\": \"주요 보장의 가입금액\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"death\",\n          \"label\": \"일반사망\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반사망 보험금 가입금액을 원 단위 정수로. 재해사망과 상해사망은 빼고 일반사망만.\"\n        },\n        {\n          \"key\": \"cancer\",\n          \"label\": \"암진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반암 진단비 가입금액을 원 단위 정수로. 유사암(갑상선암·기타피부암·제자리암·경계성종양)은 빼고 일반암만.\"\n        },\n        {\n          \"key\": \"brain\",\n          \"label\": \"뇌혈관질환진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"뇌혈관질환 진단비 가입금액을 원 단위 정수로. 뇌졸중이나 뇌출혈만 보장하는 담보는 범위가 다르니 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"가입금액은 받을 수 있는 최대 금액이고 실제 지급 조건은 약관이 정합니다.\" },\n        { \"kind\": \"note\", \"text\": \"막대 길이는 항목마다 따로 잽니다. 서로 다른 항목의 길이를 견주면 안 됩니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"갱신 시점별 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\" }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"어떤 특약이 붙었나\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"특약 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표에 적힌 특약을 하나씩. 주계약은 빼고 특약만 담는다. 특약이 하나도 없으면 빈 목록으로 둔다.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"특약명\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 특약 이름 그대로. 줄이거나 고쳐 쓰지 않는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 특약의 가입금액을 원 단위 정수로. 일당처럼 하루 금액이면 하루 금액 그대로.\"\n            },\n            {\n              \"key\": \"renews\",\n              \"label\": \"갱신\",\n              \"type\": \"boolean\",\n              \"description\": \"그 특약이 갱신형이면 참, 비갱신형이면 거짓.\"\n            },\n            {\n              \"key\": \"maturity-age\",\n              \"label\": \"만기\",\n              \"type\": \"age\",\n              \"description\": \"그 특약이 끝나는 나이를 세로. 표에 적혀 있지 않으면 비운다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"주계약은 빼고 특약만 담습니다. 특약이 없으면 빈 목록입니다.\" },\n        { \"kind\": \"tip\", \"text\": \"특약 하나하나의 만기와 갱신 여부가 주계약과 다를 수 있습니다.\" }\n      ]\n    }\n  ]\n}\n",
-    "subjects": "[\n  {\n    \"id\": \"proposal-a\",\n    \"label\": \"가 제안서\"\n  },\n  {\n    \"id\": \"proposal-b\",\n    \"label\": \"나 제안서\"\n  },\n  {\n    \"id\": \"proposal-c\",\n    \"label\": \"다 제안서\"\n  },\n  {\n    \"id\": \"proposal-d\",\n    \"label\": \"라 제안서\"\n  }\n]\n",
     "values": [
       {
         "label": "값: proposal-a",
@@ -20,13 +18,31 @@ export const SAMPLES = {
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-c\",\n  \"subjectLabel\": \"다 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"filled\",\n          \"value\": 29900,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 29,900원\" }]\n        }\n      }\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": { \"state\": \"filled\", \"value\": 480 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 80 },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"min\": 15, \"max\": 60 } }\n      },\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"주계약 하나뿐이라 계약사항 표가 짧습니다.\" }\n      ]\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": {\n          \"state\": \"filled\",\n          \"value\": 60,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }]\n        }\n      }\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"암만 보장하는 상품이라 사망보장이 없습니다.\" }]\n        },\n        \"cancer\": { \"state\": \"filled\", \"value\": 20000000 },\n        \"brain\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"뇌혈관질환은 보장하지 않습니다.\" }]\n        }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 29900 },\n            { \"at\": 45, \"value\": 38100 },\n            { \"at\": 50, \"value\": 49700 }\n          ],\n          \"notes\": [\n            { \"kind\": \"caution\", \"text\": \"예시표가 50세까지만 있습니다. 만기가 80세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [],\n          \"notes\": [\n            { \"kind\": \"tip\", \"text\": \"특약 없이 주계약 하나로만 된 설계입니다. 보장은 단순하지만 빠진 위험이 많다는 뜻이기도 합니다.\" }\n          ]\n        }\n      }\n    }\n  }\n}\n"
       }
     ],
-    "focus": "proposal-b"
+    "args": {
+      "subjects": [
+        {
+          "id": "proposal-a",
+          "label": "가 제안서"
+        },
+        {
+          "id": "proposal-b",
+          "label": "나 제안서"
+        },
+        {
+          "id": "proposal-c",
+          "label": "다 제안서"
+        },
+        {
+          "id": "proposal-d",
+          "label": "라 제안서"
+        }
+      ],
+      "focus": "proposal-b"
+    }
   },
   "stat-row": {
     "name": "숫자 넷으로 견주기",
-    "about": "짜임 — 같은 primitive element(stat) 하나를 facet 넷으로 되풀이한다. 값 하나씩만 크게 세워 한 줄로 견주는 템플릿이다.",
     "template": "{\n  \"weave\": \"1\",\n  \"id\": \"stat-row-1\",\n  \"title\": \"한 줄로 견주기\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"초회 보험료\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"갱신형은 이 금액이 갱신할 때마다 달라집니다. 지금 금액만으로 견주면 안 됩니다.\" }\n      ]\n    },\n    {\n      \"id\": \"payment-period\",\n      \"title\": \"납입기간\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"내는 기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"납입기간이 짧으면 월 보험료는 비싸지지만 내는 총액은 대체로 적습니다.\" }\n      ]\n    },\n    {\n      \"id\": \"maturity-age\",\n      \"title\": \"만기나이\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"보장이 끝나는 나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"값이 비어 있고 종신이라고 적혀 있으면 죽을 때까지 보장한다는 뜻입니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renews\",\n      \"title\": \"갱신 여부\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신형인가\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"stat 은 수만 담는 자리가 아닙니다. 참거짓도 값 하나입니다.\" }\n      ]\n    }\n  ]\n}\n",
-    "subjects": "[\n  {\n    \"id\": \"plan-a\",\n    \"label\": \"가 설계\"\n  },\n  {\n    \"id\": \"plan-b\",\n    \"label\": \"나 설계\"\n  },\n  {\n    \"id\": \"plan-c\",\n    \"label\": \"다 설계\"\n  }\n]\n",
     "values": [
       {
         "label": "값: plan-a",
@@ -41,13 +57,27 @@ export const SAMPLES = {
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"stat-row-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 설계\",\n  \"facets\": {\n    \"first-premium\": { \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 29900 } } },\n    \"payment-period\": {\n      \"fields\": {\n        \"payment-period\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"납입기간이 설계안 어디에도 적혀 있지 않습니다.\" }]\n        }\n      }\n    },\n    \"maturity-age\": { \"fields\": { \"maturity-age\": { \"state\": \"filled\", \"value\": 80 } } },\n    \"renews\": { \"fields\": { \"renews\": { \"state\": \"filled\", \"value\": true } } }\n  }\n}\n"
       }
     ],
-    "focus": null
+    "args": {
+      "subjects": [
+        {
+          "id": "plan-a",
+          "label": "가 설계"
+        },
+        {
+          "id": "plan-b",
+          "label": "나 설계"
+        },
+        {
+          "id": "plan-c",
+          "label": "다 설계"
+        }
+      ],
+      "focus": null
+    }
   },
   "one-table": {
     "name": "계약사항표 한 장",
-    "about": "짜임 — facet 하나뿐이다. facts 에 필드 열을 몰아 제안서의 계약사항표를 그대로 한 표로 세운다. 라 설계는 아직 분석되지 않았다.",
     "template": "{\n  \"weave\": \"1\",\n  \"id\": \"one-table-1\",\n  \"title\": \"계약사항표\",\n  \"facets\": [\n    {\n      \"id\": \"terms\",\n      \"title\": \"계약사항\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다.\"\n        },\n        {\n          \"key\": \"pay-cycle\",\n          \"label\": \"납입주기\",\n          \"shape\": \"single\",\n          \"type\": \"text\",\n          \"description\": \"설계안에 적힌 납입주기를 그대로. 월납·3개월납·연납·일시납 같은 말이 온다.\"\n        },\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"insured-age\",\n          \"label\": \"피보험자 나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"이 설계의 기준이 된 피보험자 나이를 세로. 보험나이가 적혀 있으면 그것을 담는다.\"\n        },\n        {\n          \"key\": \"entry-age\",\n          \"label\": \"가입나이\",\n          \"shape\": \"range\",\n          \"type\": \"age\",\n          \"description\": \"가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다.\"\n        },\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120. 비갱신형이면 값을 비운다.\"\n        },\n        {\n          \"key\": \"main-amount\",\n          \"label\": \"주계약 가입금액\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"주계약의 가입금액을 원 단위 정수로. 특약은 빼고 주계약만.\"\n        },\n        {\n          \"key\": \"start-date\",\n          \"label\": \"보장개시일\",\n          \"shape\": \"single\",\n          \"type\": \"date\",\n          \"description\": \"보장이 시작되는 날짜를 YYYY-MM-DD 로. 설계 시점 기준일이 아니라 보장개시일이다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"제안서 앞쪽 계약사항표를 그대로 옮긴 자리입니다. 비교 축은 「이 계약이 어떤 조건인가」 하나입니다.\" },\n        { \"kind\": \"tip\", \"text\": \"납입기간이 만기보다 짧으면 그 뒤로는 안 내고 보장만 받습니다.\" },\n        { \"kind\": \"caution\", \"text\": \"표에 없는 조건은 약관이 정합니다. 여기 없다고 조건이 없는 것은 아닙니다.\" }\n      ]\n    }\n  ]\n}\n",
-    "subjects": "[\n  {\n    \"id\": \"plan-a\",\n    \"label\": \"가 설계\"\n  },\n  {\n    \"id\": \"plan-b\",\n    \"label\": \"나 설계\"\n  },\n  {\n    \"id\": \"plan-c\",\n    \"label\": \"다 설계\"\n  },\n  {\n    \"id\": \"plan-d\",\n    \"label\": \"라 설계\"\n  }\n]\n",
     "values": [
       {
         "label": "값: plan-a",
@@ -62,13 +92,31 @@ export const SAMPLES = {
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-table-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 설계\",\n  \"facets\": {\n    \"terms\": {\n      \"fields\": {\n        \"first-premium\": { \"state\": \"filled\", \"value\": 29900 },\n        \"pay-cycle\": { \"state\": \"empty\" },\n        \"payment-period\": { \"state\": \"empty\" },\n        \"insured-age\": { \"state\": \"filled\", \"value\": 45 },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"max\": 60 } },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 80 },\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60 },\n        \"main-amount\": { \"state\": \"filled\", \"value\": 20000000 },\n        \"start-date\": { \"state\": \"empty\" }\n      },\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"계약사항표 오른쪽이 잘려 있어 납입 관련 칸을 읽지 못했습니다.\" }\n      ]\n    }\n  }\n}\n"
       }
     ],
-    "focus": "plan-a"
+    "args": {
+      "subjects": [
+        {
+          "id": "plan-a",
+          "label": "가 설계"
+        },
+        {
+          "id": "plan-b",
+          "label": "나 설계"
+        },
+        {
+          "id": "plan-c",
+          "label": "다 설계"
+        },
+        {
+          "id": "plan-d",
+          "label": "라 설계"
+        }
+      ],
+      "focus": "plan-a"
+    }
   },
   "one-axis": {
     "name": "갱신 하나만 깊게",
-    "about": "짜임 — facet 셋이 전부 같은 질문(갱신하면 보험료가 어떻게 되나)을 세 각도로 본다. bars 로 지금, facts 로 조건, line 으로 앞날. 축 하나를 파는 템플릿이다.",
     "template": "{\n  \"weave\": \"1\",\n  \"id\": \"renewal-watch-1\",\n  \"title\": \"갱신되면 얼마가 되나\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"지금 내는 돈\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료는 뺀다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"지금 싼 것이 계속 싼 것은 아닙니다. 아래 갱신 곡선과 함께 봅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신 조건\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 비운다.\"\n        },\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 비우고 종신이라고 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"갱신주기가 짧을수록 보험료가 자주 조금씩 오르고, 길수록 드물게 많이 오릅니다.\" },\n        { \"kind\": \"tip\", \"text\": \"비갱신형은 납입기간이 끝나면 더 내지 않습니다. 갱신형 전기납은 보장받는 내내 냅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"나이에 따른 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\" },\n        { \"kind\": \"note\", \"text\": \"선이 없는 설계는 갱신 예시표가 없다는 뜻이지 보험료가 오르지 않는다는 증거는 아닙니다.\" }\n      ]\n    }\n  ]\n}\n",
-    "subjects": "[\n  {\n    \"id\": \"plan-keep\",\n    \"label\": \"비갱신 설계\"\n  },\n  {\n    \"id\": \"plan-ten\",\n    \"label\": \"10년 갱신 설계\"\n  },\n  {\n    \"id\": \"plan-five\",\n    \"label\": \"5년 갱신 설계\"\n  }\n]\n",
     "values": [
       {
         "label": "값: plan-five",
@@ -83,6 +131,22 @@ export const SAMPLES = {
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-ten\",\n  \"subjectLabel\": \"10년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 41200 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 120, \"notes\": [{ \"kind\": \"quote\", \"text\": \"10년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600, \"notes\": [{ \"kind\": \"note\", \"text\": \"전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다.\" }] },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 41200 },\n            { \"at\": 50, \"value\": 62800 },\n            { \"at\": 60, \"value\": 104500 },\n            { \"at\": 70, \"value\": 188300 },\n            { \"at\": 80, \"value\": 331000 }\n          ],\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"설계안 4쪽 「갱신 시 예상보험료」 표\" }]\n        }\n      }\n    }\n  }\n}\n"
       }
     ],
-    "focus": "plan-five"
+    "args": {
+      "subjects": [
+        {
+          "id": "plan-keep",
+          "label": "비갱신 설계"
+        },
+        {
+          "id": "plan-ten",
+          "label": "10년 갱신 설계"
+        },
+        {
+          "id": "plan-five",
+          "label": "5년 갱신 설계"
+        }
+      ],
+      "focus": "plan-five"
+    }
   }
 };
