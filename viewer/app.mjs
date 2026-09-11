@@ -3,10 +3,11 @@
 // **판정하지 않는다.** JSON 으로 읽히는지만 보고, 스키마 판정은 Python 검사기가 갖는다.
 // 여기서 통과처럼 보인다고 통과가 아니다 — 아래 안내가 그 명령을 적어 둔다.
 
-import { renderView } from "./render.mjs";
+import { esc, renderView } from "./render.mjs";
 
-// 빌드가 여기에 samples/ 를 박아 넣는다. file:// 에서 fetch 가 막히기 때문이다.
+// 빌드가 여기에 samples/ 와 카탈로그를 박아 넣는다. file:// 에서 fetch 가 막히기 때문이다.
 import { SAMPLES } from "./samples.mjs";
+import { CATALOG } from "./catalog.mjs";
 
 const $ = (id) => document.getElementById(id);
 const pretty = (doc) => JSON.stringify(doc, null, 2);
@@ -18,7 +19,8 @@ const state = {
   active: 0,
   focus: null,
   seq: 0, // 더한 값 한 벌의 탭 id 가 겹치지 않게 센다
-  showElements: false, // 원시 요소 배지. 분석뷰의 것이 아니라 뷰어의 것이라 기본은 끔
+  showElements: false, // primitive element 이름. 분석뷰의 것이 아니라 뷰어의 것이라 기본은 끔
+  page: "view", // "view" 분석뷰 · "docs" primitive element 설명서
 };
 
 function loadSample(key) {
@@ -104,9 +106,11 @@ function drawEditor() {
   editor.setAttribute("aria-label", state.tabs[state.active].label);
 }
 
-function drawFocusControls(seats) {
+function drawFocusControls(seats, view) {
   const box = $("focus-buttons");
   box.innerHTML = "";
+  // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고 그 사실만 띠가 알린다.
+  $("focus-lost").textContent = view?.focusMissing ? `${view.focusMissing} 은 명단에 없다` : "";
   const add = (label, value) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -123,7 +127,7 @@ function drawFocusControls(seats) {
   for (const seat of seats) add(seat.name, seat.id);
 }
 
-/** 분석뷰에서 걷어낸 도구의 표시들. 없애는 게 아니라 자리를 옮긴 것이다. */
+/** 왼쪽에 적는 것 — 지금 무엇을 편집하고 있는지. focus 는 오른쪽 띠가 가졌다. */
 function drawStatus(view) {
   const node = $("status");
   if (!view) {
@@ -131,28 +135,69 @@ function drawStatus(view) {
     return;
   }
   const analysed = view.seats.filter((s) => s.analysed).length;
-  const parts = [
-    `템플릿 ${view.templateId ?? "?"}`,
-    `subject ${view.seats.length} 중 ${analysed} 분석됨`,
-    `focus ${view.focus ?? "없음"}`,
-  ];
-  // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고 그 사실만 여기서 알린다.
-  if (view.focusMissing) parts.push(`${view.focusMissing} 은 명단에 없어 focus 가 사라졌다`);
-  node.textContent = parts.join(" · ");
+  node.textContent = `템플릿 ${view.templateId ?? "?"} · subject ${view.seats.length} 중 ${analysed} 분석됨`;
+}
+
+/** primitive element 설명서. 표와 같은 카탈로그에서 나오고 보기는 그 자리에서 그린다. */
+function docsPage() {
+  const cards = CATALOG.map((row) => {
+    const { html } = renderView({
+      template: row.demo.template,
+      values: row.demo.values,
+      subjects: row.demo.subjects,
+      focus: null,
+    });
+    const types = row.everyType
+      ? `${row.types.length} 가지 전부`
+      : row.types.map((t) => `<code>${esc(t)}</code>`).join(" · ");
+    return (
+      `<section class="doc">` +
+      `<h2><code>${esc(row.element)}</code></h2>` +
+      `<p class="draws">${esc(row.draws)}</p>` +
+      `<dl class="limits">` +
+      `<dt>필드 수</dt><dd>${esc(row.fields)}</dd>` +
+      `<dt>shape</dt><dd>${row.shapes.map((x) => `<code>${esc(x)}</code>`).join(" · ")}</dd>` +
+      `<dt>type</dt><dd>${types}</dd>` +
+      `</dl>` +
+      `<p class="note-line">${esc(row.note)}</p>` +
+      `<h3>이 element 를 쓰는 최소 템플릿 조각</h3>` +
+      `<pre>${esc(JSON.stringify(row.demo.template.facets[0], null, 2))}</pre>` +
+      `<h3>그려진 모습</h3><div class="demo">${html}</div>` +
+      `</section>`
+    );
+  });
+  return (
+    `<h1>primitive element ${CATALOG.length} 가지</h1>` +
+    `<p class="lead">렌더가 구현하는 것은 이 ${CATALOG.length} 가지뿐이다. facet 종류는 없다 — ` +
+    `facet 은 이 가운데 하나에 필드를 채운 것이다.</p>` +
+    `<p class="lead source">이 페이지와 <code>docs/weave.md</code> 의 표는 같은 카탈로그에서 나온다. ` +
+    `제약의 정본은 <code>schema/weave-template.schema.json</code> 의 조건절이고, ` +
+    `산문과 보기의 정본은 <code>catalog/elements.json</code> 이다. 둘 다 산출물이라 갈릴 수 없다.</p>` +
+    cards.join("")
+  );
 }
 
 function refresh() {
   const { template, values, subjects, problems } = read();
   const { html, report, view } = renderView({ template, values, subjects, focus: state.focus });
-  // 오른쪽 판은 분석뷰뿐이다. 배지는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
+  const docs = state.page === "docs";
+
+  // 오른쪽 판은 분석뷰뿐이다. 이름표는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
-  $("view").innerHTML = html;
+  $("view").innerHTML = docs ? docsPage() : html;
+
+  // 설명서를 볼 때는 분석뷰의 조작이 할 일이 없다.
+  $("view-tools").hidden = docs;
+  $("view-marks").hidden = docs;
+  $("page-view").setAttribute("aria-pressed", String(!docs));
+  $("page-docs").setAttribute("aria-pressed", String(docs));
+
   drawStatus(view);
 
   const seats =
     subjects?.filter((s) => s && typeof s.id === "string").map((s) => ({ id: s.id, name: s.label || s.id })) ??
     values.map((v) => ({ id: v.subjectId, name: v.subjectLabel || v.subjectId }));
-  drawFocusControls(seats);
+  drawFocusControls(seats, view);
 
   const all = [...problems, ...report];
   const strip = $("strip");
@@ -190,6 +235,13 @@ export function start() {
     state.showElements = Boolean(event.target.checked);
     refresh();
   });
+
+  for (const [id, page] of [["page-view", "view"], ["page-docs", "docs"]]) {
+    $(id).addEventListener("click", () => {
+      state.page = page;
+      refresh();
+    });
+  }
 
   $("focus-free").addEventListener("input", (event) => {
     const raw = event.target.value.trim();

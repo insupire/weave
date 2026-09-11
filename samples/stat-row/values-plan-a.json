@@ -1,0 +1,27 @@
+{
+  "weave": "1",
+  "templateId": "stat-row-1",
+  "subjectId": "plan-a",
+  "subjectLabel": "가 설계",
+  "facets": {
+    "first-premium": {
+      "fields": {
+        "first-premium": {
+          "state": "filled",
+          "value": 87400,
+          "notes": [{ "kind": "quote", "text": "합계보험료 87,400원" }]
+        }
+      }
+    },
+    "payment-period": { "fields": { "payment-period": { "state": "filled", "value": 240 } } },
+    "maturity-age": {
+      "fields": {
+        "maturity-age": {
+          "state": "empty",
+          "notes": [{ "kind": "note", "text": "종신 보장이라 만기나이가 없습니다." }]
+        }
+      }
+    },
+    "renews": { "fields": { "renews": { "state": "filled", "value": false } } }
+  }
+}

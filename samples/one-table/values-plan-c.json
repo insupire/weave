@@ -1,0 +1,25 @@
+{
+  "weave": "1",
+  "templateId": "one-table-1",
+  "subjectId": "plan-c",
+  "subjectLabel": "다 설계",
+  "facets": {
+    "terms": {
+      "fields": {
+        "first-premium": { "state": "filled", "value": 29900 },
+        "pay-cycle": { "state": "empty" },
+        "payment-period": { "state": "empty" },
+        "insured-age": { "state": "filled", "value": 45 },
+        "entry-age": { "state": "filled", "value": { "max": 60 } },
+        "maturity-age": { "state": "filled", "value": 80 },
+        "renews": { "state": "filled", "value": true },
+        "renewal-cycle": { "state": "filled", "value": 60 },
+        "main-amount": { "state": "filled", "value": 20000000 },
+        "start-date": { "state": "empty" }
+      },
+      "notes": [
+        { "kind": "caution", "text": "계약사항표 오른쪽이 잘려 있어 납입 관련 칸을 읽지 못했습니다." }
+      ]
+    }
+  }
+}

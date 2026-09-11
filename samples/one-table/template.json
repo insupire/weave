@@ -1,0 +1,89 @@
+{
+  "weave": "1",
+  "id": "one-table-1",
+  "title": "계약사항표",
+  "facets": [
+    {
+      "id": "terms",
+      "title": "계약사항",
+      "element": "facts",
+      "fields": [
+        {
+          "key": "first-premium",
+          "label": "초회 보험료",
+          "shape": "single",
+          "type": "money",
+          "description": "첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다."
+        },
+        {
+          "key": "pay-cycle",
+          "label": "납입주기",
+          "shape": "single",
+          "type": "text",
+          "description": "설계안에 적힌 납입주기를 그대로. 월납·3개월납·연납·일시납 같은 말이 온다."
+        },
+        {
+          "key": "payment-period",
+          "label": "납입기간",
+          "shape": "single",
+          "type": "duration",
+          "description": "보험료를 내는 총 기간을 개월로. 20년납이면 240. 전기납이면 만기까지의 개월 수로 환산한다."
+        },
+        {
+          "key": "insured-age",
+          "label": "피보험자 나이",
+          "shape": "single",
+          "type": "age",
+          "description": "이 설계의 기준이 된 피보험자 나이를 세로. 보험나이가 적혀 있으면 그것을 담는다."
+        },
+        {
+          "key": "entry-age",
+          "label": "가입나이",
+          "shape": "range",
+          "type": "age",
+          "description": "가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다."
+        },
+        {
+          "key": "maturity-age",
+          "label": "만기나이",
+          "shape": "single",
+          "type": "age",
+          "description": "보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다."
+        },
+        {
+          "key": "renews",
+          "label": "갱신 여부",
+          "shape": "single",
+          "type": "boolean",
+          "description": "갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다."
+        },
+        {
+          "key": "renewal-cycle",
+          "label": "갱신주기",
+          "shape": "single",
+          "type": "duration",
+          "description": "몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120. 비갱신형이면 값을 비운다."
+        },
+        {
+          "key": "main-amount",
+          "label": "주계약 가입금액",
+          "shape": "single",
+          "type": "money",
+          "description": "주계약의 가입금액을 원 단위 정수로. 특약은 빼고 주계약만."
+        },
+        {
+          "key": "start-date",
+          "label": "보장개시일",
+          "shape": "single",
+          "type": "date",
+          "description": "보장이 시작되는 날짜를 YYYY-MM-DD 로. 설계 시점 기준일이 아니라 보장개시일이다."
+        }
+      ],
+      "notes": [
+        { "kind": "note", "text": "제안서 앞쪽 계약사항표를 그대로 옮긴 자리입니다. 비교 축은 「이 계약이 어떤 조건인가」 하나입니다." },
+        { "kind": "tip", "text": "납입기간이 만기보다 짧으면 그 뒤로는 안 내고 보장만 받습니다." },
+        { "kind": "caution", "text": "표에 없는 조건은 약관이 정합니다. 여기 없다고 조건이 없는 것은 아닙니다." }
+      ]
+    }
+  ]
+}

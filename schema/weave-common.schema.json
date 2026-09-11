@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "weave-common.schema.json",
   "title": "weave 공통 정의",
-  "description": "타입·모양·원시 요소·주석의 닫힌 어휘. 이 파일이 렌더가 의존하는 전부다.",
+  "description": "타입·모양·primitive element·주석의 닫힌 어휘. 이 파일이 렌더가 의존하는 전부다.",
   "$defs": {
     "Version": {
       "description": "스키마 버전. 지금은 1 뿐이다.",
@@ -40,7 +40,7 @@
       "enum": ["single", "range", "series", "items"]
     },
     "Element": {
-      "description": "원시 요소. 렌더가 구현하는 것은 이 다섯이다.",
+      "description": "primitive element. 렌더가 구현하는 것은 이 다섯이다.",
       "enum": ["stat", "facts", "bars", "line", "list"]
     },
     "Number": {

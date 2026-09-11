@@ -1,0 +1,19 @@
+{
+  "weave": "1",
+  "templateId": "stat-row-1",
+  "subjectId": "plan-c",
+  "subjectLabel": "다 설계",
+  "facets": {
+    "first-premium": { "fields": { "first-premium": { "state": "filled", "value": 29900 } } },
+    "payment-period": {
+      "fields": {
+        "payment-period": {
+          "state": "empty",
+          "notes": [{ "kind": "caution", "text": "납입기간이 설계안 어디에도 적혀 있지 않습니다." }]
+        }
+      }
+    },
+    "maturity-age": { "fields": { "maturity-age": { "state": "filled", "value": 80 } } },
+    "renews": { "fields": { "renews": { "state": "filled", "value": true } } }
+  }
+}

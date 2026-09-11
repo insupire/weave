@@ -103,8 +103,8 @@ def set_score(doc: dict) -> None:
 
 
 TEMPLATE_DEFECTS = [
-    ("원시 요소에 순위를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "rank"), "is not one of"),
-    ("원시 요소에 등급 게이지를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "gauge"), "is not one of"),
+    ("primitive element 에 순위를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "rank"), "is not one of"),
+    ("primitive element 에 등급 게이지를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "gauge"), "is not one of"),
     ("facet 에 점수를 붙인다", set_score, "Additional properties"),
     ("facet 에 경고색을 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("color", "red"), "Additional properties"),
     ("facet 에 자유 설정 주머니를 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("settings", {"badge": "best"}), "Additional properties"),

@@ -7,9 +7,9 @@
 
 ## 어기면 저장소를 만든 이유가 사라지는 것 넷
 
-1. **보험이 들어오면 안 된다.** 스키마는 값의 타입과 그리는 법만 안다. 무엇을 찾을지는 필드 선언의 `description` 이 자연어로 말한다. 도메인 어휘가 타입이나 원시 요소 이름으로 새어 들면 다른 상품군에서 다시 못 쓴다.
+1. **보험이 들어오면 안 된다.** 스키마는 값의 타입과 그리는 법만 안다. 무엇을 찾을지는 필드 선언의 `description` 이 자연어로 말한다. 도메인 어휘가 타입이나 primitive element 이름으로 새어 들면 다른 상품군에서 다시 못 쓴다.
 2. **순위·등급·점수·경고색을 표현할 문법을 두지 않는다.** 객관성을 문서가 아니라 스키마로 강제하는 자리다. 모든 객체가 `additionalProperties: false` 이고 어휘가 전부 닫힌 `enum` 인 이유가 이것이다.
-3. **렌더가 구현하는 것은 원시 요소다.** facet 종류를 스키마가 열거하지 않는다. facet 은 원시 요소 하나에 필드를 채운 것이다. 원시 요소는 다섯이고 **늘리는 것이 기본값이 아니다**.
+3. **렌더가 구현하는 것은 primitive element 다.** facet 종류를 스키마가 열거하지 않는다. facet 은 primitive element 하나에 필드를 채운 것이다. primitive element 는 다섯이고 **늘리는 것이 기본값이 아니다**.
 4. **뷰어가 시각을 소유하지 않는다.** 구조가 보이는 최소한만 입힌다. 앱의 시각은 claim-design-system 것이다. 참조 뷰어는 무엇이 올바른 렌더인지의 기준이지 앱의 공유 코드가 아니다.
 
 ## 레이아웃
@@ -19,12 +19,14 @@
 | `schema/*.json` | **정본.** JSON Schema 2020-12. 어휘·모양·제약이 전부 여기 있다 |
 | `docs/weave.md` | 설명서 겸 카탈로그. 템플릿을 쓰는 Procedure 의 프롬프트에 실린다 |
 | `weave/` | 검사기 (Python). **판정은 전부 여기 하나에 있다** |
-| `viewer/render.mjs` | 참조 렌더. 원시 요소 다섯을 그린다. 문서를 받아 HTML 문자열을 내는 순수 함수 |
+| `viewer/render.mjs` | 참조 렌더. primitive element 다섯을 그린다. 문서를 받아 HTML 문자열을 내는 순수 함수 |
 | `viewer/app.mjs` · `style.css` · `shell.html` | 실시간 편집기와 껍데기 |
-| `samples/` | 샘플 넷. 한 벌 = `sample.json`(명단·focus) + `template.json` + `values-*.json` |
+| `samples/` | **템플릿 샘플** 넷. 한 벌 = `sample.json`(차례·명단·focus) + `template.json` + `values-*.json` |
+| `catalog/elements.json` | primitive element 설명서의 **산문과 보기**. 제약은 적지 않는다 |
+| `tools/catalog.py` | 스키마에서 제약을 뽑아 카탈로그 하나를 만든다 |
 | **`viewer.html`** | 빌드 산출물. **파일을 브라우저로 열면 바로 돈다.** 손으로 고치지 않는다 |
-| `viewer/samples.mjs` | 마찬가지로 빌드 산출물 |
-| `tools/build_viewer.py` | 위 둘을 만든다 |
+| `viewer/samples.mjs` · `viewer/catalog.mjs` | 마찬가지로 빌드 산출물 |
+| `tools/build_viewer.py` | 위 셋과 `docs/weave.md` 의 카탈로그 표를 만든다 |
 | `.github/workflows/ci.yml` | 필수 전체 회귀. `make all` 한 줄을 부른다 |
 | `tools/emit_types.py` | 닫힌 어휘를 소비자 언어로 내보낸다 |
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
@@ -73,6 +75,8 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `make viewer-test` | 그리는 쪽의 고정 케이스. `node` 가 있어야 돈다 |
 | `make all` | `test` · `types-check` · `check` · `viewer-check` · `viewer-test` |
 
+**이 sprint 의 남은 weave 변경은 작업 브랜치 하나에 쌓는다.** 중간 PR 도 `develop` 머지도 하지 않고 sprint 종료 때 PR 하나로 올린다(PM `orchestrator.md` §4).
+
 **CI 는 PR 과 `develop` push 에서 `make all` 을 돌린다**([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). 게이트 목록의 정본은 `Makefile` 하나이고 워크플로는 그것을 부르기만 한다 — 워크플로에 검사를 따로 적지 않는다. 실행기는 python 3.13 과 node 24 이고 워크플로가 못박는다. **로컬 통과는 필수 CI 를 대체하지 않는다.**
 
 | 무엇을 고쳤나 | 돌릴 것 |
@@ -80,7 +84,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `schema/` | `make all` — 어휘가 바뀌면 `generated/` 도 같이 커밋한다 |
 | `weave/` (검사기) | `make test check` |
 | `viewer/` | `make viewer viewer-test test` — **`viewer.html` 을 같이 커밋한다** |
-| `samples/` | `make viewer check test viewer-test` — 마찬가지로 `viewer.html` 을 같이 커밋한다 |
+| `samples/` · `catalog/` | `make viewer check test viewer-test` — 마찬가지로 산출물을 같이 커밋한다 |
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다 |
@@ -117,7 +121,7 @@ npx json-schema-to-typescript@15 schema/weave-template.schema.json -o weave-temp
 npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valueset.d.ts
 ```
 
-⚠️ **아직 돌려 보지 않았다.** 두 생성기 모두 `if`/`then`/`not` 조건절을 온전히 옮기지 못할 수 있고, 그러면 원시 요소별 필드 제약이 생성 타입에서 느슨해진다. **그 제약의 판정은 어차피 검사기가 갖는다** — 생성 타입은 모양을 잡는 용도이고 판정이 아니다. 소비자가 처음 돌릴 때 확인한다.
+⚠️ **아직 돌려 보지 않았다.** 두 생성기 모두 `if`/`then`/`not` 조건절을 온전히 옮기지 못할 수 있고, 그러면 primitive element 별 필드 제약이 생성 타입에서 느슨해진다. **그 제약의 판정은 어차피 검사기가 갖는다** — 생성 타입은 모양을 잡는 용도이고 판정이 아니다. 소비자가 처음 돌릴 때 확인한다.
 
 ⚠️ **LLM 구조화 출력.** judge 가 `weave-template.schema.json` 을 그대로 구조화 출력 스키마로 넘기려면, 파일 간 `$ref` 와 조건절을 지원하는지 그쪽 API 가 정한다. 지원하지 않으면 한 파일로 펼친 변형이 필요하다. 그 변형을 이 저장소가 낼지는 정하지 않았다.
 
@@ -129,36 +133,57 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 **언어를 만져 보고 화면이 어떻게 되는지 보는 자리**이지 앱의 코드가 아니다. 앱은 claim-design-system 으로 자기 시각을 입힌다.
 
 - **의존성이 없다.** 서버도 CDN 도 빌드 도구도 없다. `file://` 로 열어도 돌도록 스타일·스크립트·샘플을 한 장에 박는다.
-- **`renderView` 가 내는 것은 분석뷰뿐이다.** 템플릿 제목과 facet 들. 뷰어가 덧붙이는 것(상태 줄·범례·명단·원시 요소 배지)은 전부 왼쪽 껍데기에 둔다 — 앱이 이 출력을 가져다 쓸 때 따라가면 안 된다. 화면 상태는 `view` 로 따로 나간다.
+- **`renderView` 가 내는 것은 분석뷰뿐이다.** 템플릿 제목과 facet 들. 뷰어가 덧붙이는 것(도구 띠·상태 줄·범례·명단·primitive element 이름)은 전부 분석뷰 바깥에 둔다 — 앱이 이 출력을 가져다 쓸 때 따라가면 안 된다. 화면 상태는 `view` 로 따로 나간다.
 - **판정하지 않는다.** JSON 으로 읽히는지만 본다. 스키마 판정의 정본은 Python 검사기 하나이고 브라우저에서 다시 구현하지 않는다.
 - **그리지 못하는 입력에서 멈추지 않는다.** 그 자리를 표시하고 왼쪽 아래에 까닭을 적고 나머지는 그대로 그린다.
-- **원시 요소 다섯을 전부 그린다.** `ELEMENTS` 표가 렌더의 분기 전부이고 facet 종류를 아는 분기는 없다.
+- **primitive element 다섯을 전부 그린다.** `ELEMENTS` 표가 렌더의 분기 전부이고 facet 종류를 아는 분기는 없다.
 - **값이 없는 facet 도 자리를 남기고 없다고 말한다.** 숨기면 subject 마다 골격이 달라져 견줄 수 없다.
 - **값 한 벌이 없는 subject 는 「아직 분석 중」이다.** 필드가 비어 있는 「값 없음」과 눈으로 구별된다.
 - **subject 명단은 뷰어의 인자다.** 값 한 벌이 없는 subject 를 세우려면 부르는 쪽이 명단을 준다. 스키마에 넣지 않는다.
-- **`focus` 는 subject 의 id 다.** `null` 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다 — 분석뷰가 focus 를 놓은 것과 통째로 같아지고, 그 사실은 왼쪽 상태 줄이 알린다. 화면에서 눌러 보고 없는 id 를 쳐 볼 수 있다.
+- **`focus` 는 subject 의 id 다.** `null` 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다 — 분석뷰가 focus 를 놓은 것과 통째로 같아지고, 그 사실은 띠가 알린다. 조작하는 자리는 **오른쪽 판 위의 띠**다. 보면서 누르는 것이라 편집기 쪽이 아니다.
+- **설명서 페이지가 같은 한 장 안에 있다.** primitive element 마다 무엇을 그리는지·어떤 필드를 받는지·최소 템플릿 조각·**그 자리에서 그린 모습**을 보인다.
 - **색이 뜻을 갖지 않는다.** 쓰는 색이 전부 무채색이고, 선은 색이 아니라 점선 무늬로 구별한다. 고정 케이스가 이것을 본다.
 
 ## 샘플을 고칠 때
 
-샘플은 **뷰어를 시험할 재료이자 사람이 읽는 분석뷰**다. 검사기를 통과시키려 만든 조각 모음이 아니다.
-성격이 다른 넷을 유지한다 — 원시 요소 다섯을 전부 쓰는 것, subject 가 하나뿐인 것,
-값이 많이 비고 미분석 subject 가 섞인 것, 비교 축 하나를 깊게 파는 것.
+샘플은 **템플릿 샘플**이다. 분석뷰를 어떻게 짤 수 있는지를 넷으로 보인다.
+**가르는 축은 템플릿의 짜임**이다 — 어떤 facet 을 어떤 primitive element 로 몇 개, 어떤 순서로.
+값의 상태(있음·없음·미분석)로 가르지 않는다. 그건 샘플의 축이 아니라 `tests/fixtures/ok/` 의 일이다.
+
+지금 넷 — `all-elements`(다섯 전부·facet 여섯) · `stat-row`(같은 element 를 넷) ·
+`one-table`(facet 하나에 필드 열) · `one-axis`(축 하나를 셋으로).
+
+값은 그 템플릿을 보이는 데 필요한 만큼만 딸려 온다. 다만 **값이 비는 경우와 미분석 subject 는 없애지 않는다.**
+그 상태들은 여전히 보여야 하고, 한 샘플 안에 자연스럽게 섞여 있으면 된다.
 
 필드는 **추출률이 높은 것부터** 고른다. 지금 제안서에서 바로 뽑히는 것은 보장명·초회 보험료·가입금액·
 가입나이·갱신 여부·갱신주기·납입기간·만기나이다. 드문 축으로 짜면 화면이 대부분 비어 나와 시험이 되지 않는다.
 
 **한 facet 이 비교 축 하나**라는 규칙은 스키마가 검사하지 못한다. 샘플이 그것을 지켜서 보인다.
-고치면 `make viewer` 로 다시 묶고 `viewer.html` 을 같이 커밋한다.
+고치면 `make viewer` 로 다시 묶고 산출물을 같이 커밋한다.
+
+## 설명서가 갈리지 않게 하는 법
+
+primitive element 카탈로그가 서는 자리가 둘이다 — `docs/weave.md` 의 표와 뷰어의 설명서 페이지.
+**둘 다 산출물이다.** `tools/catalog.py` 가 하나를 만들고 `tools/build_viewer.py` 가 둘 다 낸다.
+
+| 무엇 | 정본 |
+| --- | --- |
+| 제약 — 필드 수 · shape · type | `schema/weave-template.schema.json` 의 `Facet` 조건절 |
+| 산문 — 무엇을 그리는가 · 비고 · 보기 | `catalog/elements.json` |
+| `docs/weave.md` 의 표 · 뷰어의 설명서 페이지 | **산출물.** 손으로 고치지 않는다 |
+
+산문은 **평문**으로 쓴다. markdown 강조나 backtick 을 섞으면 표에서는 살고 뷰어에서는 글자로 샌다.
+고정 케이스가 그것과, 보기가 검사기를 통과하는 것과, 산출물이 갈렸는지를 본다.
 
 ## 어휘를 늘릴 때
 
-원시 요소·타입·모양·주석 갈래는 **닫힌 목록이고 좁히는 쪽이 기본**이다. 늘리기는 쉽고 줄이기는 어렵다.
+primitive element·타입·모양·주석 갈래는 **닫힌 목록이고 좁히는 쪽이 기본**이다. 늘리기는 쉽고 줄이기는 어렵다.
 
 늘리려면 넷을 함께 댄다.
 
 1. 지금 다섯(여덟·넷)의 조합으로 안 되는 구체적 사례
-2. 그것이 도메인 없이 설명되는가 — 「병명 목록」은 새 원시 요소가 아니라 `list` 다
+2. 그것이 도메인 없이 설명되는가 — 「병명 목록」은 새 primitive element 가 아니라 `list` 다
 3. 순위·등급으로 쓰일 길이 없는가
 4. `docs/weave.md` 가 얼마나 커지는가 — **설명서 크기가 곧 Procedure 프롬프트 무게다**
 

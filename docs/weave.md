@@ -7,7 +7,7 @@
 
 분석 템플릿 하나에 subject 마다 값 한 벌이 주입되어 분석뷰가 된다. 렌더는 여러 벌을 **한 화면에 함께** 그리므로 모든 facet 이 본래 비교형이다.
 
-템플릿은 facet 의 배열이고, facet 하나는 **원시 요소 하나와 그것이 요구하는 필드들**이다.
+템플릿은 facet 의 배열이고, facet 하나는 **primitive element 하나와 그것이 요구하는 필드들**이다.
 필드 선언의 `description` 이 곧 분석에게 주는 추출 지시다. 무엇을 그릴지와 무엇을 찾을지를 한 문서가 함께 말한다.
 
 ## 타입 여덟
@@ -34,19 +34,25 @@
 | `series` | `[{"at": 축값, "value": 값}, …]` — `at` 오름차순 | `type`, `axis` | `type` 은 수치형, `axis` 는 `age`·`date`·`duration`·`number` |
 | `items` | `[{열key: 값}, …]` — 없는 열은 빈 칸 | `columns` | 열마다 `type` |
 
-## 원시 요소 다섯
+## primitive element
 
-**렌더가 구현하는 것은 이 다섯이다. facet 종류는 없다** — facet 은 이 다섯 중 하나에 필드를 채운 것이다.
+**렌더가 구현하는 것은 이것들이다. facet 종류는 없다** — facet 은 이 가운데 하나에 필드를 채운 것이다.
 
-| element | 그리는 것 | 필드 수 | shape | 비고 |
-| --- | --- | --- | --- | --- |
-| `stat` | 값 하나를 크게, subject 수만큼 나란히 | 1 | `single`·`range` | |
-| `facts` | 라벨과 값 여럿 | 1–12 | `single`·`range` | subject 가 여럿이면 행이 항목, 열이 subject 인 표가 된다. **표는 따로 없다** |
-| `bars` | 크기 비교 | 1–6 | `single` | 수치형 타입만 |
-| `line` | 축 위의 변화 | 1 | `series` | |
-| `list` | 반복되는 항목 | 1 | `items` | |
+<!-- catalog:start — tools/build_viewer.py 가 쓴다. 손으로 고치지 않는다 -->
+| element | 그리는 것 | 필드 수 | shape | type | 비고 |
+| --- | --- | --- | --- | --- | --- |
+| `stat` | 값 하나를 크게. subject 수만큼 카드가 나란히 선다 | 1 | `single`·`range` | 8 가지 전부 | 수만 담는 자리가 아니다. 참거짓도 날짜도 값 하나다 |
+| `facts` | 라벨과 값 여럿. subject 가 여럿이면 행이 항목, 열이 subject 인 표가 된다 | 1–12 | `single`·`range` | 8 가지 전부 | 표는 따로 없다. 계약사항표 한 장도 이것 하나로 짠다 |
+| `bars` | 크기 비교. 눈금은 필드마다 따로 잡는다 | 1–6 | `single` | `number`·`money`·`ratio`·`duration`·`age` | 비교 축이 필드라서 서로 다른 필드의 막대 길이를 견주면 안 된다 |
+| `line` | 축 위의 변화. subject 마다 선 하나 | 1 | `series` | `number`·`money`·`ratio`·`duration`·`age` | 선은 색이 아니라 점선 무늬로 갈린다. 가로축은 age·date·duration·number 만 된다 |
+| `list` | 반복되는 항목. subject 마다 표 하나 | 1 | `items` | 8 가지 전부 | 항목이 없으면 「항목 없음」이고, 값을 읽지 못한 「값 없음」과 다르다 |
+<!-- catalog:end -->
 
-제목과 설명 글은 원시 요소가 아니다. 제목은 facet 의 `title` 이고 설명은 주석이다.
+이 표는 **산출물**이다. 제약은 [`../schema/weave-template.schema.json`](../schema/weave-template.schema.json) 의
+조건절에서, 산문과 보기는 [`../catalog/elements.json`](../catalog/elements.json) 에서 온다. `make viewer` 가 다시 쓴다.
+뷰어의 설명서 페이지도 같은 카탈로그에서 나오므로 둘이 갈릴 수 없다.
+
+제목과 설명 글은 primitive element 가 아니다. 제목은 facet 의 `title` 이고 설명은 주석이다.
 
 ## 템플릿
 
@@ -147,7 +153,7 @@ subject 하나에 한 벌. 템플릿의 facet 과 필드를 **빠짐도 덤도 �
 참조 뷰어가 기준이다. 앱은 자기 시각을 입히되 아래는 지킨다.
 
 **렌더가 내는 것은 분석뷰뿐이다** — 템플릿 제목과 facet 들. 도구의 표시(템플릿 id·subject 수·focus 상태·
-범례·명단·원시 요소 이름)는 렌더에 들어가지 않는다. 앱이 이 출력을 그대로 가져다 쓸 때 따라가면 안 되기 때문이다.
+범례·명단·primitive element 이름)는 렌더에 들어가지 않는다. 앱이 이 출력을 그대로 가져다 쓸 때 따라가면 안 되기 때문이다.
 그런 것이 필요하면 화면 상태로 따로 받아 앱이 자기 자리에 그린다.
 
 - **값이 없는 facet 도 자리를 남기고 없다고 말한다.** 숨기면 subject 마다 골격이 달라져 견줄 수 없다.

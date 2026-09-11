@@ -1,0 +1,11 @@
+{
+  "order": 2,
+  "name": "숫자 넷으로 견주기",
+  "about": "짜임 — 같은 primitive element(stat) 하나를 facet 넷으로 되풀이한다. 값 하나씩만 크게 세워 한 줄로 견주는 템플릿이다.",
+  "subjects": [
+    { "id": "plan-a", "label": "가 설계" },
+    { "id": "plan-b", "label": "나 설계" },
+    { "id": "plan-c", "label": "다 설계" }
+  ],
+  "focus": null
+}

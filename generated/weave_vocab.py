@@ -22,7 +22,7 @@ AXISTYPES: tuple[AxisType, ...] = ("age", "date", "duration", "number",)
 Shape = Literal["single", "range", "series", "items"]
 SHAPES: tuple[Shape, ...] = ("single", "range", "series", "items",)
 
-# 원시 요소. 렌더가 구현하는 것은 이 다섯이다.
+# primitive element. 렌더가 구현하는 것은 이 다섯이다.
 Element = Literal["stat", "facts", "bars", "line", "list"]
 ELEMENTS: tuple[Element, ...] = ("stat", "facts", "bars", "line", "list",)
 

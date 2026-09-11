@@ -1,0 +1,11 @@
+{
+  "order": 4,
+  "name": "갱신 하나만 깊게",
+  "about": "짜임 — facet 셋이 전부 같은 질문(갱신하면 보험료가 어떻게 되나)을 세 각도로 본다. bars 로 지금, facts 로 조건, line 으로 앞날. 축 하나를 파는 템플릿이다.",
+  "subjects": [
+    { "id": "plan-keep", "label": "비갱신 설계" },
+    { "id": "plan-ten", "label": "10년 갱신 설계" },
+    { "id": "plan-five", "label": "5년 갱신 설계" }
+  ],
+  "focus": "plan-five"
+}

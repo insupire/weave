@@ -20,7 +20,7 @@
   },
   "$defs": {
     "Facet": {
-      "description": "분석뷰의 한 조각. 원시 요소 하나와 그것이 요구하는 필드들.",
+      "description": "분석뷰의 한 조각. primitive element 하나와 그것이 요구하는 필드들.",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "title", "element", "fields"],

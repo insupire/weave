@@ -1,0 +1,601 @@
+// schema/ 와 catalog/elements.json 에서 생성된다. 직접 고치지 않는다 — python3 tools/build_viewer.py
+
+export const CATALOG = [
+  {
+    "element": "stat",
+    "draws": "값 하나를 크게. subject 수만큼 카드가 나란히 선다",
+    "note": "수만 담는 자리가 아니다. 참거짓도 날짜도 값 하나다",
+    "fields": "1",
+    "shapes": [
+      "single",
+      "range"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "subjects": [
+        {
+          "id": "a",
+          "label": "가"
+        },
+        {
+          "id": "b",
+          "label": "나"
+        }
+      ],
+      "template": {
+        "weave": "1",
+        "id": "demo-stat",
+        "title": "stat 보기",
+        "facets": [
+          {
+            "id": "premium",
+            "title": "초회 보험료",
+            "element": "stat",
+            "fields": [
+              {
+                "key": "premium",
+                "label": "월 보험료",
+                "shape": "single",
+                "type": "money",
+                "description": "첫 달에 내는 월 보험료 총액을 원 단위 정수로 담는다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "tip",
+                "text": "카드 하나가 subject 하나입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-stat",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "premium": {
+              "fields": {
+                "premium": {
+                  "state": "filled",
+                  "value": 87400,
+                  "notes": [
+                    {
+                      "kind": "quote",
+                      "text": "합계보험료 87,400원"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-stat",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "premium": {
+              "fields": {
+                "premium": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "이 제안서에는 보험료가 적혀 있지 않습니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "element": "facts",
+    "draws": "라벨과 값 여럿. subject 가 여럿이면 행이 항목, 열이 subject 인 표가 된다",
+    "note": "표는 따로 없다. 계약사항표 한 장도 이것 하나로 짠다",
+    "fields": "1–12",
+    "shapes": [
+      "single",
+      "range"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "subjects": [
+        {
+          "id": "a",
+          "label": "가"
+        },
+        {
+          "id": "b",
+          "label": "나"
+        }
+      ],
+      "template": {
+        "weave": "1",
+        "id": "demo-facts",
+        "title": "facts 보기",
+        "facets": [
+          {
+            "id": "terms",
+            "title": "계약 조건",
+            "element": "facts",
+            "fields": [
+              {
+                "key": "payment-period",
+                "label": "납입기간",
+                "shape": "single",
+                "type": "duration",
+                "description": "보험료를 내는 총 기간을 개월로 담는다. 20년납이면 240."
+              },
+              {
+                "key": "renews",
+                "label": "갱신 여부",
+                "shape": "single",
+                "type": "boolean",
+                "description": "갱신형이면 참, 비갱신형이면 거짓으로 담는다."
+              },
+              {
+                "key": "entry-age",
+                "label": "가입나이",
+                "shape": "range",
+                "type": "age",
+                "description": "가입할 수 있는 나이 구간을 세로 담는다. 한쪽만 알아도 된다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "note",
+                "text": "행이 항목이고 열이 subject 입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-facts",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "terms": {
+              "fields": {
+                "payment-period": {
+                  "state": "filled",
+                  "value": 240
+                },
+                "renews": {
+                  "state": "filled",
+                  "value": false
+                },
+                "entry-age": {
+                  "state": "filled",
+                  "value": {
+                    "min": 15,
+                    "max": 65
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-facts",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "terms": {
+              "fields": {
+                "payment-period": {
+                  "state": "filled",
+                  "value": 120
+                },
+                "renews": {
+                  "state": "filled",
+                  "value": true
+                },
+                "entry-age": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "표가 잘려 읽지 못했습니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "element": "bars",
+    "draws": "크기 비교. 눈금은 필드마다 따로 잡는다",
+    "note": "비교 축이 필드라서 서로 다른 필드의 막대 길이를 견주면 안 된다",
+    "fields": "1–6",
+    "shapes": [
+      "single"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "duration",
+      "age"
+    ],
+    "everyType": false,
+    "demo": {
+      "subjects": [
+        {
+          "id": "a",
+          "label": "가"
+        },
+        {
+          "id": "b",
+          "label": "나"
+        }
+      ],
+      "template": {
+        "weave": "1",
+        "id": "demo-bars",
+        "title": "bars 보기",
+        "facets": [
+          {
+            "id": "amounts",
+            "title": "주요 가입금액",
+            "element": "bars",
+            "fields": [
+              {
+                "key": "death",
+                "label": "일반사망",
+                "shape": "single",
+                "type": "money",
+                "description": "일반사망 보험금 가입금액을 원 단위 정수로 담는다."
+              },
+              {
+                "key": "cancer",
+                "label": "암진단비",
+                "shape": "single",
+                "type": "money",
+                "description": "일반암 진단비 가입금액을 원 단위 정수로 담는다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "caution",
+                "text": "가입금액은 최대 금액이고 지급 조건은 약관이 정합니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-bars",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "amounts": {
+              "fields": {
+                "death": {
+                  "state": "filled",
+                  "value": 50000000
+                },
+                "cancer": {
+                  "state": "filled",
+                  "value": 30000000
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-bars",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "amounts": {
+              "fields": {
+                "death": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "note",
+                      "text": "사망보장이 들어 있지 않습니다."
+                    }
+                  ]
+                },
+                "cancer": {
+                  "state": "filled",
+                  "value": 50000000
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "element": "line",
+    "draws": "축 위의 변화. subject 마다 선 하나",
+    "note": "선은 색이 아니라 점선 무늬로 갈린다. 가로축은 age·date·duration·number 만 된다",
+    "fields": "1",
+    "shapes": [
+      "series"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "duration",
+      "age"
+    ],
+    "everyType": false,
+    "demo": {
+      "subjects": [
+        {
+          "id": "a",
+          "label": "가"
+        },
+        {
+          "id": "b",
+          "label": "나"
+        }
+      ],
+      "template": {
+        "weave": "1",
+        "id": "demo-line",
+        "title": "line 보기",
+        "facets": [
+          {
+            "id": "curve",
+            "title": "나이별 예상 보험료",
+            "element": "line",
+            "fields": [
+              {
+                "key": "premium-curve",
+                "label": "월 보험료",
+                "shape": "series",
+                "type": "money",
+                "axis": "age",
+                "description": "갱신 예시표에 적힌 나이별 월 보험료를 나이와 금액의 점들로 담는다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "caution",
+                "text": "예시표의 금액은 예상치입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-line",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "curve": {
+              "fields": {
+                "premium-curve": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "at": 40,
+                      "value": 41200
+                    },
+                    {
+                      "at": 50,
+                      "value": 62800
+                    },
+                    {
+                      "at": 60,
+                      "value": 104500
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-line",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "curve": {
+              "fields": {
+                "premium-curve": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "at": 40,
+                      "value": 33500
+                    },
+                    {
+                      "at": 50,
+                      "value": 55900
+                    },
+                    {
+                      "at": 60,
+                      "value": 99800
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "element": "list",
+    "draws": "반복되는 항목. subject 마다 표 하나",
+    "note": "항목이 없으면 「항목 없음」이고, 값을 읽지 못한 「값 없음」과 다르다",
+    "fields": "1",
+    "shapes": [
+      "items"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "subjects": [
+        {
+          "id": "a",
+          "label": "가"
+        },
+        {
+          "id": "b",
+          "label": "나"
+        }
+      ],
+      "template": {
+        "weave": "1",
+        "id": "demo-list",
+        "title": "list 보기",
+        "facets": [
+          {
+            "id": "riders",
+            "title": "특약",
+            "element": "list",
+            "fields": [
+              {
+                "key": "rider-list",
+                "label": "특약 목록",
+                "shape": "items",
+                "description": "보장내역 표에 적힌 특약을 하나씩 담는다. 주계약은 뺀다.",
+                "columns": [
+                  {
+                    "key": "name",
+                    "label": "특약명",
+                    "type": "text",
+                    "description": "설계안에 적힌 이름 그대로 담는다."
+                  },
+                  {
+                    "key": "amount",
+                    "label": "가입금액",
+                    "type": "money",
+                    "description": "그 특약의 가입금액을 원 단위 정수로 담는다."
+                  },
+                  {
+                    "key": "renews",
+                    "label": "갱신",
+                    "type": "boolean",
+                    "description": "그 특약이 갱신형이면 참으로 담는다."
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              {
+                "kind": "tip",
+                "text": "채우지 않은 열은 빈 칸입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-list",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "name": "암진단비(유사암제외)",
+                      "amount": 30000000,
+                      "renews": false
+                    },
+                    {
+                      "name": "질병입원일당",
+                      "amount": 30000,
+                      "renews": true
+                    },
+                    {
+                      "name": "상해수술비",
+                      "amount": 300000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-list",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [],
+                  "notes": [
+                    {
+                      "kind": "tip",
+                      "text": "특약 없이 주계약 하나로만 된 설계입니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+];

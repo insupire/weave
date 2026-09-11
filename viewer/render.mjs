@@ -123,7 +123,7 @@ function drawCell(report, where, decl, value) {
   return esc(shown);
 }
 
-// ---------------------------------------------------------------- 원시 요소 다섯
+// ---------------------------------------------------------------- primitive element 다섯
 
 function stat(ctx, facet) {
   const decl = facet.fields[0];
@@ -329,7 +329,7 @@ function list(ctx, facet) {
   return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${blocks.join("")}`;
 }
 
-// 원시 요소 다섯. 이 표가 렌더의 분기 전부다.
+// primitive element 다섯. 이 표가 렌더의 분기 전부다.
 export const ELEMENTS = { stat, facts, bars, line, list };
 
 // ---------------------------------------------------------------- 페이지
@@ -399,12 +399,12 @@ export function renderView({ template, values = [], subjects = null, focus = nul
     }
     const title = esc(facet.title ?? facet.id ?? at);
     const draw = ELEMENTS[facet.element];
-    // 원시 요소 이름은 분석뷰에 나올 자리가 없다. 구조로만 남긴다 —
+    // primitive element 이름은 분석뷰에 나올 자리가 없다. 구조로만 남긴다 —
     // 참조 뷰어의 배지는 이 속성을 읽어 CSS 가 그리므로 렌더가 낸 글에는 들어가지 않는다.
     const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>` + notesHtml(facet.notes);
     let body;
     if (!draw) {
-      body = undrawable(report, facet.id ?? at, `모르는 원시 요소다 — ${JSON.stringify(facet.element)}`);
+      body = undrawable(report, facet.id ?? at, `모르는 primitive element 다 — ${JSON.stringify(facet.element)}`);
     } else if (!Array.isArray(facet.fields) || facet.fields.length === 0) {
       body = undrawable(report, facet.id ?? at, "필드가 하나도 없다");
     } else if (facet.fields.some((f) => !f || typeof f.key !== "string")) {

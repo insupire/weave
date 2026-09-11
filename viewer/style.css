@@ -16,6 +16,40 @@ body { margin:0; color:var(--ink); background:#ffffff;
 .pane.view { overflow:auto; }
 .viewport { padding:22px 20px 60px; max-width:980px; margin:0 auto; }
 
+/* 오른쪽 도구 띠. **분석뷰 바깥이다** — 렌더 출력에는 아무것도 들어가지 않는다.
+   보면서 누르는 것이라 왼쪽 편집기가 아니라 여기 산다. 스크롤해도 붙어 있다. */
+.toolbar { position:sticky; top:0; z-index:2; background:#ffffff;
+  border-bottom:1px solid var(--line); }
+.toolbar .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 20px; }
+.toolbar .row + .row { border-top:1px solid var(--soft); }
+.toolbar .row[hidden] { display:none; }
+/* 자리가 모자라면 제 줄로 내려간다. 잘리면 범례 노릇을 못 한다. */
+.toolbar .legend { flex:1 1 340px; text-align:right; min-width:0; }
+.toolbar .lost { font-size:12px; color:var(--ink); font-family:ui-monospace,monospace;
+  border:1px solid var(--ink); border-radius:3px; padding:1px 6px; }
+.toolbar .lost:empty { display:none; }
+button.page { font-weight:600; }
+
+/* primitive element 설명서 페이지 */
+.lead { font-size:13px; color:var(--mute); margin:0 0 8px; max-width:70ch; }
+.lead.source { font-size:12px; }
+.doc { border-top:1px solid var(--line); padding:20px 0 6px; }
+.doc h2 { font-size:15px; }
+.doc h2 code { font-size:15px; }
+.doc h3 { font-size:12px; color:var(--mute); margin:14px 0 6px; font-weight:600; }
+.doc .draws { margin:0 0 8px; }
+.doc .note-line { font-size:13px; color:var(--mute); margin:8px 0 0; }
+.limits { display:grid; grid-template-columns:max-content 1fr; gap:2px 12px;
+  margin:0; font-size:13px; }
+.limits dt { color:var(--mute); }
+.limits dd { margin:0; }
+.doc pre { margin:0; padding:10px 12px; overflow-x:auto; background:var(--soft);
+  border:1px solid var(--line); border-radius:4px;
+  font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.demo { border:1px solid var(--line); border-radius:4px; padding:12px 14px; }
+.demo h1 { font-size:12px; color:var(--mute); font-weight:600; margin:0 0 6px; }
+.demo .facet { border-top:none; padding:0; }
+
 .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
   padding:10px 12px; border-bottom:1px solid var(--line); background:#ffffff; }
 .bar h1 { font-size:14px; margin:0 8px 0 0; letter-spacing:.02em; }
@@ -27,11 +61,10 @@ button:hover { background:var(--soft); }
 button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
 label { font-size:12px; color:var(--mute); }
 
-.about, .status, .legend { padding:8px 12px; font-size:12.5px; color:var(--mute);
+.about, .status { padding:8px 12px; font-size:12.5px; color:var(--mute);
   border-bottom:1px solid var(--line); background:#ffffff; margin:0; }
-/* 분석뷰에서 걷어낸 도구의 표시들이 사는 자리 */
 .status { font-family:ui-monospace,monospace; font-size:12px; }
-.legend { font-size:12px; }
+.legend { font-size:12px; color:var(--mute); }
 label:has(input) { display:inline-flex; align-items:center; gap:4px; }
 
 .tabs { display:flex; flex-wrap:wrap; gap:4px; padding:8px 12px 0; }
@@ -56,7 +89,7 @@ textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
 
 h1 { font-size:22px; margin:0 0 4px; }
 h2 { font-size:16px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; }
-/* 원시 요소 배지는 참조 뷰어가 켤 때만 붙는다. 렌더가 낸 글에는 이 이름이 없다. */
+/* primitive element 배지는 참조 뷰어가 켤 때만 붙는다. 렌더가 낸 글에는 이 이름이 없다. */
 .show-elements h2[data-element]::after { content:attr(data-element);
   font:11px/1 ui-monospace,monospace; color:var(--mute);
   border:1px solid var(--line); border-radius:3px; padding:3px 5px; }
@@ -135,6 +168,8 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 @media (max-width: 860px) {
   .shell { grid-template-columns:1fr; grid-template-rows:minmax(300px, 45%) 1fr; height:auto; }
   .pane.edit { border-right:none; border-bottom:1px solid var(--line); }
+  .toolbar { position:static; }
+  .toolbar .row { padding:8px 16px; }
   .bar-row { grid-template-columns:90px 1fr; }
   .bar-row .val { text-align:left; grid-column:2; }
 }

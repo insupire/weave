@@ -1,9 +1,11 @@
-"""샘플의 고정 케이스.
+"""샘플과 primitive element 카탈로그의 고정 케이스.
 
-샘플은 뷰어를 시험할 재료이자 사람이 읽는 분석뷰다. **검사기가 샘플 전부를 통과시키는 것**이
-여기 걸린다 — 뷰어는 판정하지 않으므로 샘플이 옳다는 근거가 이 자리밖에 없다.
+샘플은 **템플릿 샘플**이다 — 분석뷰를 어떻게 짤 수 있는지를 넷으로 보인다. 가르는 축은
+템플릿의 짜임이지 값의 상태가 아니다. 값 상태 조합의 판정은 `tests/fixtures/ok/` 를 쓰는
+`tests/viewer.test.mjs` 가 갖는다.
 
-그리는 쪽의 고정 케이스는 `tests/viewer.test.mjs` 가 갖는다 (`make viewer-test`).
+**검사기가 샘플과 카탈로그 보기 전부를 통과시키는 것**이 여기 걸린다 — 뷰어는 판정하지
+않으므로 그것들이 옳다는 근거가 이 자리밖에 없다.
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SAMPLES = ROOT / "samples"
 
 sys.path.insert(0, str(ROOT))
-from tools import build_viewer  # noqa: E402
+from tools import build_viewer, catalog  # noqa: E402
 
 
 def sample_dirs() -> list[pathlib.Path]:
@@ -43,6 +45,13 @@ class SamplesAreWhole(unittest.TestCase):
                 self.assertTrue((folder / "sample.json").exists())
                 self.assertTrue((folder / "template.json").exists())
                 self.assertTrue(sorted(folder.glob("values-*.json")), "값 한 벌이 하나도 없다")
+
+    def test_samples_are_told_apart_by_template_shape(self) -> None:
+        """가르는 축은 템플릿의 짜임이다. 값 상태로 가르면 샘플이 아니라 fixture 다."""
+        shapes = [
+            tuple(f["element"] for f in load(d / "template.json")["facets"]) for d in sample_dirs()
+        ]
+        self.assertEqual(len(set(shapes)), len(shapes), f"짜임이 겹친다: {shapes}")
 
     def test_sample_metadata_is_the_viewer_s_own_shape(self) -> None:
         """명단과 focus 는 스키마가 아니라 뷰어의 인자다. 그래서 여기서 본다."""
@@ -100,17 +109,23 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
         orders = [load(f / "sample.json")["order"] for f in sample_dirs()]
         self.assertEqual(orders, sorted(set(orders)), f"order 가 겹치거나 비었다: {orders}")
 
-    def test_one_sample_has_a_single_subject(self) -> None:
-        counts = [len(load(f / "sample.json")["subjects"]) for f in sample_dirs()]
-        self.assertIn(1, counts, counts)
-
-    def test_one_sample_mixes_in_an_unanalysed_subject(self) -> None:
-        gaps = []
+    def test_empty_values_and_an_unanalysed_subject_survive_in_the_samples(self) -> None:
+        """샘플을 가르는 축은 아니지만 그 상태들은 여전히 보여야 한다."""
+        gaps, empties = [], []
         for folder in sample_dirs():
             seats = {s["id"] for s in load(folder / "sample.json")["subjects"]}
-            analysed = {load(p)["subjectId"] for p in sorted(folder.glob("values-*.json"))}
-            gaps.append(len(seats - analysed))
+            docs = [load(p) for p in sorted(folder.glob("values-*.json"))]
+            gaps.append(len(seats - {d["subjectId"] for d in docs}))
+            empties.append(
+                any(
+                    entry["state"] == "empty"
+                    for doc in docs
+                    for facet in doc["facets"].values()
+                    for entry in facet["fields"].values()
+                )
+            )
         self.assertTrue(any(g > 0 for g in gaps), "값 한 벌이 없는 subject 가 어느 샘플에도 없다")
+        self.assertTrue(any(empties), "빈 값이 어느 샘플에도 없다")
 
     def test_every_facet_carries_template_author_notes(self) -> None:
         # 깨알 지식이 값이 아니라 템플릿에 사는지. 샘플이 그 자리를 실제로 쓴다.
@@ -120,15 +135,72 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
                     self.assertTrue(facet.get("notes"), "템플릿 주석이 없다")
 
 
+class CatalogCannotDiverge(unittest.TestCase):
+    """설명서가 서는 자리가 둘이라 갈릴 수 있는 곳이다. 하나에서 만들어 둘 다 여기서 본다."""
+
+    def test_the_catalog_covers_every_declared_element(self) -> None:
+        enum = documents()["weave-common.schema.json"]["$defs"]["Element"]["enum"]
+        self.assertEqual([row["element"] for row in catalog.catalog()], enum)
+
+    def test_constraints_come_from_the_schema_not_from_prose(self) -> None:
+        """산문 파일이 제약을 적지 않는다. 적으면 스키마와 갈린다."""
+        prose = json.loads((ROOT / "catalog" / "elements.json").read_text(encoding="utf-8"))
+        for element, entry in prose.items():
+            if element.startswith("__"):
+                continue
+            with self.subTest(element):
+                self.assertEqual(set(entry), {"draws", "note", "demo"})
+
+    def test_prose_is_plain_text(self) -> None:
+        """표에서는 살고 뷰어에서는 글자로 새는 markdown 을 막는다. 두 자리에 같게 나와야 한다."""
+        for row in catalog.catalog():
+            for field in ("draws", "note"):
+                with self.subTest(f"{row['element']}/{field}"):
+                    self.assertNotIn("**", row[field])
+                    self.assertNotIn("`", row[field])
+
+    def test_every_demo_passes_the_checker(self) -> None:
+        """보기가 실제로 쓸 수 있는 템플릿이어야 설명서 노릇을 한다."""
+        for row in catalog.catalog():
+            demo = row["demo"]
+            with self.subTest(row["element"]):
+                result = check_template(demo["template"])
+                self.assertTrue(result.ok, [str(p) for p in result.problems])
+                self.assertEqual([f["element"] for f in demo["template"]["facets"]], [row["element"]])
+                for doc in demo["values"]:
+                    result = check_valueset(doc, demo["template"])
+                    self.assertTrue(result.ok, [str(p) for p in result.problems])
+
+    def test_the_docs_table_is_generated_not_written(self) -> None:
+        text = catalog.DOCS.read_text(encoding="utf-8")
+        self.assertIn(catalog.MARK_START, text)
+        self.assertIn(catalog.docs_table(), text)
+
+
+class Vocabulary(unittest.TestCase):
+    def test_the_translated_term_does_not_come_back(self) -> None:
+        """통용되는 기술 용어는 번역하지 않는다. `primitive element` 가 정본이다."""
+        needle = "\uc6d0\uc2dc \uc694\uc18c"  # 찾는 말 자체가 이 파일에 있으면 스스로 걸린다
+        skip = {".git", ".venv", "__pycache__"}
+        hits = []
+        for path in ROOT.rglob("*"):
+            if not path.is_file() or set(path.relative_to(ROOT).parts) & skip:
+                continue
+            if path.suffix not in {".md", ".py", ".mjs", ".js", ".json", ".css", ".html", ".yml", ""}:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if needle in text:
+                hits.append(str(path.relative_to(ROOT)))
+        self.assertEqual(hits, [], f"번역어가 남아 있다: {hits}")
+
+
 class BuiltViewerIsNotStale(unittest.TestCase):
-    def test_viewer_html_matches_its_sources(self) -> None:
-        """사람이 여는 한 장이 지금 소스·샘플과 같은지. ``make viewer`` 로 다시 쓴다."""
-        samples_js = build_viewer.samples_source()
-        wanted = {
-            build_viewer.OUT_SAMPLES: samples_js,
-            build_viewer.OUT_HTML: build_viewer.html_source(samples_js),
-        }
-        for path, text in wanted.items():
+    def test_every_artifact_matches_its_sources(self) -> None:
+        """사람이 여는 한 장과 설명서 표가 지금 소스와 같은지. ``make viewer`` 로 다시 쓴다."""
+        for path, text in build_viewer.artifacts().items():
             with self.subTest(path.name):
                 self.assertTrue(path.exists(), "python3 tools/build_viewer.py 를 돌린다")
                 self.assertEqual(path.read_text(encoding="utf-8"), text, "갈렸다. make viewer 로 다시 쓴다")

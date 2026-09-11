@@ -1,0 +1,28 @@
+{
+  "weave": "1",
+  "templateId": "stat-row-1",
+  "subjectId": "plan-b",
+  "subjectLabel": "나 설계",
+  "facets": {
+    "first-premium": { "fields": { "first-premium": { "state": "filled", "value": 41200 } } },
+    "payment-period": {
+      "fields": {
+        "payment-period": {
+          "state": "filled",
+          "value": 600,
+          "notes": [{ "kind": "note", "text": "전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다." }]
+        }
+      }
+    },
+    "maturity-age": { "fields": { "maturity-age": { "state": "filled", "value": 90 } } },
+    "renews": {
+      "fields": {
+        "renews": {
+          "state": "filled",
+          "value": true,
+          "notes": [{ "kind": "caution", "text": "10년마다 갱신되므로 초회 보험료가 계속 유지되지 않습니다." }]
+        }
+      }
+    }
+  }
+}

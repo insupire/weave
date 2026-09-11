@@ -1,0 +1,34 @@
+{
+  "weave": "1",
+  "templateId": "one-table-1",
+  "subjectId": "plan-b",
+  "subjectLabel": "나 설계",
+  "facets": {
+    "terms": {
+      "fields": {
+        "first-premium": { "state": "filled", "value": 41200 },
+        "pay-cycle": { "state": "filled", "value": "월납" },
+        "payment-period": {
+          "state": "filled",
+          "value": 600,
+          "notes": [{ "kind": "note", "text": "전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다." }]
+        },
+        "insured-age": { "state": "filled", "value": 40 },
+        "entry-age": {
+          "state": "filled",
+          "value": { "min": 20 },
+          "notes": [{ "kind": "caution", "text": "최대 가입나이가 표에서 잘려 읽지 못했습니다." }]
+        },
+        "maturity-age": { "state": "filled", "value": 90 },
+        "renews": { "state": "filled", "value": true },
+        "renewal-cycle": {
+          "state": "filled",
+          "value": 120,
+          "notes": [{ "kind": "quote", "text": "10년 갱신형" }]
+        },
+        "main-amount": { "state": "filled", "value": 30000000 },
+        "start-date": { "state": "empty" }
+      }
+    }
+  }
+}
