@@ -152,9 +152,7 @@ col.is-focus { border:2px solid var(--ink); }
 /* 없다는 **표기**. 값이 설 자리에 서서 「여기에 값이 없다」를 말한다 —
    빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
 .miss { font-size:12.5px; color:var(--mute); }
-.miss.value, .miss.item { cursor:help; }
-/* 가운뎃점은 대시보다 작아 보인다. 둘이 눈으로 갈리되 어느 쪽도 도드라지지 않게 맞춘다. */
-.miss.item { font-size:15px; line-height:1; }
+.miss.value { cursor:help; }
 /* 틀이 아니라 자리다 */
 .blank { padding:4px 0 8px; }
 /* 그리지 못한 자리. 테두리 친 알약이 아니라 굵은 monospace 다. */
@@ -273,9 +271,6 @@ svg .series-label.is-focus { font-weight:700; }
 /* 좁은 자리에서는 매달린 라벨이 폭을 먹는다. 같은 줄에 흘려 보낸다. */
 td .note { display:block; }
 td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
-/* **두 묶음을 가르는 것은 여백이 아니라 이 이름이다.** subject 것은 이름이 앞에 서고
-   facet 것은 서지 않는다 — 그래서 간격을 벌리지 않아도 한 줄만 읽으면 누구 말인지 안다. */
-.note .who { font-weight:600; color:var(--mute); }
 /* 말은 데이터 뒤에 한자리에 모인다. 묶음 사이도 줄 사이와 같은 자다. */
 .said { margin-top:var(--step); display:flex; flex-direction:column; gap:var(--row); }
 /* facet 것과 subject 것 사이의 **짧은 구조선.** 판을 가로지르지 않고 글머리 쪽에만 놓인다 —

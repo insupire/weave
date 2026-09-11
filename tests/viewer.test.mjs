@@ -15,7 +15,7 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  COMPARE, ELEMENTS, KIND_LABEL, MARK, NO_ITEM, NO_ITEMS, NO_VALUE, TRACE, UNDRAWABLE,
+  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEM, NO_ITEMS, NO_VALUE, NO_VALUE_MARK, TRACE, UNDRAWABLE,
   formatScalar, renderView, traceOf,
 } from "../viewer/render.mjs";
 import { ICON } from "../viewer/icons.mjs";
@@ -68,6 +68,16 @@ const drawSample = (s, overrides = {}) =>
 const textOf = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 // **읽어 주는 기계가 듣는 것.** 없다는 자리는 화면에 표기 하나로 서고 뜻은 이름표가 갖는다 —
 // 그 말이 사라지지 않았는지 보려면 판정도 이름표를 함께 들어야 한다.
+// 표시를 가리켜야 열리는 자리들. 「그 안에 있나」를 자리로 재려면 시작과 끝을 알아야 한다 —
+// 앞뒤로 재면 표시 뒤에 또 펴 놓은 것을 「표시 안」으로 잘못 센다.
+const pops = (html) => {
+  const found = [];
+  for (const m of html.matchAll(/class="note-pop"/g)) {
+    const end = html.indexOf('class="pop-close">', m.index);
+    if (end > 0) found.push([m.index, end]);
+  }
+  return found;
+};
 const spokenOf = (html) =>
   textOf(html.replace(/<[^>]*role="img"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<\/[a-z]+>/g, " $1 "));
 
@@ -246,52 +256,57 @@ test("값이 없는 facet 도 자리를 남기고 없다고 말한다", () => {
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
   // 화면에는 **표기**가 서고 뜻은 이름표가 갖는다 — 빈 칸으로 두면 깨진 것과 구별되지 않는다.
-  assert.ok(shown.includes(MARK.value), `값이 설 자리에 표기가 없다: ${shown.slice(0, 120)}`);
+  assert.ok(shown.includes(NO_VALUE_MARK), `값이 설 자리에 표기가 없다: ${shown.slice(0, 120)}`);
   assert.ok(spokenOf(html).includes(NO_VALUE), "읽어 주는 기계에 말이 남지 않았다");
 });
 
 test("못 그린 사실은 남고 범례는 서지 않는다", () => {
-  // **선 끝에 이름이 붙으므로 축 아래는 범례가 아니다.** 남는 것은 「이 제안서엔 그 값이
-  // 없다」는 사실뿐이고, 그 말은 **줄에 한 번** 선다 — subject 마다 되풀이하지 않는다.
-  // 둘 이상이 못 그려야 「한 번인지 이름마다인지」를 가를 수 있다.
+  // **범위를 좁혔다.** 선 끝에 이름이 붙으므로 축 아래에 못 그린 subject 를 줄줄이 적으면
+  // 그것이 범례다. **고른 subject 가 못 섰을 때만** 그 사실을 말한다 — 지금 보고 있는 것에
+  // 값이 없으면 알아야 하고, 안 보고 있는 것까지 적을 까닭은 없다.
+  // (정본 「값이 없으면 facet 이 그 사실을 말한다」는 이 범위로 지켜진다.)
   const values = structuredClone(FIX.values);
   values[2].facets["premium-by-age"].fields["premium-curve"] = { state: "empty" };
-  const { html } = fix({ values, focus: "proposal-b" });
-  const line = sectionOf(html, "line");
-  // 축 아래 줄은 **전부** 본다 — 하나만 보면 옆에 범례를 한 줄 더 다는 것을 놓친다.
-  const off = [...line.matchAll(/<div class="offs">[\s\S]*?<\/div>/g)].map((m) => m[0]).join("");
-  const names = (off.match(/<b class="who">/g) ?? []).length;
-  assert.equal(names, 2, `못 그린 subject 둘의 이름만 남아야 한다: ${off}`);
-  assert.ok(off.includes("나 제안서") && off.includes("proposal-c"));
-  assert.equal((off.match(new RegExp(NO_VALUE, "g")) ?? []).length, 1,
-    `「${NO_VALUE}」을 이름마다 되풀이한다: ${off}`);
-  // 그려진 선의 이름은 축 아래로 내려오지 않는다 — 그것이 범례다.
-  assert.ok(!off.includes("가 제안서"), "그린 subject 의 이름이 축 아래에 또 선다");
-  assert.match(line, /<text class="series-label[^"]*"[^>]*>가 제안서</, "선 끝의 이름은 남아야 한다");
+  const off = (part) => [...part.matchAll(/<div class="offs">[\s\S]*?<\/div>/g)].map((m) => m[0]).join("");
+
+  // 고른 것에 선이 없다 → 말한다. 함께 못 그린 다른 subject 는 조용히 빠진다.
+  const mine = sectionOf(fix({ values, focus: "proposal-b" }).html, "line");
+  assert.ok(off(mine).includes(NO_VALUE), "고른 subject 가 못 선 사실이 사라졌다");
+  for (const name of ["proposal-c", "가 제안서", "나 제안서"]) {
+    assert.ok(!off(mine).includes(name), `축 아래에 이름이 선다 — 범례다: ${name}`);
+  }
+  // 고른 것에 선이 있다 → 축 아래는 비어 있다. 못 그린 둘을 적으면 그것이 범례다.
+  const drawn = sectionOf(fix({ values, focus: "proposal-a" }).html, "line");
+  assert.equal(off(drawn), "", `고른 것이 그려졌는데 축 아래에 줄이 선다: ${off(drawn)}`);
+  // 선 끝의 이름은 그대로다 — 누가 누구인지는 거기서 읽는다.
+  assert.match(drawn, /<text class="series-label[^"]*"[^>]*>가 제안서</, "선 끝의 이름이 사라졌다");
   // list 는 축 아래 줄을 두지 않는다. 칸이 「값 없음」이라고 말한다.
-  const listPart = sectionOf(html, "list");
+  const listPart = sectionOf(fix({ values, focus: "proposal-b" }).html, "list");
   assert.ok(!listPart.includes('class="offs"'), "list 에 문장 줄이 남아 있다");
   assert.ok(spokenOf(listPart).includes(NO_VALUE), "칸이 말해야 한다");
 });
 
 test("없다는 말이 뜻마다 다르게 선다", () => {
-  // **뜻이 다르면 표기도 다르다.** 뭉개면 「모른다」와 「읽었고 없다」가 같아지고,
-  // 「그리지 못한다」가 조용해진다 — 그건 값의 문제가 아니라 템플릿과 값이 어긋난 신호다.
+  // **표기는 「모른다」 하나뿐이고 아는 사실은 글이 말한다.** 뭉개면 「모른다」와
+  // 「읽었고 없다」가 같아지고, 「그리지 못한다」가 조용해진다 — 그건 값의 문제가 아니라
+  // 템플릿과 값이 어긋난 신호다.
   const words = [NO_VALUE, NO_ITEM, NO_ITEMS, UNDRAWABLE];
   assert.equal(new Set(words).size, words.length, `없다는 말이 겹친다: ${words}`);
-  assert.notEqual(MARK.value, MARK.item, "두 표기가 같다");
-  for (const mark of Object.values(MARK)) assert.match(mark, /^\S$/, `표기가 글자 하나가 아니다: ${mark}`);
+  assert.match(NO_VALUE_MARK, /^\S$/, `표기가 글자 하나가 아니다: ${NO_VALUE_MARK}`);
 
-  // 한 화면에 「모른다」와 「읽었고 없다」가 같이 서는 자리를 만든다 —
-  // 나 제안서는 목록을 못 읽었고, 다 제안서는 읽었는데 그 항목이 없다.
+  // **표기는 「모른다」 하나뿐이다.** 아는 사실은 글이 말한다 — 표기 둘을 눈으로 가르려다
+  // 쓰다 만 글자처럼 보이느니, 아는 것은 말하게 두는 편이 낫다.
   const list = sectionOf(fix({ focus: "proposal-a" }).html, "list");
-  const cells = [...list.matchAll(/<span class="miss ([a-z]+)"[^>]*aria-label="([^"]*)"[^>]*>([^<]*)<\/span>/g)];
-  const kinds = new Map(cells.map((m) => [m[1], { said: m[2], mark: m[3] }]));
-  assert.deepEqual([...kinds.keys()].sort(), ["item", "value"], "두 뜻이 한 표에 서야 가를 수 있다");
-  assert.equal(kinds.get("value").mark, MARK.value);
-  assert.equal(kinds.get("item").mark, MARK.item);
-  assert.equal(kinds.get("value").said, NO_VALUE);
-  assert.equal(kinds.get("item").said, NO_ITEM);
+  const marks = [...list.matchAll(/<span class="miss[^"]*"([^>]*)>([^<]*)<\/span>/g)];
+  const spoken = marks.filter((m) => /role="img"/.test(m[1]));
+  assert.ok(spoken.length > 0, "모른다는 자리가 표에 있어야 한다");
+  for (const [, attrs, glyph] of spoken) {
+    assert.equal(glyph, NO_VALUE_MARK, "표기가 여럿이다");
+    assert.equal(attrs.match(/aria-label="([^"]*)"/)?.[1], NO_VALUE, "표기가 다른 뜻을 지고 있다");
+  }
+  // **읽었고 그 항목이 없다는 것은 아는 사실**이라 글로 선다. 「모른다」와 여전히 갈린다.
+  assert.ok(textOf(list).includes(NO_ITEM), "읽었고 없다는 말이 사라졌다");
+  assert.ok(marks.some((m) => !/role="img"/.test(m[1]) && m[2].trim() === NO_ITEM));
 
   // **빈 칸으로 두지 않는다.** 아무것도 없으면 렌더가 깨진 것과 구별되지 않는다.
   // **읽어 주는 기계에는 말이 남는다** — 표기마다 이름표가 제 뜻을 글로 갖는다.
@@ -299,9 +314,11 @@ test("없다는 말이 뜻마다 다르게 선다", () => {
     const part = sectionOf(fix({ focus: "proposal-b" }).html, element);
     for (const [, attrs, glyph] of part.matchAll(/<span class="miss[^"]*"([^>]*)>([^<]*)<\/span>/g)) {
       assert.ok(glyph.trim(), `${element}: 표기가 비어 있다`);
-      if (!/role="img"/.test(attrs)) continue; // 글로 서는 자리(항목 없음·있음)
-      const said = attrs.match(/aria-label="([^"]*)"/)?.[1];
-      assert.ok(words.includes(said), `${element}: 표기에 뜻이 없다 — ${attrs}`);
+      if (!/role="img"/.test(attrs)) {
+        assert.ok(words.includes(glyph.trim()), `${element}: 모르는 말이 섰다 — ${glyph}`);
+        continue; // 아는 사실은 글로 선다
+      }
+      assert.equal(attrs.match(/aria-label="([^"]*)"/)?.[1], NO_VALUE, `${element}: 표기에 뜻이 없다`);
       assert.match(attrs, /title="/, `${element}: 가리켜도 뜻이 안 나온다`);
     }
   }
@@ -315,7 +332,7 @@ test("없다는 말이 뜻마다 다르게 선다", () => {
   // 글이 서고 **무엇이 어긋났는지 적는다.** 여는 태그가 아니라 눈에 보이는 글을 잰다 —
   // 태그를 재면 title 속성만으로 길이가 차서 까닭이 사라져도 통과한다.
   const said = part.slice(part.indexOf(">", at) + 1, part.indexOf("</span>", at));
-  assert.ok(!Object.values(MARK).some((m) => said.includes(m)), `어긋남을 표기로 뭉갠다: ${said}`);
+  assert.ok(!said.includes(NO_VALUE_MARK), `어긋남을 표기로 뭉갠다: ${said}`);
   // 글 뒤에 **무엇이** 어긋났는지가 붙고, 가리키면 **왜**가 나온다. 둘 다 있어야 한다.
   assert.match(said, new RegExp(`^${UNDRAWABLE}: \\S`), `무엇이 어긋났는지 적지 않는다: ${said}`);
   const why = part.slice(at, part.indexOf(">", at)).match(/title="([^"]*)"/)?.[1] ?? "";
@@ -417,8 +434,8 @@ test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
     const stood = part.includes('class="off ') && textOf(part).includes(blank.subjectLabel);
     assert.ok(said || stood, `${facet.id}: 못 선 사실이 사라졌다`);
   }
-  // 겹치는 쪽은 축 아래에 이름이 남는다.
-  assert.match(html, /class="offs"/);
+  // 겹치는 쪽은 **그 subject 를 골랐을 때** 축 아래가 못 섰다고 말한다.
+  assert.match(mine.html, /class="offs"/);
   // 주석이 이유를 facet 마다 말한다. 고르는 쪽은 **그리는 subject 의 말만** 내므로 그 subject 를 골라 센다.
   const mineSaid = textOf(
     renderView({ template: FIX.template, values: [FIX.filled, blank], focus: blank.subjectId }).html,
@@ -467,8 +484,15 @@ test("focus 는 그 subject 하나만 잡는다", () => {
 });
 
 test("거의 비어 있는 subject 도 focus 가 된다", () => {
-  const { html } = fix({ focus: "proposal-b" });
-  assert.deepEqual(focusedNames(html), new Set(["나 제안서"]));
+  const { html, view } = fix({ focus: "proposal-b" });
+  assert.equal(view.focus, "proposal-b");
+  // 값이 거의 없어 이름이 설 자리가 적다. 그래도 **표의 열 선언**이 어느 자리인지 잡는다.
+  const cols = [...sectionOf(html, "list").matchAll(/<col( class="is-focus")?>/g)].map((m) => Boolean(m[1]));
+  const seat = FIX.values.findIndex((doc) => doc.subjectId === "proposal-b");
+  assert.deepEqual(cols, cols.map((_, i) => i === seat + 1), `고른 자리를 잡지 못한다: ${cols}`);
+  // 이름이 서는 자리에서는 고른 것 하나만 잡힌다.
+  const named = focusedNames(html);
+  assert.ok(named.size === 0 || [...named].every((name) => name === "나 제안서"), [...named].join(" / "));
 });
 
 test("없는 id 면 focus 만 사라진다", () => {
@@ -541,6 +565,34 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
   assert.ok(at > 0, "붙은 말이 있어야 한다");
   assert.ok(html.lastIndexOf('class="note-pop"', at) > html.lastIndexOf('class="body"', at),
     "필드에 붙은 말이 본문에 펼쳐져 있다");
+  // **다섯 element 가 모두 같다.** 겹치는 쪽만 본문 아래에 펴면 그것이 subject 주석처럼
+  // 읽혀 순서가 둘이 된다 — 그 자리를 여기서 막는다.
+  let checkedFields = 0;
+  for (const doc of FIX.values) {
+    const page = fix({ focus: doc.subjectId }).html;
+    for (const facet of FIX.template.facets) {
+      const part = sectionOf(page, facet.element);
+      for (const decl of facet.fields) {
+        for (const note of doc.facets?.[facet.id]?.fields?.[decl.key]?.notes ?? []) {
+          const needle = note.text.slice(0, 14);
+          // **등장하는 자리를 전부 본다.** 첫 자리만 보면 표시 안에 두고 본문에도 또 펴는 것을
+          // 놓친다 — 그러면 화면에는 규칙이 둘인 채로 판정이 초록이다.
+          let where = part.indexOf(needle);
+          let seen = 0;
+          while (where >= 0) {
+            assert.ok(pops(part).some(([from, to]) => where > from && where < to),
+              `${facet.id}/${decl.key}: 값에 붙은 말이 본문에 펼쳐져 있다`);
+            seen += 1;
+            where = part.indexOf(needle, where + 1);
+          }
+          if (seen) checkedFields += 1;
+        }
+      }
+    }
+  }
+
+  assert.ok(checkedFields >= 3, `값에 붙은 말이 여러 element 에 있어야 가를 수 있다: ${checkedFields}`);
+
   // facet 에 붙은 것은 감추지 않는다 — 먼저 알아야 할 것이다.
   const head = sectionOf(html, "stat");
   const afterBody = head.slice(head.indexOf('class="body"'));
@@ -579,24 +631,33 @@ test("주석 갈래를 정본 이름으로 부른다", () => {
 test("말은 데이터 뒤에 한자리에 모인다", () => {
   // facet 제목 → 본문 → facet 주석 → subject 주석. 예외를 두지 않는다 —
   // 읽는 규칙이 둘이면 매번 어디 있는지 찾게 된다.
-  const { html } = fix({ focus: "proposal-a" });
-  for (const facet of FIX.template.facets) {
-    if (!(facet.notes ?? []).length) continue;
-    const part = sectionOf(html, facet.element);
-    const body = part.indexOf('class="body"');
-    const said = part.indexOf('class="said"');
-    assert.ok(body >= 0 && said > body, `${facet.id}: 말 묶음이 데이터보다 앞에 선다`);
-    // **첫 등장**으로 본다 — 위아래 두 군데에 두면 규칙이 둘이 되는 것은 마찬가지다.
-    const facetSaid = part.indexOf(facet.notes[0].text.slice(0, 12));
-    assert.ok(facetSaid > 0, `${facet.id}: facet 에 붙은 말이 없다`);
-    assert.ok(facetSaid > body, `${facet.id}: 말이 데이터보다 앞에도 선다`);
-    // facet 에 붙은 것이 subject 에 붙은 것보다 앞에 선다.
-    const whoAt = part.indexOf('<b class="who">', said);
-    if (whoAt > 0) assert.ok(facetSaid < whoAt, `${facet.id}: subject 것이 facet 것보다 앞에 선다`);
+  // **다섯 element 에서 같은지 본다.** 하나만 보면 「몇몇은 또 그렇지 않다」를 못 잡는다.
+  // subject 도 옮겨 가며 본다 — 어느 조합에서도 규칙은 하나여야 한다.
+  let checked = 0;
+  for (const doc of FIX.values) {
+    const html = fix({ focus: doc.subjectId }).html;
+    for (const facet of FIX.template.facets) {
+      if (!(facet.notes ?? []).length) continue;
+      const part = sectionOf(html, facet.element);
+      const body = part.indexOf('class="body"');
+      const said = part.indexOf('class="said"');
+      assert.ok(body >= 0 && said > body, `${facet.id}: 말 묶음이 데이터보다 앞에 선다`);
+      // **첫 등장**으로 본다 — 위아래 두 군데에 두면 규칙이 둘이 되는 것은 마찬가지다.
+      const facetSaid = part.indexOf(facet.notes[0].text.slice(0, 12));
+      assert.ok(facetSaid > 0, `${facet.id}: facet 에 붙은 말이 없다`);
+      assert.ok(facetSaid > body, `${facet.id}: 말이 데이터보다 앞에도 선다`);
+      // **subject 것이 facet 것보다 뒤에 선다.** 이름표를 뗐으므로 글로 찾는다 —
+      // 표시(`<b class="who">`)로 찾으면 그것이 사라진 날 판정이 조용히 아무것도 안 본다.
+      for (const note of doc.facets?.[facet.id]?.notes ?? []) {
+        const at = part.indexOf(note.text.slice(0, 12));
+        assert.ok(at > facetSaid, `${facet.id}/${doc.subjectId}: subject 것이 facet 것보다 앞에 선다`);
+        checked += 1;
+      }
+    }
   }
-  // 가르는 것은 띠도 상자도 아니다 — subject 것은 이름이 앞에 서서 스스로 갈린다.
-  // 묶음을 **띠나 상자로 두르지 않는다.** 가르는 것은 이름이고, 그것을 거드는 것은
-  // 두 묶음 사이의 짧은 선 하나뿐이다 — 묶음 자체에는 테두리가 붙지 않는다.
+  assert.ok(checked > 0, "고정 케이스에 subject 주석이 있어야 순서를 가를 수 있다");
+  // 묶음을 **띠나 상자로 두르지 않는다.** 가르는 것은 두 묶음 사이의 짧은 선 하나뿐이다 —
+  // 묶음 자체에는 테두리가 붙지 않는다.
   const sheet = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   for (const [, selector, body] of sheet.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
     const sel = selector.trim();
@@ -633,9 +694,18 @@ test("짧은 선은 두 묶음 사이에만 선다", () => {
         `${facet.id}/${doc.subjectId}: 선이 ${ours && yours ? "빠졌다" : "홀로 섰다"}`);
       if (cutAt < 0) continue;
       // 선은 그 둘 **사이**다. facet 것 뒤이고 subject 것 앞이다.
+      // **이름표가 사라졌으므로 가르는 것은 이 선뿐이다** — 글로 찾는다.
       assert.ok(cutAt > at, "선이 말 묶음 밖에 있다");
       assert.ok(cutAt > part.indexOf(facet.notes[0].text.slice(0, 12)), "선이 facet 것보다 앞에 선다");
-      assert.ok(cutAt < part.indexOf('<b class="who">', at), "선이 subject 것보다 뒤에 선다");
+      const said = doc.facets[facet.id].notes[0].text.slice(0, 12);
+      assert.ok(cutAt < part.indexOf(said, at), "선이 subject 것보다 뒤에 선다");
+    }
+  }
+  // **이름표가 아니라 이 선이 가른다.** 이름은 늘 고른 subject 것이라 그 사실을 두 번 말한다.
+  // (되돌리려면 `notesHtml` 의 둘째 인자에 이름을 다시 주면 된다.)
+  for (const doc of FIX.values) {
+    for (const part of [...fix({ focus: doc.subjectId }).html.matchAll(/<div class="said">[\s\S]*?<\/div>/g)]) {
+      assert.ok(!part[0].includes('<b class="who">'), `말 묶음에 이름표가 섰다: ${part[0].slice(0, 120)}`);
     }
   }
   // 다른 자리에 선을 늘리지 않았다 — 이 선은 말 묶음 안에서만 산다.
@@ -1096,8 +1166,10 @@ test("샘플 넷이 전부 그려지고 아무것도 던지지 않는다", () =>
 
 test("값이 비는 경우가 샘플에도 남아 있다", () => {
   // 샘플을 가르는 축은 아니지만 그 상태는 여전히 보여야 한다.
-  const pages = sampleNames.map((name) => textOf(drawSample(sample(name)).html));
+  const pages = sampleNames.map((name) => spokenOf(drawSample(sample(name)).html));
   assert.ok(pages.some((p) => p.includes(NO_VALUE)), "값 없음이 어느 샘플에도 없다");
+  assert.ok(sampleNames.some((name) => drawSample(sample(name)).html.includes(NO_VALUE_MARK)),
+    "값이 없다는 표기가 어느 샘플에도 서지 않는다");
   // 전부 빈 값 한 벌이 미분석의 자리를 이어받았다. 샘플에도 그 한 벌이 있어야 한다.
   const allBlank = sampleNames.flatMap((name) =>
     sample(name).values.filter((doc) =>
