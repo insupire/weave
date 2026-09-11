@@ -114,13 +114,13 @@ function kindIcon(kind) {
  */
 function notePop(notes) {
   if (!Array.isArray(notes) || notes.length === 0) return "";
-  // 수는 **둘 이상일 때만** 적는다. 하나인데 「1」을 붙이면 표시가 이미 하는 말을 두 번 한다.
-  // 여럿일 때는 열기 전에 분량을 알려 주므로 값을 한다.
-  const count = notes.length > 1 ? `<span class="note-count">${notes.length}</span>` : "";
+  // **수를 적지 않는다.** 값 옆에 서는 것은 표시 하나뿐이다 — 몇 개인지는 열면 보인다.
+  // 세는 것은 읽는 사람의 일이 아니고, 수가 붙으면 값 옆이 다시 붐빈다.
+  // (기계가 읽는 이름표에는 남는다. 눈에 보이는 글이 아니다.)
   return (
     `<span class="note-mark" tabindex="0" role="button" aria-label="붙은 말 ${notes.length}">` +
     `<svg class="mark-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">${ICON.note}</svg>` +
-    `${count}<span class="note-pop" role="tooltip">${notesHtml(notes)}` +
+    `<span class="note-pop" role="tooltip">${notesHtml(notes)}` +
     `<button type="button" class="pop-close">닫기</button></span></span>`
   );
 }
@@ -173,14 +173,20 @@ function drawCell(report, where, decl, value) {
 // 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
 export const COMPARE = { stat: "focus", facts: "focus", bars: "focus", line: "overlay", list: "overlay" };
 
-/** 값이 없어 자리에 못 선 subject. 겹치는 쪽에서 축 아래에 적는다. */
-function blankRow(blanks) {
+/**
+ * 값이 없어 자리에 못 선 subject. 겹치는 쪽에서 축 아래에 적는다.
+ *
+ * **범례가 아니다.** 이름만 늘어놓으면 축 아래 이름 줄은 범례로 읽히고, 선 끝에 이미
+ * 이름이 붙어 있으므로 같은 말을 두 번 하는 것이 된다. 그래서 **줄 머리가 무슨 줄인지
+ * 말한다** — 「값 없음」은 줄에 한 번 서고 subject 마다 되풀이하지 않는다.
+ */
+function blankRow(blanks, said = NO_VALUE) {
   if (blanks.length === 0) return "";
-  const said = blanks
+  const names = blanks
     .map((b) => `<span class="off${b.focused ? " is-focus" : ""}">` +
-      `<b class="who">${esc(b.name)}</b> ${b.said}</span>`)
+      `<b class="who">${esc(b.name)}</b>${b.mark ?? ""}</span>`)
     .join("");
-  return `<div class="offs">${said}</div>`;
+  return `<div class="offs"><span class="off-said">${esc(said)}</span>${names}</div>`;
 }
 
 function readsOf(ctx, facet, decl) {
@@ -263,8 +269,10 @@ function bars(ctx, facet) {
       text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(entry.value));
     }
     return (
-      `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}</span>${mark}` +
-      `<span class="val">${text}${notePop(entry?.notes)}</span></div>`
+      // **표시는 라벨 옆에 선다.** 오른쪽 끝 값에 붙이면 막대 길이에 눈이 가는 자리와
+      // 겹치고, 좁은 화면에서 값이 먼저 줄어드는 자리라 표시가 밀린다.
+      `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}` +
+      `${notePop(entry?.notes)}</span>${mark}<span class="val">${text}</span></div>`
     );
   });
   return rows.join("");
@@ -274,37 +282,35 @@ function line(ctx, facet) {
   const decl = facet.fields[0];
   const axis = decl.axis;
   const series = [];
-  const misses = [];
+  const missing = []; // 값이 없어 못 그린 subject — 줄 머리가 한 번 말한다
+  const broken = []; // 값은 있으나 그리지 못한 것 — 저마다 까닭을 적는다
   for (const subject of ctx.subjects) {
     const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     if (state !== "filled") {
-      // 문장을 쓰지 않는다. **이름이 흐리게 남는 것**이 「이 자리에 못 그렸다」를 말한다.
-      misses.push(
-        `<span class="off${subject.id === ctx.focus ? " is-focus" : ""}">` +
-          `<b class="who">${esc(subject.name)}</b>${notePop(entry?.notes)}</span>`,
-      );
+      // subject 마다 문장을 되풀이하지 않는다. 줄 머리가 한 번 말하고 이름이 뒤에 선다.
+      missing.push({ ...subject, focused: subject.id === ctx.focus, mark: notePop(entry?.notes) });
       continue;
     }
     const raw = entry.value;
     const points = [];
-    let broken = null;
-    if (!Array.isArray(raw)) broken = "선은 점의 배열을 요구한다";
+    let bad = null;
+    if (!Array.isArray(raw)) bad = "선은 점의 배열을 요구한다";
     else
       for (const point of raw) {
         const x = axisNumber(axis, point?.at);
         const y = typeof point?.value === "number" && Number.isFinite(point.value) ? point.value : null;
         if (x === null || y === null) {
-          broken = `축(${axis ?? "없음"})이나 값에 그릴 수 없는 것이 있다`;
+          bad = `축(${axis ?? "없음"})이나 값에 그릴 수 없는 것이 있다`;
           break;
         }
         points.push({ x, y, at: point.at });
       }
-    if (broken || points.length === 0) {
-      misses.push(
+    if (bad || points.length === 0) {
+      broken.push(
         `<span class="off${subject.id === ctx.focus ? " is-focus" : ""}">` +
           `<b class="who">${esc(subject.name)}</b> ` +
-          `${undrawable(ctx.report, where, broken ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</span>`,
+          `${undrawable(ctx.report, where, bad ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</span>`,
       );
       continue;
     }
@@ -320,7 +326,9 @@ function line(ctx, facet) {
     .join("");
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}` +
-    (misses.length ? `<div class="offs">${misses.join("")}</div>` : "") +
+    // 선 끝에 이름이 붙으므로 **아래에 범례를 두지 않는다.** 남는 것은 못 그린 사실뿐이다.
+    blankRow(missing) +
+    (broken.length ? `<div class="offs">${broken.join("")}</div>` : "") +
     notes
   );
 }
@@ -399,19 +407,18 @@ function list(ctx, facet) {
 
   const blanks = reads
     .filter(({ subject }) => unread.has(subject.id))
-    .map(({ subject }) => ({ ...subject, said: stateSpan() }));
+    .map(({ subject }) => ({ ...subject }));
   if (rows.size === 0) {
     return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
       `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>${blankRow(blanks)}` +
       fieldNotes(ctx, reads);
   }
 
+  // **고른 열은 통째로 잡는다.** 칸마다 테두리를 두르면 열 안에 가로선이 생겨 한 덩어리로
+  // 읽히지 않는다. 열 선언(`<col>`)에 테두리를 주면 머리부터 끝까지 한 상자가 된다.
+  const cols = [`<col>`, ...reads.map(({ subject }) => (subject.focused ? `<col class="is-focus">` : `<col>`))];
   const head = [`<th class="corner">${esc(key.label ?? key.key)}</th>`];
-  for (const { subject } of reads) {
-    head.push(
-      `<th${subject.focused ? ' class="is-focus"' : ""}>${esc(subject.name)}</th>`,
-    );
-  }
+  for (const { subject } of reads) head.push(`<th>${esc(subject.name)}</th>`);
   const body = [...rows.entries()].map(([name, held]) => {
     const cells = reads.map(({ subject }) => {
       if (unread.has(subject.id)) return `<td>${stateSpan()}</td>`;
@@ -424,7 +431,7 @@ function list(ctx, facet) {
       );
       const extra = Object.keys(item).filter((k) => !columns.some((c) => c.key === k));
       if (extra.length) ctx.report.push(`${facet.id}/${name}: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
-      return `<td class="${subject.focused ? "is-focus" : ""}">${pairs.join("") || "<span class=\"miss\">있음</span>"}</td>`;
+      return `<td>${pairs.join("") || "<span class=\"miss\">있음</span>"}</td>`;
     });
     return `<tr><th class="row-label" scope="row">${esc(name)}</th>${cells.join("")}</tr>`;
   });
@@ -433,7 +440,8 @@ function list(ctx, facet) {
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
     // **표만 옆으로 굴린다.** subject 가 늘수록 넓어지는 유일한 자리라, 페이지 전체가 밀리는
     // 대신 표가 자기 상자 안에서 굴러간다. 열 너비는 균일하다 — 넓이가 우열을 말하지 않는다.
-    `<div class="table-scroll"><table class="items"><thead><tr>${head.join("")}</tr></thead>` +
+    `<div class="table-scroll"><table class="items"><colgroup>${cols.join("")}</colgroup>` +
+    `<thead><tr>${head.join("")}</tr></thead>` +
     `<tbody>${body.join("")}</tbody></table></div>` +
     // 문장을 덧붙이지 않는다 — 그 subject 의 칸이 이미 「값 없음」이라고 말한다.
     fieldNotes(ctx, reads)
@@ -532,9 +540,13 @@ export function renderView({ template, values = [], focus = null } = {}) {
     // 말이 따라온다. 고른 것이 없으면 첫 subject 이며, 그것이 화면이 그리고 있는 subject 다.
     // **facet 에 붙은 말은 전부 선다** — 그건 subject 의 것이 아니다.
     const mine = seats.find((s) => s.id === shown);
-    const said =
-      notesHtml(facet.notes) +
-      (mine ? notesHtml(facetNotes(byId.get(mine.id), facet.id), mine.name) : "");
+    const ours = notesHtml(facet.notes);
+    const yours = mine ? notesHtml(facetNotes(byId.get(mine.id), facet.id), mine.name) : "";
+    // **두 묶음 사이에만 짧은 선이 선다.** 이름이 가르는 것을 거들 뿐이라 판을 가로지르지
+    // 않고 글머리 쪽에 짧게 놓인다. 가를 것이 없으면(한쪽이 비면) 서지 않는다.
+    // 줄과 같은 자로 재어진다 — 앞뒤 간격이 `--row` 하나다.
+    const cut = ours && yours ? `<hr class="said-cut">` : "";
+    const said = ours + cut + yours;
     return (
       `<section class="facet element-${esc(facet.element ?? "unknown")}">${head}` +
       `<div class="body">${body}</div>` +

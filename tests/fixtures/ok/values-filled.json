@@ -65,7 +65,13 @@
       "fields": {
         "death-benefit": {
           "state": "filled",
-          "value": 50000000
+          "value": 50000000,
+          "notes": [
+            {
+              "kind": "caution",
+              "text": "감액기간이 있어 처음 2년은 이 금액의 절반만 나옵니다."
+            }
+          ]
         },
         "cancer-benefit": {
           "state": "filled",

@@ -243,12 +243,24 @@ test("값이 없는 facet 도 자리를 남기고 없다고 말한다", () => {
   assert.ok(shown.includes(NO_VALUE));
 });
 
-test("겹치는 자리에서 「값 없음」 문장을 되풀이하지 않는다", () => {
-  // 사실은 남기되 문장은 쓰지 않는다 — line 은 이름이 흐리게 남고, list 는 칸이 이미 말한다.
-  const { html } = fix({ focus: "proposal-b" });
-  const off = sectionOf(html, "line").match(/<div class="offs">[\s\S]*?<\/div>/)?.[0] ?? "";
-  assert.ok(off.includes("나 제안서"), "이름이 남아야 한다");
-  assert.ok(!off.includes(NO_VALUE), "문장이 되풀이된다");
+test("못 그린 사실은 남고 범례는 서지 않는다", () => {
+  // **선 끝에 이름이 붙으므로 축 아래는 범례가 아니다.** 남는 것은 「이 제안서엔 그 값이
+  // 없다」는 사실뿐이고, 그 말은 **줄에 한 번** 선다 — subject 마다 되풀이하지 않는다.
+  // 둘 이상이 못 그려야 「한 번인지 이름마다인지」를 가를 수 있다.
+  const values = structuredClone(FIX.values);
+  values[2].facets["premium-by-age"].fields["premium-curve"] = { state: "empty" };
+  const { html } = fix({ values, focus: "proposal-b" });
+  const line = sectionOf(html, "line");
+  // 축 아래 줄은 **전부** 본다 — 하나만 보면 옆에 범례를 한 줄 더 다는 것을 놓친다.
+  const off = [...line.matchAll(/<div class="offs">[\s\S]*?<\/div>/g)].map((m) => m[0]).join("");
+  const names = (off.match(/<b class="who">/g) ?? []).length;
+  assert.equal(names, 2, `못 그린 subject 둘의 이름만 남아야 한다: ${off}`);
+  assert.ok(off.includes("나 제안서") && off.includes("proposal-c"));
+  assert.equal((off.match(new RegExp(NO_VALUE, "g")) ?? []).length, 1,
+    `「${NO_VALUE}」을 이름마다 되풀이한다: ${off}`);
+  // 그려진 선의 이름은 축 아래로 내려오지 않는다 — 그것이 범례다.
+  assert.ok(!off.includes("가 제안서"), "그린 subject 의 이름이 축 아래에 또 선다");
+  assert.match(line, /<text class="series-label[^"]*"[^>]*>가 제안서</, "선 끝의 이름은 남아야 한다");
   // list 는 축 아래 줄을 두지 않는다. 칸이 「값 없음」이라고 말한다.
   const listPart = sectionOf(html, "list");
   assert.ok(!listPart.includes('class="offs"'), "list 에 문장 줄이 남아 있다");
@@ -371,6 +383,13 @@ test("focus 는 그 subject 하나만 잡는다", () => {
   const { html } = fix({ focus: "proposal-a" });
   assert.ok(html.includes("is-focus"));
   assert.deepEqual(focusedNames(html), new Set(["가 제안서"]));
+
+  // 표에서는 **열 선언**이 잡는다 — 이름표가 아니라 자리를 가리켜 열이 통째로 잡힌다.
+  const list = sectionOf(html, "list");
+  const cols = [...list.matchAll(/<col( class="is-focus")?>/g)].map((m) => Boolean(m[1]));
+  assert.equal(cols.length, FIX.values.length + 1, "열 선언이 열 수와 맞지 않는다");
+  assert.deepEqual(cols, [false, true, false, false], "고른 열 하나만 잡아야 한다");
+  assert.ok(!/<t[hd][^>]*is-focus/.test(list), "칸마다 따로 잡아 열 안에 가로선이 생긴다");
 });
 
 test("거의 비어 있는 subject 도 focus 가 된다", () => {
@@ -411,7 +430,8 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
   const badge = mark.slice(0, mark.indexOf('<span class="note-pop"'));
   assert.equal((badge.match(/<svg/g) ?? []).length, 1, `값 옆에 표시가 여럿이다: ${badge}`);
   assert.ok(!/note-(quote|tip|note|caution)/.test(badge), `표시가 갈래를 입는다: ${badge}`);
-  assert.ok(!/\+\d/.test(badge), "넘치는 수를 값 옆에 흘린다");
+  // **수를 적지 않는다.** 값 옆에 눈에 보이는 글은 하나도 없다 — 표시 하나뿐이다.
+  assert.equal(textOf(badge).trim(), "", `값 옆에 글이 흐른다: ${textOf(badge)}`);
   // **갈래는 툴팁 안에서 산다** — 열면 줄마다 자기 갈래 표시와 이름을 갖는다.
   const notes = FIX.filled.facets["monthly-premium"].fields["premium"].notes;
   assert.ok(notes.length > 1, "고정 케이스에 말이 여럿 걸린 값이 있어야 한다");
@@ -420,14 +440,28 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
     assert.ok(pop.includes(note.text), `툴팁에 ${note.text.slice(0, 12)} 가 없다`);
     assert.match(pop, new RegExp(`note-${note.kind}"`), `툴팁 줄이 ${note.kind} 갈래를 잃었다`);
   }
-  // 몇 개인지는 **둘 이상일 때만** 적는다. 수는 갈래가 아니라 분량이다.
-  assert.match(badge, new RegExp(`<span class="note-count">${notes.length}</span>`));
-  const one = fix({ focus: "proposal-c" }).html.match(/<span class="note-mark"[\s\S]*?<\/span><\/span>/)[0];
-  assert.ok(!one.slice(0, one.indexOf("note-pop")).includes("note-count"), "하나인데 수를 적는다");
+  // 말이 여럿 걸려도 값 옆은 표시 하나 그대로다 — 세는 것은 읽는 사람의 일이 아니다.
+  const inside = badge.slice(badge.indexOf(">") + 1); // 표시 자체의 여는 태그를 뺀 안쪽
+  assert.equal((inside.match(/<span/g) ?? []).length, 0, `표시 옆에 무언가 더 선다: ${inside}`);
+  assert.ok(!/note-count/.test(fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8")));
+  // 기계가 읽는 이름표에는 남는다 — 눈에 보이는 글이 아니다.
+  assert.match(mark, new RegExp(`aria-label="붙은 말 ${notes.length}"`));
 
   // 표시가 갈래색을 받는 길이 CSS 에도 없다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   assert.ok(!/\.(note-mark|mark-icon)[^{]*\{[^}]*var\(--kind/.test(css), "표시가 갈래색을 받는다");
+
+  // **bars 는 표시를 맨 앞 라벨 옆에 세운다.** 오른쪽 끝 값에 붙이면 막대 길이를 읽는
+  // 자리와 겹치고, 좁아질 때 값이 먼저 줄어드는 자리라 표시가 밀린다.
+  const rows = sectionOf(html, "bars").split('<div class="bar-row">').slice(1);
+  const marked = rows.filter((row) => row.includes("note-mark"));
+  assert.ok(marked.length > 0, "고정 케이스에 말이 붙은 막대가 있어야 한다");
+  for (const row of marked) {
+    const label = row.slice(0, row.indexOf('<span class="track"'));
+    assert.ok(label.includes("note-mark"), `표시가 라벨 옆에 서지 않는다: ${row}`);
+    assert.ok(!row.slice(row.indexOf('<span class="val">')).includes("note-mark"),
+      "표시가 값 옆에 남아 있다");
+  }
   // 내용은 본문에 펼쳐지지 않고 표시 안에 있다.
   const at = html.indexOf(said);
   assert.ok(at > 0, "붙은 말이 있어야 한다");
@@ -487,7 +521,52 @@ test("말은 데이터 뒤에 한자리에 모인다", () => {
     if (whoAt > 0) assert.ok(facetSaid < whoAt, `${facet.id}: subject 것이 facet 것보다 앞에 선다`);
   }
   // 가르는 것은 띠도 상자도 아니다 — subject 것은 이름이 앞에 서서 스스로 갈린다.
-  assert.ok(!/\.said[^{]*\{[^}]*border/.test(fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8")));
+  // 묶음을 **띠나 상자로 두르지 않는다.** 가르는 것은 이름이고, 그것을 거드는 것은
+  // 두 묶음 사이의 짧은 선 하나뿐이다 — 묶음 자체에는 테두리가 붙지 않는다.
+  const sheet = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  for (const [, selector, body] of sheet.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    const sel = selector.trim();
+    if (!/\.said\b/.test(sel) || sel.includes(".said-cut")) continue;
+    assert.ok(!/border|background/.test(body), `말 묶음에 띠나 면을 두른다: ${sel} { ${body} }`);
+  }
+});
+
+test("짧은 선은 두 묶음 사이에만 선다", () => {
+  // 이름이 가르는 것을 **거드는** 구조선이다. 위계를 꾸미는 장식이 아니라 자리를 나눈다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const cut = css.match(/\.said-cut \{([^}]*)\}/)?.[1] ?? "";
+  assert.ok(cut, "선 규칙이 없다");
+  // **짧다.** 판을 가로지르지 않는다.
+  const width = cut.match(/width:([^;]+);/)?.[1].trim();
+  assert.ok(width && !/^(100%|auto)$/.test(width), `선이 판을 가로지른다: ${width}`);
+  // 무채색이고 갈래 색을 받지 않는다.
+  assert.ok(!/var\(--kind|var\(--subject/.test(cut), "선이 갈래·subject 색을 받는다");
+  assert.match(cut, /border-top:[^;]*var\(--line\)/);
+  // **세로 리듬을 깨지 않는다** — 앞뒤 간격은 다른 줄과 같은 자(`--row`)로 재어진다.
+  assert.match(cut, /margin:0/);
+  assert.match(css.match(/\.said \{([^}]*)\}/)[1], /gap:var\(--row\)/);
+
+  // **두 묶음이 다 있을 때만 선다.** 가를 것이 없는데 선만 서면 안 된다.
+  for (const doc of FIX.values) {
+    const html = fix({ focus: doc.subjectId }).html;
+    for (const facet of FIX.template.facets) {
+      const part = sectionOf(html, facet.element);
+      const ours = (facet.notes ?? []).length > 0;
+      const yours = (doc.facets?.[facet.id]?.notes ?? []).length > 0;
+      const at = part.indexOf('class="said"');
+      const cutAt = part.indexOf('class="said-cut"');
+      assert.equal(cutAt >= 0, ours && yours,
+        `${facet.id}/${doc.subjectId}: 선이 ${ours && yours ? "빠졌다" : "홀로 섰다"}`);
+      if (cutAt < 0) continue;
+      // 선은 그 둘 **사이**다. facet 것 뒤이고 subject 것 앞이다.
+      assert.ok(cutAt > at, "선이 말 묶음 밖에 있다");
+      assert.ok(cutAt > part.indexOf(facet.notes[0].text.slice(0, 12)), "선이 facet 것보다 앞에 선다");
+      assert.ok(cutAt < part.indexOf('<b class="who">', at), "선이 subject 것보다 뒤에 선다");
+    }
+  }
+  // 다른 자리에 선을 늘리지 않았다 — 이 선은 말 묶음 안에서만 산다.
+  assert.equal((fix().html.match(/said-cut/g) ?? []).length,
+    (fix().html.match(/<hr/g) ?? []).length, "말 묶음 밖에 선이 섰다");
 });
 
 test("subject 의 말은 언제나 고른 subject 것이다", () => {
@@ -689,8 +768,29 @@ test("세로 리듬이 자 셋에서만 나온다", () => {
   }
 });
 
+test("bars 는 좁아져도 가로로 눕는다", () => {
+  // 라벨 | 막대 | 값이 한 줄이다. 접어 올리면 막대가 라벨 아래로 내려가 세로로 읽힌다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const rule = (block, sel) => block.match(new RegExp(`${sel} \\{([^}]*)\\}`))?.[1] ?? "";
+  for (const block of [css, css.slice(css.indexOf("@media (max-width: 900px)"))]) {
+    assert.match(rule(block, "\\.bar-row"), /grid-template-columns:[^;]*1fr[^;]*(max-content|\d+px)/,
+      "라벨·막대·값이 한 줄에 서지 않는다");
+    assert.ok(!/\.bar-row \.val \{[^}]*grid-(column|row)/.test(block), "값을 다음 줄로 접는다");
+  }
+  // 막대는 가로로 뻗는다 — 길이는 너비가 말한다.
+  assert.match(rule(css, "\\.track"), /height:\d/);
+  assert.match(rule(css, "\\.fill"), /height:100%/);
+  for (const [, style] of sectionOf(fix().html, "bars").matchAll(/style="([^"]*)"/g)) {
+    assert.match(style, /^width:[\d.]+%$/, `막대가 너비가 아닌 것으로 자란다: ${style}`);
+  }
+});
+
 test("list 의 열은 균일하고 표만 옆으로 굴린다", () => {
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  // **고른 열은 통째로 잡히고 잘리지 않는다.** 칸마다 두르면 열 안에 가로선이 생기고,
+  // 스크롤 상자는 한 축만 굴릴 수 없어 여백이 없으면 테두리가 모서리에서 잘린다.
+  assert.match(css, /col\.is-focus \{[^}]*border:\d+px solid var\(--ink\)/);
+  assert.match(css, /\.table-scroll \{[^}]*padding:\d/);
   // 표는 자기 스크롤 상자 안에 있다 — 페이지 전체가 옆으로 밀리면 띠도 목차도 사라진다.
   assert.match(sectionOf(fix().html, "list"), /<div class="table-scroll"><table class="items"/);
   assert.match(css, /\.table-scroll \{[^}]*overflow-x:auto/);

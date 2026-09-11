@@ -135,9 +135,11 @@ h2 { font-size:17px; margin:0 0 10px; display:flex; align-items:baseline; gap:8p
 /* primitive element 이름은 설명서가 켤 때만 붙는다. 알약이 아니라 작은 글이다. */
 .show-elements h2[data-element]::after { content:attr(data-element);
   font:11px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--mute); font-weight:400; }
-/* focus 는 색이 아니라 테두리와 굵기로 말한다 */
-th.is-focus { outline:2px solid var(--ink); outline-offset:1px; }
-.is-focus > .who, th.is-focus { font-weight:700; }
+/* focus 는 색이 아니라 테두리와 굵기로 말한다.
+   **표에서는 열을 통째로 잡는다** — 칸마다 두르면 열 안에 가로선이 생겨 한 덩어리로
+   읽히지 않는다. 열 선언에 준 테두리는 `border-collapse` 가 머리부터 끝까지 한 상자로 잇는다. */
+col.is-focus { border:2px solid var(--ink); }
+.is-focus > .who { font-weight:700; }
 /* **선은 두 facet 의 한가운데 선다.** 위 여백은 앞 facet 의 아래 여백이고 아래 여백은
    이 facet 의 위 여백이라, 둘이 같아야 선이 가운데로 온다 — 그래서 한 자로 적는다. */
 .facet { border-top:1px solid var(--line); padding:var(--gap) 0; }
@@ -156,7 +158,10 @@ th.is-focus { outline:2px solid var(--ink); outline-offset:1px; }
   font-weight:700; color:var(--ink); }
 
 /* 겹치는 쪽 (line · list) — 값을 못 얹은 subject 는 축 아래에 선다 */
-.offs { display:flex; flex-wrap:wrap; gap:14px; margin-top:var(--row); }
+.offs { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin-top:var(--row); }
+/* **무슨 줄인지 줄 머리가 한 번 말한다.** 이름만 늘어놓으면 범례로 읽히고,
+   subject 마다 붙이면 같은 문장이 되풀이된다. */
+.off-said { font-size:12.5px; color:var(--mute); margin-right:2px; }
 .off { font-size:12.5px; color:var(--mute); }
 .off.is-focus { color:var(--ink); }
 .off.is-focus .who { font-weight:700; }
@@ -182,7 +187,9 @@ th.is-focus { outline:2px solid var(--ink); outline-offset:1px; }
 
 /* **표만 옆으로 굴린다.** subject 가 늘수록 넓어지는 유일한 자리다 — 페이지 전체가 옆으로
    밀리면 왼쪽 목차도 위쪽 띠도 함께 사라진다. 그래서 스크롤은 이 상자의 것이다. */
-.table-scroll { overflow-x:auto; margin-top:var(--step); }
+/* 안쪽 여백은 고른 열의 테두리가 상자 모서리에 닿아 잘리지 않게 두는 자리다 —
+   스크롤 상자는 한 축만 굴릴 수 없어 위아래도 함께 자른다. */
+.table-scroll { overflow-x:auto; margin-top:var(--step); padding:3px; }
 /* 열 너비가 균일하다. 자리마다 너비가 다르면 넓은 칸이 중요해 보인다 —
    `fixed` 가 남은 폭을 고르게 나누고, 다 못 담으면 표가 상자 밖으로 넘쳐 굴러간다. */
 table { border-collapse:collapse; table-layout:fixed; width:max-content; min-width:100%;
@@ -225,8 +232,7 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 .note-mark:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 /* 표시 자체는 갈래를 모른다 — 글자색을 따라가고 갈래색을 받지 않는다. */
 .note-mark > .mark-icon { stroke:currentColor; }
-/* 몇 개 붙었는지. 둘 이상일 때만 선다. 수는 갈래가 아니라 분량이다. */
-.note-count { font-size:10px; font-variant-numeric:tabular-nums; }
+/* 수를 적지 않는다 — 값 옆에 서는 것은 표시 하나뿐이고, 몇 개인지는 열면 보인다. */
 .note-pop { position:absolute; left:0; top:calc(100% + 6px); z-index:5; display:none;
   min-width:260px; max-width:min(380px, 60vw); padding:10px 12px;
   background:#ffffff; border:1px solid var(--line); border-radius:var(--r); text-align:left; }
@@ -258,6 +264,10 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
 .note .who { font-weight:600; color:var(--mute); }
 /* 말은 데이터 뒤에 한자리에 모인다. 묶음 사이도 줄 사이와 같은 자다. */
 .said { margin-top:var(--step); display:flex; flex-direction:column; gap:var(--row); }
+/* facet 것과 subject 것 사이의 **짧은 구조선.** 판을 가로지르지 않고 글머리 쪽에만 놓인다 —
+   갈래 이름이 서는 폭만큼이다. 이름이 가르는 것을 거들 뿐이라 무채색이고 위계를 말하지 않는다.
+   줄 사이가 `--row` 로 균일한 흐름을 깨지 않는다: 자기 자리를 갖되 앞뒤 간격은 같은 자다. */
+.said-cut { width:2.8em; height:0; margin:0; border:none; border-top:1px solid var(--line); }
 
 @media (max-width: 900px) {
   /* 좁은 화면엔 가리키기가 없다. 아래에서 올라오는 판으로 연다. */
@@ -276,6 +286,7 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
   .panes { grid-template-columns:1fr; grid-template-rows:minmax(280px, 45%) 1fr; }
   .pane.edit { border-right:none; border-bottom:1px solid var(--line); }
   /* 좁아도 표는 자기 상자에서 굴러간다 — 열은 그대로 균일하다. */
-  .bar-row { grid-template-columns:90px 1fr; }
-  .bar-row .val { text-align:left; grid-column:2; }
+  /* **막대는 좁아도 눕는다.** 라벨을 줄이고 값을 제 폭만 쓰게 해서 한 줄을 지킨다 —
+     접어 올리면 막대가 라벨 아래로 내려가 가로 막대로 읽히지 않는다. */
+  .bar-row { grid-template-columns:minmax(72px, 25%) 1fr max-content; gap:8px; }
 }
