@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "weave-template.schema.json",
+  "title": "분석 템플릿",
+  "description": "무엇을 그릴지와 무엇을 찾을지를 함께 말한다. 생성 Procedure 가 쓴다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["weave", "id", "title", "facets"],
+  "properties": {
+    "weave": { "$ref": "weave-common.schema.json#/$defs/Version" },
+    "id": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "facets": {
+      "description": "그리는 순서대로. 순서는 배치일 뿐 우열이 아니다.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 40,
+      "items": { "$ref": "#/$defs/Facet" }
+    }
+  },
+  "$defs": {
+    "Facet": {
+      "description": "분석뷰의 한 조각. 원시 요소 하나와 그것이 요구하는 필드들.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "element", "fields"],
+      "properties": {
+        "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "element": { "$ref": "weave-common.schema.json#/$defs/Element" },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/Field" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "element": { "const": "stat" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": { "properties": { "shape": { "enum": ["single", "range"] } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "facts" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 12,
+                "items": { "properties": { "shape": { "enum": ["single", "range"] } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "bars" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 6,
+                "items": {
+                  "properties": {
+                    "shape": { "const": "single" },
+                    "type": { "$ref": "weave-common.schema.json#/$defs/NumericType" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "line" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": {
+                  "properties": {
+                    "shape": { "const": "series" },
+                    "type": { "$ref": "weave-common.schema.json#/$defs/NumericType" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "list" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": { "properties": { "shape": { "const": "items" } } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Field": {
+      "description": "필드 선언이 곧 추출 지시다. description 이 무엇을 찾을지 말한다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "shape", "description"],
+      "properties": {
+        "key": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "shape": { "$ref": "weave-common.schema.json#/$defs/Shape" },
+        "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
+        "axis": { "$ref": "weave-common.schema.json#/$defs/AxisType" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/Column" }
+        },
+        "description": {
+          "description": "분석 Procedure 에게 주는 자연어 지시. 기본 단위까지 적는다.",
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 600
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "shape": { "const": "single" } }, "required": ["shape"] },
+          "then": {
+            "required": ["type"],
+            "not": { "anyOf": [{ "required": ["axis"] }, { "required": ["columns"] }] }
+          }
+        },
+        {
+          "if": { "properties": { "shape": { "const": "range" } }, "required": ["shape"] },
+          "then": {
+            "required": ["type"],
+            "properties": { "type": { "$ref": "weave-common.schema.json#/$defs/OrderedType" } },
+            "not": { "anyOf": [{ "required": ["axis"] }, { "required": ["columns"] }] }
+          }
+        },
+        {
+          "if": { "properties": { "shape": { "const": "series" } }, "required": ["shape"] },
+          "then": {
+            "required": ["type", "axis"],
+            "properties": { "type": { "$ref": "weave-common.schema.json#/$defs/NumericType" } },
+            "not": { "required": ["columns"] }
+          }
+        },
+        {
+          "if": { "properties": { "shape": { "const": "items" } }, "required": ["shape"] },
+          "then": {
+            "required": ["columns"],
+            "not": { "anyOf": [{ "required": ["type"] }, { "required": ["axis"] }] }
+          }
+        }
+      ]
+    },
+    "Column": {
+      "description": "items 한 칸의 선언. 열도 추출 지시를 갖는다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "description"],
+      "properties": {
+        "key": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
+        "description": { "type": "string", "minLength": 10, "maxLength": 600 }
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "weave": "1",
+  "templateId": "fixture-template",
+  "subjectId": "proposal-c",
+  "facets": {
+    "monthly-premium": {
+      "fields": { "premium": { "state": "filled", "value": 62000 } }
+    },
+    "contract-terms": {
+      "fields": {
+        "payment-period": { "state": "filled", "value": 120 },
+        "renewal": { "state": "filled", "value": true },
+        "maturity-age": {
+          "state": "empty",
+          "notes": [
+            { "kind": "note", "text": "종신 보장이라 만기나이가 없습니다." }
+          ]
+        },
+        "entry-age": { "state": "filled", "value": { "min": 20 } },
+        "start-date": { "state": "empty" }
+      }
+    },
+    "coverage-amounts": {
+      "fields": {
+        "death-benefit": { "state": "empty" },
+        "cancer-benefit": { "state": "filled", "value": 10000000 }
+      }
+    },
+    "premium-by-age": {
+      "fields": {
+        "premium-curve": {
+          "state": "filled",
+          "value": [{ "at": 45, "value": 62000 }]
+        }
+      }
+    },
+    "riders": {
+      "fields": {
+        "rider-list": { "state": "filled", "value": [] }
+      }
+    }
+  }
+}
