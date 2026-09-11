@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "weave-render-args.schema.json",
+  "title": "렌더 인자",
+  "description": "값이 아니라 화면 상태다. 앱이 갖고 사용자가 누를 때마다 바뀐다. index 가 아니라 subject 의 id 로 가리킨다.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "focus": {
+      "description": "강조할 subject. null 이 release 다. 없는 id 면 focus 만 사라진다.",
+      "anyOf": [
+        { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
+        { "type": "null" }
+      ]
+    }
+  }
+}

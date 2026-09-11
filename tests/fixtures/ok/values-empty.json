@@ -1,0 +1,42 @@
+{
+  "weave": "1",
+  "templateId": "fixture-template",
+  "subjectId": "proposal-b",
+  "subjectLabel": "나 제안서",
+  "facets": {
+    "monthly-premium": {
+      "fields": {
+        "premium": {
+          "state": "empty",
+          "notes": [
+            { "kind": "caution", "text": "이 제안서에는 보험료가 적혀 있지 않습니다." }
+          ]
+        }
+      }
+    },
+    "contract-terms": {
+      "fields": {
+        "payment-period": { "state": "empty" },
+        "renewal": { "state": "empty" },
+        "maturity-age": { "state": "empty" },
+        "entry-age": { "state": "empty" },
+        "start-date": { "state": "empty" }
+      },
+      "notes": [
+        { "kind": "caution", "text": "계약사항 표가 잘려 있어 조건을 읽지 못했습니다." }
+      ]
+    },
+    "coverage-amounts": {
+      "fields": {
+        "death-benefit": { "state": "empty" },
+        "cancer-benefit": { "state": "empty" }
+      }
+    },
+    "premium-by-age": {
+      "fields": { "premium-curve": { "state": "empty" } }
+    },
+    "riders": {
+      "fields": { "rider-list": { "state": "empty" } }
+    }
+  }
+}

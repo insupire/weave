@@ -1,0 +1,82 @@
+{
+  "weave": "1",
+  "id": "renewal-watch-1",
+  "title": "갱신되면 얼마가 되나",
+  "facets": [
+    {
+      "id": "first-premium",
+      "title": "지금 내는 돈",
+      "element": "bars",
+      "fields": [
+        {
+          "key": "first-premium",
+          "label": "초회 보험료",
+          "shape": "single",
+          "type": "money",
+          "description": "첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료는 뺀다."
+        }
+      ],
+      "notes": [
+        { "kind": "caution", "text": "지금 싼 것이 계속 싼 것은 아닙니다. 아래 갱신 곡선과 함께 봅니다." }
+      ]
+    },
+    {
+      "id": "renewal",
+      "title": "갱신 조건",
+      "element": "facts",
+      "fields": [
+        {
+          "key": "renews",
+          "label": "갱신 여부",
+          "shape": "single",
+          "type": "boolean",
+          "description": "갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다."
+        },
+        {
+          "key": "renewal-cycle",
+          "label": "갱신주기",
+          "shape": "single",
+          "type": "duration",
+          "description": "몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 비운다."
+        },
+        {
+          "key": "payment-period",
+          "label": "납입기간",
+          "shape": "single",
+          "type": "duration",
+          "description": "보험료를 내는 총 기간을 개월로. 전기납이면 만기까지의 개월 수로 환산한다."
+        },
+        {
+          "key": "maturity-age",
+          "label": "만기나이",
+          "shape": "single",
+          "type": "age",
+          "description": "보장이 끝나는 나이를 세로. 종신이면 비우고 종신이라고 주석에 적는다."
+        }
+      ],
+      "notes": [
+        { "kind": "tip", "text": "갱신주기가 짧을수록 보험료가 자주 조금씩 오르고, 길수록 드물게 많이 오릅니다." },
+        { "kind": "tip", "text": "비갱신형은 납입기간이 끝나면 더 내지 않습니다. 갱신형 전기납은 보장받는 내내 냅니다." }
+      ]
+    },
+    {
+      "id": "renewal-premium",
+      "title": "나이에 따른 예상 보험료",
+      "element": "line",
+      "fields": [
+        {
+          "key": "premium-curve",
+          "label": "월 보험료",
+          "shape": "series",
+          "type": "money",
+          "axis": "age",
+          "description": "설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 비운다."
+        }
+      ],
+      "notes": [
+        { "kind": "caution", "text": "예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다." },
+        { "kind": "note", "text": "선이 없는 설계는 갱신 예시표가 없다는 뜻이지 보험료가 오르지 않는다는 증거는 아닙니다." }
+      ]
+    }
+  ]
+}

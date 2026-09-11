@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>weave 참조 뷰어</title>
+<!--
+  이 파일은 tools/build_viewer.py 가 viewer/ 와 samples/ 에서 만든다. 손으로 고치지 않는다.
+  의존성이 없다 — CDN 도 서버도 쓰지 않는다. 파일을 브라우저로 열면 바로 돈다.
+-->
+<style>
+/* 뷰어의 시각. **구조가 보이는 최소한만**이다.
+   쓰는 색은 전부 무채색이다 — 색으로 좋고 나쁨을 말하지 않는다.
+   앱의 시각은 claim-design-system 것이고 이 파일이 아니다. */
+
+:root { --ink:#1a1a1a; --mute:#767676; --line:#d8d8d8; --soft:#f4f4f4; --sunk:#ededed; }
+* { box-sizing:border-box; }
+html, body { height:100%; }
+body { margin:0; color:var(--ink); background:#ffffff;
+  font:15px/1.6 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
+
+/* ---------------------------------------------------------------- 껍데기 */
+
+.shell { display:grid; grid-template-columns:minmax(360px, 42%) 1fr; height:100%; }
+.pane { min-width:0; min-height:0; display:flex; flex-direction:column; }
+.pane.edit { border-right:1px solid var(--line); background:var(--soft); }
+.pane.view { overflow:auto; }
+.viewport { padding:22px 20px 60px; max-width:980px; margin:0 auto; }
+
+.bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  padding:10px 12px; border-bottom:1px solid var(--line); background:#ffffff; }
+.bar h1 { font-size:14px; margin:0 8px 0 0; letter-spacing:.02em; }
+.bar .hint { font-size:12px; color:var(--mute); }
+select, input[type="text"], button { font:inherit; font-size:13px; color:var(--ink);
+  background:#ffffff; border:1px solid var(--line); border-radius:4px; padding:4px 8px; }
+button { cursor:pointer; }
+button:hover { background:var(--soft); }
+button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
+label { font-size:12px; color:var(--mute); }
+
+.about { padding:8px 12px; font-size:12.5px; color:var(--mute);
+  border-bottom:1px solid var(--line); background:#ffffff; }
+
+.tabs { display:flex; flex-wrap:wrap; gap:4px; padding:8px 12px 0; }
+.tab { border:1px solid var(--line); border-bottom:none; border-radius:4px 4px 0 0;
+  padding:4px 9px; font-size:12.5px; background:var(--sunk); }
+.tab[aria-pressed="true"] { background:#ffffff; color:var(--ink); border-color:var(--line); font-weight:700; }
+.tab .bad { color:var(--ink); font-weight:700; }
+
+textarea { flex:1; width:100%; margin:0; border:none; border-top:1px solid var(--line);
+  padding:12px; resize:none; background:#ffffff; color:var(--ink);
+  font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
+textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
+
+.strip { border-top:1px solid var(--line); background:#ffffff; padding:8px 12px;
+  font:12px/1.5 ui-monospace,monospace; max-height:26vh; overflow:auto; }
+.strip:empty { display:none; }
+.strip b { display:block; font-family:inherit; margin-bottom:3px; }
+.strip ul { margin:0; padding-left:16px; }
+.strip li { color:#333333; }
+
+/* ---------------------------------------------------------------- 분석뷰 */
+
+h1 { font-size:22px; margin:0 0 4px; }
+h2 { font-size:16px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; }
+h2 .element { font:11px/1 ui-monospace,monospace; color:var(--mute);
+  border:1px solid var(--line); border-radius:3px; padding:3px 5px; }
+.meta, .legend { margin:0 0 10px; font-size:12.5px; color:var(--mute); }
+code { font:12px ui-monospace,monospace; }
+.roster { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.chip { border:1px solid var(--line); border-radius:14px; padding:3px 10px; font-size:13px; }
+.chip.no-values { border-style:dashed; color:var(--mute); }
+/* focus 는 색이 아니라 테두리와 굵기로 말한다 */
+.chip.is-focus, th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
+  outline:2px solid var(--ink); outline-offset:1px; }
+.is-focus > .who, th.is-focus, .chip.is-focus { font-weight:700; }
+.badge { margin-left:6px; font-size:11px; color:var(--mute); white-space:nowrap;
+  border:1px solid var(--line); border-radius:3px; padding:1px 4px; }
+.focus-badge { color:var(--ink); border-color:var(--ink); }
+.facet { border-top:1px solid var(--line); padding:22px 0 4px; }
+.body { margin-top:8px; }
+.field-label { font-size:12.5px; color:var(--mute); margin-bottom:6px; }
+.who { font-size:12.5px; color:var(--mute); }
+.miss { font-size:12.5px; color:var(--mute); }
+.miss.unanalyzed { font-style:italic; }
+.dash { color:var(--mute); }
+.empty-frame { border:1px dashed var(--line); border-radius:4px; padding:14px; text-align:center; }
+.broken, .undrawable { font-size:12.5px; color:var(--ink);
+  border:1px solid var(--ink); border-radius:3px; padding:1px 6px; display:inline-block;
+  font-family:ui-monospace,monospace; }
+/* 아직 분석 중 — 값이 비어 있는 것과 눈으로 구별되는 자리 */
+td.unanalyzed, .chip.no-values { background-image:repeating-linear-gradient(
+  135deg, transparent, transparent 5px, rgba(0,0,0,.05) 5px, rgba(0,0,0,.05) 10px); }
+
+.stat-row { display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; }
+.stat-row .field-label { width:100%; }
+.card { border:1px solid var(--line); border-radius:5px; padding:12px 14px; min-width:150px; flex:1 1 150px; }
+.card .big { font-size:24px; margin-top:2px; }
+.card .big .miss, .card .big .undrawable { font-size:14px; }
+
+table { border-collapse:collapse; width:100%; font-size:14px; }
+th, td { border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+thead th { background:var(--soft); font-weight:600; font-size:13px; }
+th.corner, th.row-label { background:var(--soft); font-weight:600; width:1%; white-space:nowrap; }
+
+.bar-group { margin-bottom:16px; }
+.bar-row { display:grid; grid-template-columns:110px 1fr 160px; gap:10px; align-items:center; padding:3px 2px; }
+.bar-row .notes { grid-column:1 / -1; }
+.track { display:block; height:12px; background:var(--soft); border:1px solid var(--line); border-radius:2px; }
+.fill { display:block; height:100%; background:var(--ink); opacity:.62; }
+.bar-row.is-focus .fill { opacity:1; }
+.val { font-size:13px; text-align:right; }
+
+svg.line { width:100%; height:auto; border:1px solid var(--line); border-radius:4px; background:#ffffff; }
+svg .axis { stroke:var(--line); stroke-width:1; }
+svg .tick { font-size:11px; fill:var(--mute); }
+svg .ty { text-anchor:end; }
+svg .tx { text-anchor:start; }
+svg .tx.end { text-anchor:end; }
+/* 선은 색이 아니라 점선 무늬로 구별한다 */
+svg .series { fill:none; stroke:var(--ink); stroke-width:1.6; opacity:.6; }
+svg .series.is-focus { stroke-width:2.6; opacity:1; }
+svg circle.series, svg circle.dot { fill:var(--ink); stroke:none; }
+svg .series-label { font-size:11px; fill:var(--mute);
+  paint-order:stroke; stroke:#ffffff; stroke-width:3px; stroke-linejoin:round; }
+svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
+
+.miss-rows { margin-top:8px; }
+.miss-row { display:grid; grid-template-columns:110px 1fr; gap:2px 10px; padding:2px; }
+.miss-row .notes { grid-column:2 / -1; margin-top:0; }
+.list-block { margin-bottom:14px; padding:10px; border:1px solid var(--line); border-radius:5px; }
+.list-block .who { margin-bottom:6px; }
+
+.notes { list-style:none; margin:6px 0 0; padding:0; }
+.note { display:flex; gap:7px; font-size:12.5px; color:#333333; padding:3px 0 3px 8px;
+  border-left:2px solid var(--line); margin-bottom:2px; }
+.note-quote { border-left-style:solid; }
+.note-tip { border-left-style:double; }
+.note-note { border-left-style:dotted; }
+.note-caution { border-left-style:dashed; border-left-width:3px; }
+.note .kind { flex:0 0 auto; color:var(--mute); font-size:11px; padding-top:1px; }
+.note .who { font-weight:600; color:var(--mute); }
+.subject-notes { margin-top:10px; }
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns:1fr; grid-template-rows:minmax(300px, 45%) 1fr; height:auto; }
+  .pane.edit { border-right:none; border-bottom:1px solid var(--line); }
+  .bar-row { grid-template-columns:90px 1fr; }
+  .bar-row .val { text-align:left; grid-column:2; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="pane edit">
+    <div class="bar">
+      <h1>weave 참조 뷰어</h1>
+      <label for="sample">샘플</label>
+      <select id="sample"></select>
+      <button type="button" id="add-values">＋ 값 한 벌</button>
+      <button type="button" id="drop-values">－ 이 값 한 벌</button>
+    </div>
+    <div class="bar">
+      <label>focus</label>
+      <span id="focus-buttons"></span>
+      <input type="text" id="focus-free" placeholder="없는 id 를 넣어 본다" size="18">
+    </div>
+    <p class="about" id="about"></p>
+    <div class="tabs" id="tabs"></div>
+    <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
+    <div class="strip" id="strip"></div>
+    <p class="about">
+      여기는 JSON 으로 읽히는지만 본다. <b>스키마 판정은 검사기가 한다</b> —
+      <code>python -m weave template tpl.json</code> ·
+      <code>python -m weave values --template tpl.json values-a.json</code>
+    </p>
+  </div>
+  <div class="pane view">
+    <div class="viewport" id="view"></div>
+  </div>
+</div>
+<script type="module">
+// ---- viewer/render.mjs ----
+// 참조 렌더. 무엇이 올바른 렌더인지의 기준이다.
+//
+// 순수 함수다 — 문서를 받아 HTML 문자열을 낸다. DOM 을 모른다. 그래서 브라우저 없이도
+// 고정 케이스를 걸 수 있다 (`tests/viewer.test.mjs`).
+//
+// **facet 종류를 아는 분기가 없다.** element 로만 고른다 (ELEMENTS 표).
+// **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
+// 자리를 표시하고 무엇이 이상한지 적기만 한다.
+
+// 주석 갈래 넷의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
+// 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
+const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
+
+const NO_VALUE = "값 없음";
+const UNANALYZED = "아직 분석 중";
+const NO_ITEMS = "항목 없음";
+const UNDRAWABLE = "그리지 못한다";
+
+// 선을 subject 별로 구별하는 방법. 색이 아니라 점선 무늬다 — 무늬는 우열을 말하지 않는다.
+const DASHES = ["", "7 4", "2 3", "10 4 2 4", "1 4", "6 3 1 3"];
+
+function esc(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#x27;");
+}
+
+// ---------------------------------------------------------------- 값 읽기
+
+function cell(valueset, facetId, key) {
+  if (!valueset) return { state: "unanalyzed", entry: null };
+  const facet = valueset.facets?.[facetId];
+  if (!facet) return { state: "empty", entry: null };
+  const entry = facet.fields?.[key];
+  if (!entry || entry.state !== "filled") return { state: "empty", entry: entry ?? null };
+  return { state: "filled", entry };
+}
+
+function facetNotes(valueset, facetId) {
+  return valueset?.facets?.[facetId]?.notes ?? [];
+}
+
+// ---------------------------------------------------------------- 값 쓰기
+
+function grouped(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+  return value.toLocaleString("en-US", { maximumFractionDigits: 10 });
+}
+
+function formatScalar(type, value) {
+  if (type === "boolean") return value ? "예" : "아니오";
+  if (type === "text" || type === "date") return String(value);
+  if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+  if (type === "money") return `${grouped(value)}원`;
+  if (type === "ratio") return `${grouped(Math.round(value * 1e10) / 1e8)}%`;
+  if (type === "duration") return `${grouped(value)}개월`;
+  if (type === "age") return `${grouped(value)}세`;
+  return grouped(value);
+}
+
+function formatValue(decl, value) {
+  if (decl.shape === "single") return formatScalar(decl.type, value);
+  if (decl.shape === "range") {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+    const low = "min" in value ? formatScalar(decl.type, value.min) : null;
+    const high = "max" in value ? formatScalar(decl.type, value.max) : null;
+    if (low !== null && high !== null) return `${low} ~ ${high}`;
+    if (low !== null) return `${low} 이상`;
+    if (high !== null) return `${high} 이하`;
+    return null;
+  }
+  return null;
+}
+
+function axisNumber(axis, raw) {
+  if (axis === "date") {
+    const ms = Date.parse(`${raw}T00:00:00Z`);
+    return Number.isNaN(ms) ? null : ms / 86400000;
+  }
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+}
+
+// ---------------------------------------------------------------- HTML 조각
+
+function notesHtml(notes, where = "") {
+  if (!Array.isArray(notes) || notes.length === 0) return "";
+  const rows = notes.map((note) => {
+    const kind = note?.kind ?? "note";
+    const label = KIND_LABEL[kind] ?? kind;
+    const prefix = where ? `<b class="who">${esc(where)}</b> ` : "";
+    return (
+      `<li class="note note-${esc(kind)}"><span class="kind">${esc(label)}</span>` +
+      `<span class="text">${prefix}${esc(note?.text ?? "")}</span></li>`
+    );
+  });
+  return `<ul class="notes">${rows.join("")}</ul>`;
+}
+
+function stateSpan(state) {
+  return state === "unanalyzed"
+    ? `<span class="miss unanalyzed">${UNANALYZED}</span>`
+    : `<span class="miss empty">${NO_VALUE}</span>`;
+}
+
+function subClass(subject, focus) {
+  return subject.id === focus ? "subject is-focus" : "subject";
+}
+
+// 그리지 못한 자리. 렌더는 멈추지 않고 자리를 표시하고 까닭을 적는다.
+function undrawable(report, where, why, shown) {
+  report.push(`${where}: ${why}`);
+  return `<span class="undrawable" title="${esc(why)}">${UNDRAWABLE} — ${esc(shown ?? why)}</span>`;
+}
+
+function drawCell(report, where, decl, value) {
+  const shown = formatValue(decl, value);
+  if (shown === null) {
+    return undrawable(report, where, `선언한 모양(${decl.shape ?? "없음"})과 값의 생김새가 다르다`, JSON.stringify(value));
+  }
+  return esc(shown);
+}
+
+// ---------------------------------------------------------------- 원시 요소 다섯
+
+function stat(ctx, facet) {
+  const decl = facet.fields[0];
+  const cards = ctx.subjects.map((subject) => {
+    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    const body =
+      state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan(state);
+    return (
+      `<div class="card ${subClass(subject, ctx.focus)}">` +
+      `<div class="who">${esc(subject.name)}</div><div class="big">${body}</div>` +
+      `${notesHtml(entry?.notes)}</div>`
+    );
+  });
+  return `<div class="stat-row"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${cards.join("")}</div>`;
+}
+
+function facts(ctx, facet) {
+  const head = ['<th class="corner">항목</th>'];
+  for (const subject of ctx.subjects) {
+    const badge = ctx.byId.has(subject.id) ? "" : `<span class="badge">${UNANALYZED}</span>`;
+    head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}${badge}</th>`);
+  }
+  const rows = facet.fields.map((decl) => {
+    const cells = [`<th class="row-label" scope="row">${esc(decl.label ?? decl.key)}</th>`];
+    for (const subject of ctx.subjects) {
+      const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
+      const where = `${facet.id}/${decl.key}/${subject.id}`;
+      let inner;
+      if (state === "filled") inner = drawCell(ctx.report, where, decl, entry.value);
+      else if (state === "unanalyzed") inner = `<span class="dash" title="${UNANALYZED}">—</span>`;
+      else inner = stateSpan(state);
+      const focused = subject.id === ctx.focus ? " is-focus" : "";
+      cells.push(`<td class="cell ${state}${focused}">${inner}${notesHtml(entry?.notes)}</td>`);
+    }
+    return `<tr>${cells.join("")}</tr>`;
+  });
+  return `<table class="facts"><thead><tr>${head.join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+}
+
+function bars(ctx, facet) {
+  const groups = facet.fields.map((decl) => {
+    const reads = ctx.subjects.map((subject) => ({ subject, ...cell(ctx.byId.get(subject.id), facet.id, decl.key) }));
+    const numbers = reads
+      .filter((r) => r.state === "filled" && typeof r.entry.value === "number" && Number.isFinite(r.entry.value))
+      .map((r) => r.entry.value);
+    // 눈금은 필드마다 따로 잡는다. 비교 축이 필드이기 때문이다.
+    const top = numbers.length ? Math.max(...numbers) : 0;
+    const rows = reads.map(({ subject, state, entry }) => {
+      const where = `${facet.id}/${decl.key}/${subject.id}`;
+      let mark = '<span class="track"></span>';
+      let text;
+      if (state === "filled") {
+        const value = entry.value;
+        if (typeof value === "number" && Number.isFinite(value)) {
+          const width = top > 0 && value > 0 ? (value / top) * 100 : 0;
+          mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
+          text = esc(formatScalar(decl.type, value));
+        } else {
+          text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(value));
+        }
+      } else {
+        text = stateSpan(state);
+      }
+      return (
+        `<div class="bar-row ${subClass(subject, ctx.focus)}">` +
+        `<span class="who">${esc(subject.name)}</span>${mark}<span class="val">${text}</span>` +
+        `${notesHtml(entry?.notes)}</div>`
+      );
+    });
+    return `<div class="bar-group"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${rows.join("")}</div>`;
+  });
+  return groups.join("");
+}
+
+function line(ctx, facet) {
+  const decl = facet.fields[0];
+  const axis = decl.axis;
+  const series = [];
+  const misses = [];
+  for (const subject of ctx.subjects) {
+    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    if (state !== "filled") {
+      misses.push(
+        `<div class="${subClass(subject, ctx.focus)} miss-row">` +
+          `<span class="who">${esc(subject.name)}</span>${stateSpan(state)}${notesHtml(entry?.notes)}</div>`,
+      );
+      continue;
+    }
+    const raw = entry.value;
+    const points = [];
+    let broken = null;
+    if (!Array.isArray(raw)) broken = "선은 점의 배열을 요구한다";
+    else
+      for (const point of raw) {
+        const x = axisNumber(axis, point?.at);
+        const y = typeof point?.value === "number" && Number.isFinite(point.value) ? point.value : null;
+        if (x === null || y === null) {
+          broken = `축(${axis ?? "없음"})이나 값에 그릴 수 없는 것이 있다`;
+          break;
+        }
+        points.push({ x, y, at: point.at });
+      }
+    if (broken || points.length === 0) {
+      misses.push(
+        `<div class="${subClass(subject, ctx.focus)} miss-row"><span class="who">${esc(subject.name)}</span>` +
+          `${undrawable(ctx.report, where, broken ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</div>`,
+      );
+      continue;
+    }
+    series.push({ subject, points, notes: entry.notes });
+  }
+  const body = series.length
+    ? lineSvg(series, axis, decl.type, ctx.focus)
+    : `<div class="empty-frame">${stateSpan("empty")}</div>`;
+  const notes = series
+    .map(({ subject, notes: n }) => notesHtml(n, subject.name))
+    .join("");
+  return (
+    `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}` +
+    (misses.length ? `<div class="miss-rows">${misses.join("")}</div>` : "") +
+    notes
+  );
+}
+
+function lineSvg(series, axis, type, focus) {
+  const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
+  const xs = series.flatMap((s) => s.points.map((p) => p.x));
+  const ys = series.flatMap((s) => s.points.map((p) => p.y));
+  const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const ymin = Math.min(...ys, 0), ymax = Math.max(...ys);
+  const xspan = xmax - xmin || 1;
+  const yspan = ymax - ymin || 1;
+  const px = (x) => L + ((x - xmin) / xspan) * (W - L - R);
+  const py = (y) => H - B - ((y - ymin) / yspan) * (H - T - B);
+
+  const firstAt = series.flatMap((s) => s.points).reduce((a, p) => (p.x < a.x ? p : a)).at;
+  const lastAt = series.flatMap((s) => s.points).reduce((a, p) => (p.x > a.x ? p : a)).at;
+
+  const parts = [
+    `<line class="axis" x1="${L}" y1="${py(ymin).toFixed(1)}" x2="${W - R}" y2="${py(ymin).toFixed(1)}"/>`,
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/>`,
+    `<text class="tick ty" x="${L - 8}" y="${py(ymax).toFixed(1)}">${esc(formatScalar(type, ymax))}</text>`,
+    `<text class="tick ty" x="${L - 8}" y="${py(ymin).toFixed(1)}">${esc(formatScalar(type, ymin))}</text>`,
+    `<text class="tick tx" x="${L}" y="${H - B + 18}">${esc(formatScalar(axis, firstAt))}</text>`,
+    `<text class="tick tx end" x="${W - R}" y="${H - B + 18}">${esc(formatScalar(axis, lastAt))}</text>`,
+  ];
+  series.forEach(({ subject, points }, index) => {
+    const focused = subject.id === focus;
+    const klass = focused ? "series is-focus" : "series";
+    if (points.length === 1) {
+      parts.push(`<circle class="${klass}" cx="${px(points[0].x).toFixed(1)}" cy="${py(points[0].y).toFixed(1)}" r="3.5"/>`);
+    } else {
+      const dash = DASHES[index % DASHES.length];
+      const coords = points.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
+      parts.push(`<polyline class="${klass}" points="${coords}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`);
+    }
+    for (const p of points) {
+      parts.push(`<circle class="dot ${klass}" cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="2.5"/>`);
+    }
+    const last = points[points.length - 1];
+    parts.push(
+      `<text class="series-label${focused ? " is-focus" : ""}" x="${(px(last.x) + 8).toFixed(1)}" ` +
+        `y="${(py(last.y) + 4).toFixed(1)}">${esc(subject.name)}</text>`,
+    );
+  });
+  return `<svg class="line" viewBox="0 0 ${W} ${H}" role="img">${parts.join("")}</svg>`;
+}
+
+function list(ctx, facet) {
+  const decl = facet.fields[0];
+  const columns = Array.isArray(decl.columns) ? decl.columns : [];
+  const blocks = ctx.subjects.map((subject) => {
+    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    let body;
+    if (state !== "filled") {
+      body = `<div class="empty-frame">${stateSpan(state)}</div>`;
+    } else if (!Array.isArray(entry.value)) {
+      body = `<div class="empty-frame">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
+    } else if (entry.value.length === 0) {
+      body = `<div class="empty-frame"><span class="miss empty">${NO_ITEMS}</span></div>`;
+    } else {
+      const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
+      const rows = entry.value.map((item) => {
+        const cells = columns.map((column) =>
+          column.key in (item ?? {})
+            ? `<td>${esc(formatScalar(column.type, item[column.key]))}</td>`
+            : '<td><span class="dash">·</span></td>',
+        );
+        const extra = Object.keys(item ?? {}).filter((k) => !columns.some((c) => c.key === k));
+        if (extra.length) ctx.report.push(`${where}: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
+        return `<tr>${cells.join("")}</tr>`;
+      });
+      body = `<table class="items"><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+    }
+    return (
+      `<div class="list-block ${subClass(subject, ctx.focus)}">` +
+      `<div class="who">${esc(subject.name)}</div>${body}${notesHtml(entry?.notes)}</div>`
+    );
+  });
+  return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${blocks.join("")}`;
+}
+
+// 원시 요소 다섯. 이 표가 렌더의 분기 전부다.
+const ELEMENTS = { stat, facts, bars, line, list };
+
+// ---------------------------------------------------------------- 페이지
+
+function roster(subjects, byId, focus) {
+  const chips = subjects.map((subject) => {
+    const analysed = byId.has(subject.id);
+    const badge = analysed ? "" : `<span class="badge">${UNANALYZED}</span>`;
+    const mark = subject.id === focus ? '<span class="badge focus-badge">focus</span>' : "";
+    return `<span class="chip ${subClass(subject, focus)}${analysed ? "" : " no-values"}">${esc(subject.name)}${badge}${mark}</span>`;
+  });
+  return `<div class="roster">${chips.join("")}</div>`;
+}
+
+/**
+ * 분석뷰 하나를 HTML 로 그린다.
+ *
+ * @param {object} input  { template, values, subjects, focus }
+ *   - subjects 를 주면 그 순서와 명단대로 자리를 잡는다. 값 한 벌이 없는 subject 는 「아직 분석 중」이다.
+ *   - focus 는 subject 의 id. null 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다.
+ * @returns {{html: string, report: string[]}} report 는 그리지 못한 자리들
+ */
+function renderView({ template, values = [], subjects = null, focus = null } = {}) {
+  const report = [];
+  if (!template || typeof template !== "object" || Array.isArray(template)) {
+    return { html: '<div class="broken">템플릿이 없다.</div>', report: ["템플릿이 객체가 아니다"] };
+  }
+  const byId = new Map();
+  for (const doc of values) {
+    if (doc && typeof doc === "object" && typeof doc.subjectId === "string") byId.set(doc.subjectId, doc);
+    else report.push("값 한 벌에 subjectId 가 없어 어느 subject 인지 알 수 없다");
+    if (doc?.templateId && template.id && doc.templateId !== template.id) {
+      report.push(`${doc.subjectId}: 값 한 벌의 templateId 가 템플릿과 다르다 (${doc.templateId} ≠ ${template.id})`);
+    }
+  }
+
+  let roll = subjects;
+  if (!Array.isArray(roll) || roll.length === 0) {
+    roll = [...byId.values()].map((v) => ({ id: v.subjectId, label: v.subjectLabel }));
+  }
+  const seats = roll
+    .filter((s) => s && typeof s.id === "string")
+    .map((s) => ({ id: s.id, name: s.label || byId.get(s.id)?.subjectLabel || s.id }));
+
+  const wanted = focus;
+  const seated = seats.some((s) => s.id === wanted) ? wanted : null;
+  const ctx = { subjects: seats, byId, focus: seated, report };
+
+  for (const [id, doc] of byId) {
+    const known = new Set((template.facets ?? []).map((f) => f?.id));
+    for (const key of Object.keys(doc.facets ?? {})) {
+      if (!known.has(key)) report.push(`${id}: 템플릿에 없는 facet 이라 그리지 않았다 — ${key}`);
+    }
+  }
+
+  const facets = Array.isArray(template.facets) ? template.facets : [];
+  if (facets.length === 0) report.push("템플릿에 facet 이 하나도 없다");
+
+  const sections = facets.map((facet, index) => {
+    const at = `facets[${index}]`;
+    if (!facet || typeof facet !== "object") {
+      return `<section class="facet broken">${undrawable(report, at, "facet 이 객체가 아니다")}</section>`;
+    }
+    const title = esc(facet.title ?? facet.id ?? at);
+    const draw = ELEMENTS[facet.element];
+    const head =
+      `<h2>${title}<span class="element">${esc(facet.element ?? "?")}</span></h2>` + notesHtml(facet.notes);
+    let body;
+    if (!draw) {
+      body = undrawable(report, facet.id ?? at, `모르는 원시 요소다 — ${JSON.stringify(facet.element)}`);
+    } else if (!Array.isArray(facet.fields) || facet.fields.length === 0) {
+      body = undrawable(report, facet.id ?? at, "필드가 하나도 없다");
+    } else if (facet.fields.some((f) => !f || typeof f.key !== "string")) {
+      body = undrawable(report, facet.id ?? at, "key 가 없는 필드가 있다");
+    } else {
+      body = draw(ctx, facet);
+    }
+    const subjectNotes = seats.map((s) => notesHtml(facetNotes(byId.get(s.id), facet.id), s.name)).join("");
+    return (
+      `<section class="facet element-${esc(facet.element ?? "unknown")}">${head}` +
+      `<div class="body">${body}</div>` +
+      (subjectNotes ? `<div class="subject-notes">${subjectNotes}</div>` : "") +
+      "</section>"
+    );
+  });
+
+  const analysed = seats.filter((s) => byId.has(s.id)).length;
+  const lost =
+    wanted && !seated ? ` <span class="miss">(<code>${esc(wanted)}</code> 은 명단에 없다)</span>` : "";
+  const header =
+    `<header><h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` +
+    `<p class="meta">템플릿 <code>${esc(template.id ?? "?")}</code> · subject ${seats.length} 중 ${analysed} 분석됨 · ` +
+    `focus ${seated ? `<b>${esc(seated)}</b>` : "없음"}${lost}</p>` +
+    roster(seats, byId, seated) +
+    `<p class="legend"><span class="miss empty">${NO_VALUE}</span> 분석했지만 값이 없다 · ` +
+    `<span class="miss unanalyzed">${UNANALYZED}</span> 값 한 벌이 아직 없다</p></header>`;
+
+  return { html: header + sections.join(""), report };
+}
+
+// ---- viewer/samples.mjs ----
+// samples/ 에서 생성된다. 직접 고치지 않는다 — python3 tools/build_viewer.py
+
+const SAMPLES = {
+  "proposal-compare": {
+    "name": "제안서 나란히 보기",
+    "about": "원시 요소 다섯을 전부 쓰고 제안서 셋을 견준다. 라 제안서는 아직 분석되지 않아 값 한 벌이 없다.",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"proposal-compare-1\",\n  \"title\": \"제안서 나란히 보기\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"초회 보험료\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 회에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 합계보험료에 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"처음 한 번 내는 금액이 아니라 첫 달에 내는 월 보험료입니다.\" },\n        { \"kind\": \"caution\", \"text\": \"갱신형은 이 금액이 갱신할 때마다 달라집니다. 지금 금액만으로 견주면 안 됩니다.\" }\n      ]\n    },\n    {\n      \"id\": \"contract-terms\",\n      \"title\": \"얼마나 내고 언제까지 받나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240, 10년납이면 120. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다.\"\n        },\n        {\n          \"key\": \"entry-age\",\n          \"label\": \"가입나이\",\n          \"shape\": \"range\",\n          \"type\": \"age\",\n          \"description\": \"가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"납입기간이 짧으면 월 보험료는 비싸지지만 내는 총액은 대체로 적습니다.\" },\n        { \"kind\": \"tip\", \"text\": \"만기나이가 비어 있고 종신이라고 적혀 있으면 죽을 때까지 보장한다는 뜻입니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신되나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다. 일부 특약만 갱신형이면 거짓으로 두고 주의 주석을 단다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 나이에 맞춰 오릅니다. 비갱신형은 처음이 비싼 대신 끝까지 그대로입니다.\" },\n        { \"kind\": \"note\", \"text\": \"갱신 여부는 보험료가 앞으로 어떻게 될지를 가르는 자리라 따로 봅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"coverage-amounts\",\n      \"title\": \"주요 보장의 가입금액\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"death\",\n          \"label\": \"일반사망\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반사망 보험금 가입금액을 원 단위 정수로. 재해사망과 상해사망은 빼고 일반사망만.\"\n        },\n        {\n          \"key\": \"cancer\",\n          \"label\": \"암진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반암 진단비 가입금액을 원 단위 정수로. 유사암(갑상선암·기타피부암·제자리암·경계성종양)은 빼고 일반암만.\"\n        },\n        {\n          \"key\": \"brain\",\n          \"label\": \"뇌혈관질환진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"뇌혈관질환 진단비 가입금액을 원 단위 정수로. 뇌졸중이나 뇌출혈만 보장하는 담보는 범위가 다르니 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"가입금액은 받을 수 있는 최대 금액이고 실제 지급 조건은 약관이 정합니다.\" },\n        { \"kind\": \"note\", \"text\": \"막대 길이는 항목마다 따로 잽니다. 서로 다른 항목의 길이를 견주면 안 됩니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"갱신 시점별 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\" }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"어떤 특약이 붙었나\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"특약 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표에 적힌 특약을 하나씩. 주계약은 빼고 특약만 담는다. 특약이 하나도 없으면 빈 목록으로 둔다.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"특약명\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 특약 이름 그대로. 줄이거나 고쳐 쓰지 않는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 특약의 가입금액을 원 단위 정수로. 일당처럼 하루 금액이면 하루 금액 그대로.\"\n            },\n            {\n              \"key\": \"renews\",\n              \"label\": \"갱신\",\n              \"type\": \"boolean\",\n              \"description\": \"그 특약이 갱신형이면 참, 비갱신형이면 거짓.\"\n            },\n            {\n              \"key\": \"maturity-age\",\n              \"label\": \"만기\",\n              \"type\": \"age\",\n              \"description\": \"그 특약이 끝나는 나이를 세로. 표에 적혀 있지 않으면 비운다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"주계약은 빼고 특약만 담습니다. 특약이 없으면 빈 목록입니다.\" },\n        { \"kind\": \"tip\", \"text\": \"특약 하나하나의 만기와 갱신 여부가 주계약과 다를 수 있습니다.\" }\n      ]\n    }\n  ]\n}\n",
+    "subjects": "[\n  {\n    \"id\": \"proposal-a\",\n    \"label\": \"가 제안서\"\n  },\n  {\n    \"id\": \"proposal-b\",\n    \"label\": \"나 제안서\"\n  },\n  {\n    \"id\": \"proposal-c\",\n    \"label\": \"다 제안서\"\n  },\n  {\n    \"id\": \"proposal-d\",\n    \"label\": \"라 제안서\"\n  }\n]\n",
+    "values": [
+      {
+        "label": "값: proposal-a",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-a\",\n  \"subjectLabel\": \"가 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"filled\",\n          \"value\": 87400,\n          \"notes\": [\n            { \"kind\": \"quote\", \"text\": \"합계보험료 87,400원 (보장보험료 87,400원 / 적립보험료 0원)\" }\n          ]\n        }\n      },\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"비갱신형이라 이 금액이 끝까지 그대로입니다.\" }\n      ]\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": {\n          \"state\": \"filled\",\n          \"value\": 240,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"납입기간 20년납\" }]\n        },\n        \"maturity-age\": {\n          \"state\": \"empty\",\n          \"notes\": [\n            { \"kind\": \"note\", \"text\": \"종신 보장이라 만기나이가 없습니다.\" },\n            { \"kind\": \"quote\", \"text\": \"보험기간 종신\" }\n          ]\n        },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"min\": 15, \"max\": 65 } }\n      },\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"설계안 2쪽 계약사항 표에서 읽었습니다.\" }\n      ]\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": {\n          \"state\": \"filled\",\n          \"value\": false,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"비갱신형 (주계약·특약 전부)\" }]\n        },\n        \"renewal-cycle\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"비갱신형이라 갱신주기가 없습니다.\" }]\n        }\n      }\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": { \"state\": \"filled\", \"value\": 50000000 },\n        \"cancer\": {\n          \"state\": \"filled\",\n          \"value\": 30000000,\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"유사암은 가입금액의 20%만 나옵니다.\" }]\n        },\n        \"brain\": {\n          \"state\": \"filled\",\n          \"value\": 20000000,\n          \"notes\": [\n            { \"kind\": \"caution\", \"text\": \"뇌혈관질환 전체가 아니라 뇌졸중만 보장하는 담보입니다.\" }\n          ]\n        }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"empty\",\n          \"notes\": [\n            { \"kind\": \"note\", \"text\": \"비갱신형이라 갱신 예시표가 설계안에 없습니다.\" }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"name\": \"암진단비(유사암제외)\", \"amount\": 30000000, \"renews\": false, \"maturity-age\": 100 },\n            { \"name\": \"뇌졸중진단비\", \"amount\": 20000000, \"renews\": false, \"maturity-age\": 100 },\n            { \"name\": \"질병입원일당(1일이상)\", \"amount\": 30000, \"renews\": false, \"maturity-age\": 80 },\n            { \"name\": \"상해수술비\", \"amount\": 300000, \"renews\": false }\n          ],\n          \"notes\": [\n            { \"kind\": \"caution\", \"text\": \"상해수술비는 만기가 표에 적혀 있지 않습니다.\" }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "label": "값: proposal-b",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-b\",\n  \"subjectLabel\": \"나 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"filled\",\n          \"value\": 41200,\n          \"notes\": [\n            { \"kind\": \"quote\", \"text\": \"합계보험료 41,200원\" },\n            { \"kind\": \"caution\", \"text\": \"10년마다 갱신되므로 이 금액은 첫 10년 동안만 유지됩니다.\" }\n          ]\n        }\n      }\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": {\n          \"state\": \"filled\",\n          \"value\": 600,\n          \"notes\": [\n            { \"kind\": \"note\", \"text\": \"전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다.\" }\n          ]\n        },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 },\n        \"entry-age\": {\n          \"state\": \"filled\",\n          \"value\": { \"min\": 20 },\n          \"notes\": [\n            { \"kind\": \"caution\", \"text\": \"최대 가입나이가 표에서 잘려 읽지 못했습니다.\" }\n          ]\n        }\n      }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": {\n          \"state\": \"filled\",\n          \"value\": 120,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"10년 갱신형\" }]\n        }\n      },\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"갱신할 때 보험료가 오르는 것 말고도, 갱신 시점에 회사가 보장을 바꿀 수 있습니다.\" }\n      ]\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"이 설계안에는 사망보장이 들어 있지 않습니다.\" }]\n        },\n        \"cancer\": { \"state\": \"filled\", \"value\": 50000000 },\n        \"brain\": { \"state\": \"filled\", \"value\": 30000000 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 41200 },\n            { \"at\": 50, \"value\": 62800 },\n            { \"at\": 60, \"value\": 104500 },\n            { \"at\": 70, \"value\": 188300 }\n          ],\n          \"notes\": [\n            { \"kind\": \"quote\", \"text\": \"설계안 4쪽 「갱신 시 예상보험료」 표\" },\n            { \"kind\": \"note\", \"text\": \"표가 70세까지만 있어 그 뒤는 담지 못했습니다.\" }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"name\": \"암진단비\", \"amount\": 50000000, \"renews\": true, \"maturity-age\": 90 },\n            { \"name\": \"뇌혈관질환진단비\", \"amount\": 30000000, \"renews\": true, \"maturity-age\": 90 },\n            { \"name\": \"허혈성심장질환진단비\", \"amount\": 30000000, \"renews\": true, \"maturity-age\": 90 }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "label": "값: proposal-c",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-c\",\n  \"subjectLabel\": \"다 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"filled\",\n          \"value\": 29900,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 29,900원\" }]\n        }\n      }\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": { \"state\": \"filled\", \"value\": 480 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 80 },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"min\": 15, \"max\": 60 } }\n      },\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"주계약 하나뿐이라 계약사항 표가 짧습니다.\" }\n      ]\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": {\n          \"state\": \"filled\",\n          \"value\": 60,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }]\n        }\n      }\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"암만 보장하는 상품이라 사망보장이 없습니다.\" }]\n        },\n        \"cancer\": { \"state\": \"filled\", \"value\": 20000000 },\n        \"brain\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"뇌혈관질환은 보장하지 않습니다.\" }]\n        }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 29900 },\n            { \"at\": 45, \"value\": 38100 },\n            { \"at\": 50, \"value\": 49700 }\n          ],\n          \"notes\": [\n            { \"kind\": \"caution\", \"text\": \"예시표가 50세까지만 있습니다. 만기가 80세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [],\n          \"notes\": [\n            { \"kind\": \"tip\", \"text\": \"특약 없이 주계약 하나로만 된 설계입니다. 보장은 단순하지만 빠진 위험이 많다는 뜻이기도 합니다.\" }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      }
+    ],
+    "focus": "proposal-b"
+  },
+  "one-proposal": {
+    "name": "제안서 한 장 뜯어보기",
+    "about": "subject 가 하나뿐일 때. 견줄 상대가 없어도 골격은 같고, 주석이 화면의 대부분을 진다.",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"single-proposal-1\",\n  \"title\": \"받은 제안서 한 장\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"매달 얼마를 내나\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"설계안 첫 쪽의 합계보험료가 이 금액입니다. 적립보험료가 섞여 있으면 실제 보장에 쓰이는 돈은 이보다 적습니다.\" }\n      ]\n    },\n    {\n      \"id\": \"contract-terms\",\n      \"title\": \"얼마나 내고 언제까지 받나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다.\"\n        },\n        {\n          \"key\": \"entry-age\",\n          \"label\": \"가입나이\",\n          \"shape\": \"range\",\n          \"type\": \"age\",\n          \"description\": \"가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다.\"\n        },\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"설계안 계약사항 표에서 읽는 값들입니다.\" },\n        { \"kind\": \"tip\", \"text\": \"납입기간이 만기보다 짧으면 그 뒤로는 안 내고 보장만 받습니다.\" }\n      ]\n    },\n    {\n      \"id\": \"coverage-amounts\",\n      \"title\": \"주요 보장의 가입금액\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"death\",\n          \"label\": \"일반사망\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반사망 보험금 가입금액을 원 단위 정수로. 재해사망과 상해사망은 빼고 일반사망만.\"\n        },\n        {\n          \"key\": \"cancer\",\n          \"label\": \"암진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반암 진단비 가입금액을 원 단위 정수로. 유사암은 빼고 일반암만.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"가입금액은 받을 수 있는 최대 금액이고 실제 지급 조건은 약관이 정합니다.\" }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"어떤 특약이 붙었나\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"특약 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표에 적힌 특약을 하나씩. 주계약은 빼고 특약만 담는다. 특약이 하나도 없으면 빈 목록으로 둔다.\",\n          \"columns\": [\n            { \"key\": \"name\", \"label\": \"특약명\", \"type\": \"text\", \"description\": \"설계안에 적힌 특약 이름 그대로. 줄이거나 고쳐 쓰지 않는다.\" },\n            { \"key\": \"amount\", \"label\": \"가입금액\", \"type\": \"money\", \"description\": \"그 특약의 가입금액을 원 단위 정수로.\" },\n            { \"key\": \"renews\", \"label\": \"갱신\", \"type\": \"boolean\", \"description\": \"그 특약이 갱신형이면 참, 비갱신형이면 거짓.\" }\n          ]\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"특약 하나하나의 갱신 여부가 주계약과 다를 수 있습니다. 주계약이 비갱신형이어도 특약이 갱신형이면 보험료는 오릅니다.\" }\n      ]\n    }\n  ]\n}\n",
+    "subjects": "[\n  {\n    \"id\": \"proposal-only\",\n    \"label\": \"받은 제안서\"\n  }\n]\n",
+    "values": [
+      {
+        "label": "값: proposal-only",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"single-proposal-1\",\n  \"subjectId\": \"proposal-only\",\n  \"subjectLabel\": \"받은 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"filled\",\n          \"value\": 64300,\n          \"notes\": [\n            { \"kind\": \"quote\", \"text\": \"합계보험료 64,300원 (보장보험료 58,300원 / 적립보험료 6,000원)\" },\n            { \"kind\": \"caution\", \"text\": \"6,000원은 적립보험료라 보장에 쓰이지 않습니다. 보장에 쓰이는 돈은 58,300원입니다.\" }\n          ]\n        }\n      }\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": { \"state\": \"filled\", \"value\": 240, \"notes\": [{ \"kind\": \"quote\", \"text\": \"20년납\" }] },\n        \"maturity-age\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"종신 보장이라 만기나이가 없습니다.\" }]\n        },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"min\": 15, \"max\": 70 } },\n        \"renews\": {\n          \"state\": \"filled\",\n          \"value\": false,\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"주계약은 비갱신형이지만 특약 두 개가 갱신형입니다. 특약 표를 함께 봅니다.\" }]\n        }\n      },\n      \"notes\": [{ \"kind\": \"note\", \"text\": \"설계안 2쪽 계약사항 표에서 읽었습니다.\" }]\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": { \"state\": \"filled\", \"value\": 30000000 },\n        \"cancer\": { \"state\": \"filled\", \"value\": 50000000, \"notes\": [{ \"kind\": \"caution\", \"text\": \"유사암은 가입금액의 20%인 1,000만원만 나옵니다.\" }] }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"name\": \"암진단비(유사암제외)\", \"amount\": 50000000, \"renews\": false },\n            { \"name\": \"질병입원일당(1일이상)\", \"amount\": 20000, \"renews\": true },\n            { \"name\": \"질병수술비\", \"amount\": 200000, \"renews\": true },\n            { \"name\": \"상해후유장해(3~100%)\", \"amount\": 100000000, \"renews\": false }\n          ],\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"갱신형 특약 둘의 보험료가 전체의 얼마인지는 설계안에 나뉘어 있지 않습니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
+      }
+    ],
+    "focus": null
+  },
+  "renewal-watch": {
+    "name": "갱신되면 얼마가 되나",
+    "about": "비교 축 하나를 깊게 판다. 갱신형 둘과 비갱신형 하나를 나이에 따른 보험료로 견준다.",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"renewal-watch-1\",\n  \"title\": \"갱신되면 얼마가 되나\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"지금 내는 돈\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료는 뺀다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"지금 싼 것이 계속 싼 것은 아닙니다. 아래 갱신 곡선과 함께 봅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신 조건\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 비운다.\"\n        },\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 비우고 종신이라고 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"갱신주기가 짧을수록 보험료가 자주 조금씩 오르고, 길수록 드물게 많이 오릅니다.\" },\n        { \"kind\": \"tip\", \"text\": \"비갱신형은 납입기간이 끝나면 더 내지 않습니다. 갱신형 전기납은 보장받는 내내 냅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"나이에 따른 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\" },\n        { \"kind\": \"note\", \"text\": \"선이 없는 설계는 갱신 예시표가 없다는 뜻이지 보험료가 오르지 않는다는 증거는 아닙니다.\" }\n      ]\n    }\n  ]\n}\n",
+    "subjects": "[\n  {\n    \"id\": \"plan-keep\",\n    \"label\": \"비갱신 설계\"\n  },\n  {\n    \"id\": \"plan-ten\",\n    \"label\": \"10년 갱신 설계\"\n  },\n  {\n    \"id\": \"plan-five\",\n    \"label\": \"5년 갱신 설계\"\n  }\n]\n",
+    "values": [
+      {
+        "label": "값: plan-five",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-five\",\n  \"subjectLabel\": \"5년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 33500 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60, \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 33500 },\n            { \"at\": 45, \"value\": 42700 },\n            { \"at\": 50, \"value\": 55900 },\n            { \"at\": 55, \"value\": 74300 },\n            { \"at\": 60, \"value\": 99800 }\n          ],\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"예시표가 60세까지만 있습니다. 만기가 90세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "label": "값: plan-keep",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-keep\",\n  \"subjectLabel\": \"비갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 96800, \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 96,800원\" }] } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": false },\n        \"renewal-cycle\": { \"state\": \"empty\", \"notes\": [{ \"kind\": \"note\", \"text\": \"비갱신형이라 갱신주기가 없습니다.\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 240 },\n        \"maturity-age\": { \"state\": \"empty\", \"notes\": [{ \"kind\": \"note\", \"text\": \"종신 보장입니다.\" }] }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"비갱신형이라 갱신 예시표가 설계안에 없습니다. 20년 뒤까지 96,800원 그대로입니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "label": "값: plan-ten",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-ten\",\n  \"subjectLabel\": \"10년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 41200 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 120, \"notes\": [{ \"kind\": \"quote\", \"text\": \"10년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600, \"notes\": [{ \"kind\": \"note\", \"text\": \"전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다.\" }] },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 41200 },\n            { \"at\": 50, \"value\": 62800 },\n            { \"at\": 60, \"value\": 104500 },\n            { \"at\": 70, \"value\": 188300 },\n            { \"at\": 80, \"value\": 331000 }\n          ],\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"설계안 4쪽 「갱신 시 예상보험료」 표\" }]\n        }\n      }\n    }\n  }\n}\n"
+      }
+    ],
+    "focus": "plan-five"
+  },
+  "half-read": {
+    "name": "아직 덜 읽은 제안서들",
+    "about": "값이 많이 비고 아직 분석되지 않은 subject 가 섞였을 때. 「값 없음」과 「아직 분석 중」이 눈으로 갈리는지 본다.",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"half-read-1\",\n  \"title\": \"스캔에서 읽은 것\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"초회 보험료\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달 월 보험료 총액을 원 단위 정수로. 읽을 수 없으면 비우고 왜 못 읽었는지 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"설계안 첫 쪽 합계보험료입니다.\" },\n        { \"kind\": \"caution\", \"text\": \"스캔이 흐리면 자릿수를 잘못 읽기 쉽습니다. 확신이 없으면 비우는 쪽이 낫습니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신되나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120. 비갱신형이면 비운다.\"\n        },\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 비우고 종신이라고 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 오릅니다. 비갱신형은 처음이 비싼 대신 그대로입니다.\" },\n        { \"kind\": \"note\", \"text\": \"이 지식은 subject 가 하나도 분석되지 않아도 화면에 남습니다. 템플릿에 달린 주석이기 때문입니다.\" }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"읽어 낸 특약\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"특약 목록\",\n          \"shape\": \"items\",\n          \"description\": \"보장내역 표에서 읽어 낸 특약을 하나씩. 주계약은 뺀다. 표를 못 읽었으면 값을 비운다.\",\n          \"columns\": [\n            { \"key\": \"name\", \"label\": \"특약명\", \"type\": \"text\", \"description\": \"적힌 이름 그대로. 줄이거나 고쳐 쓰지 않는다.\" },\n            { \"key\": \"amount\", \"label\": \"가입금액\", \"type\": \"money\", \"description\": \"그 특약의 가입금액을 원 단위 정수로. 못 읽었으면 그 칸을 비운다.\" }\n          ]\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"표가 잘렸거나 흐려서 못 읽은 줄은 목록에 없습니다. 목록이 짧다고 특약이 적은 것은 아닙니다.\" }\n      ]\n    }\n  ]\n}\n",
+    "subjects": "[\n  {\n    \"id\": \"scan-1\",\n    \"label\": \"첫째 스캔\"\n  },\n  {\n    \"id\": \"scan-2\",\n    \"label\": \"둘째 스캔\"\n  },\n  {\n    \"id\": \"scan-3\",\n    \"label\": \"셋째 스캔\"\n  },\n  {\n    \"id\": \"scan-4\",\n    \"label\": \"넷째 스캔\"\n  }\n]\n",
+    "values": [
+      {
+        "label": "값: scan-1",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"half-read-1\",\n  \"subjectId\": \"scan-1\",\n  \"subjectLabel\": \"첫째 스캔\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": { \"state\": \"filled\", \"value\": 53000, \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 53,000원\" }] }\n      }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"갱신형이라고만 적혀 있고 주기가 어디에도 없습니다.\" }]\n        },\n        \"payment-period\": { \"state\": \"empty\", \"notes\": [{ \"kind\": \"caution\", \"text\": \"계약사항 표 오른쪽이 잘려 있습니다.\" }] },\n        \"maturity-age\": { \"state\": \"empty\" }\n      },\n      \"notes\": [{ \"kind\": \"caution\", \"text\": \"2쪽이 비스듬히 스캔돼 표 오른쪽 절반을 읽지 못했습니다.\" }]\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"name\": \"암진단비\", \"amount\": 30000000 },\n            { \"name\": \"뇌혈관질환진단비\" },\n            { \"name\": \"허혈성심장질환진단비\" }\n          ],\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"특약 이름은 읽었지만 가입금액 열이 잘려 둘은 비어 있습니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "label": "값: scan-2",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"half-read-1\",\n  \"subjectId\": \"scan-2\",\n  \"subjectLabel\": \"둘째 스캔\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"합계보험료 칸이 도장에 가려 읽지 못했습니다.\" }]\n        }\n      }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"empty\" },\n        \"renewal-cycle\": { \"state\": \"empty\" },\n        \"payment-period\": { \"state\": \"empty\" },\n        \"maturity-age\": { \"state\": \"empty\" }\n      },\n      \"notes\": [{ \"kind\": \"caution\", \"text\": \"계약사항 쪽이 아예 빠져 있습니다. 이 제안서는 보장내역만 왔습니다.\" }]\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"name\": \"암진단비(유사암제외)\", \"amount\": 20000000 },\n            { \"name\": \"유사암진단비\", \"amount\": 4000000 }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      }
+    ],
+    "focus": "scan-1"
+  }
+};
+
+// ---- viewer/app.mjs ----
+// 실시간 편집·렌더. 왼쪽에서 쓰면 오른쪽이 그 자리에서 바뀐다.
+//
+// **판정하지 않는다.** JSON 으로 읽히는지만 보고, 스키마 판정은 Python 검사기가 갖는다.
+// 여기서 통과처럼 보인다고 통과가 아니다 — 아래 안내가 그 명령을 적어 둔다.
+
+
+// 빌드가 여기에 samples/ 를 박아 넣는다. file:// 에서 fetch 가 막히기 때문이다.
+
+const $ = (id) => document.getElementById(id);
+const pretty = (doc) => JSON.stringify(doc, null, 2);
+
+/** 편집 중인 것. 문서는 전부 글로 들고 있다 — 사람이 깨진 JSON 을 지나갈 수 있어야 한다. */
+const state = {
+  sample: null,
+  tabs: [], // { id, label, text }
+  active: 0,
+  focus: null,
+  seq: 0, // 더한 값 한 벌의 탭 id 가 겹치지 않게 센다
+};
+
+function loadSample(key) {
+  const sample = SAMPLES[key];
+  state.sample = key;
+  state.tabs = [
+    { id: "template", label: "템플릿", text: sample.template },
+    { id: "subjects", label: "명단", text: sample.subjects },
+    ...sample.values.map((v, i) => ({ id: `values-${i}`, label: v.label, text: v.text })),
+  ];
+  state.active = 0;
+  state.seq = state.tabs.length;
+  state.focus = sample.focus ?? null;
+  $("about").textContent = sample.about;
+  drawTabs();
+  drawEditor();
+  refresh();
+}
+
+function parse(text) {
+  try {
+    return { doc: JSON.parse(text), error: null };
+  } catch (exc) {
+    return { doc: null, error: exc.message };
+  }
+}
+
+function tabOf(id) {
+  return state.tabs.find((t) => t.id === id);
+}
+
+function read() {
+  const problems = [];
+  // 탭을 id 로 되찾지 않고 그 자리에서 읽는다 — 값 한 벌을 지웠다 더하면 id 가 겹칠 수 있다.
+  const take = (tab) => {
+    if (!tab || tab.text.trim() === "") return null;
+    const { doc, error } = parse(tab.text);
+    if (error) problems.push(`${tab.label}: JSON 으로 읽지 못했다 — ${error}`);
+    return doc;
+  };
+  const template = take(tabOf("template"));
+  const subjects = take(tabOf("subjects"));
+  const values = [];
+  for (const tab of state.tabs) {
+    if (!tab.id.startsWith("values-")) continue;
+    const doc = take(tab);
+    if (doc) values.push(doc);
+  }
+  return { template, values, subjects: Array.isArray(subjects) ? subjects : null, problems };
+}
+
+// ---------------------------------------------------------------- 그리기
+
+function drawTabs() {
+  const bar = $("tabs");
+  bar.innerHTML = "";
+  state.tabs.forEach((tab, index) => {
+    const button = document.createElement("button");
+    button.className = "tab";
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(index === state.active));
+    const broken = tab.text.trim() !== "" && parse(tab.text).error;
+    button.innerHTML = `${escapeText(tab.label)}${broken ? ' <span class="bad">!</span>' : ""}`;
+    button.addEventListener("click", () => {
+      state.tabs[state.active].text = $("editor").value;
+      state.active = index;
+      drawTabs();
+      drawEditor();
+    });
+    bar.appendChild(button);
+  });
+}
+
+function escapeText(text) {
+  const node = document.createElement("span");
+  node.textContent = text;
+  return node.innerHTML;
+}
+
+function drawEditor() {
+  const editor = $("editor");
+  editor.value = state.tabs[state.active].text;
+  editor.setAttribute("aria-label", state.tabs[state.active].label);
+}
+
+function drawFocusControls(seats) {
+  const box = $("focus-buttons");
+  box.innerHTML = "";
+  const add = (label, value) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.setAttribute("aria-pressed", String(state.focus === value));
+    button.addEventListener("click", () => {
+      state.focus = value;
+      $("focus-free").value = "";
+      refresh();
+    });
+    box.appendChild(button);
+  };
+  add("없음 (null)", null);
+  for (const seat of seats) add(seat.name, seat.id);
+}
+
+function refresh() {
+  const { template, values, subjects, problems } = read();
+  const { html, report } = renderView({ template, values, subjects, focus: state.focus });
+  $("view").innerHTML = html;
+
+  const seats =
+    subjects?.filter((s) => s && typeof s.id === "string").map((s) => ({ id: s.id, name: s.label || s.id })) ??
+    values.map((v) => ({ id: v.subjectId, name: v.subjectLabel || v.subjectId }));
+  drawFocusControls(seats);
+
+  const all = [...problems, ...report];
+  const strip = $("strip");
+  if (all.length === 0) {
+    strip.innerHTML = "";
+  } else {
+    const items = all.map((line) => `<li>${escapeText(line)}</li>`).join("");
+    strip.innerHTML = `<b>렌더가 그리지 못한 자리 ${all.length}</b><ul>${items}</ul>`;
+  }
+  drawTabs();
+}
+
+// ---------------------------------------------------------------- 붙이기
+
+let timer = null;
+function scheduleRefresh() {
+  state.tabs[state.active].text = $("editor").value;
+  clearTimeout(timer);
+  timer = setTimeout(refresh, 140);
+}
+
+function start() {
+  const picker = $("sample");
+  for (const [key, sample] of Object.entries(SAMPLES)) {
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = sample.name;
+    picker.appendChild(option);
+  }
+  picker.addEventListener("change", () => loadSample(picker.value));
+
+  $("editor").addEventListener("input", scheduleRefresh);
+
+  $("focus-free").addEventListener("input", (event) => {
+    const raw = event.target.value.trim();
+    state.focus = raw === "" ? null : raw;
+    refresh();
+  });
+
+  $("add-values").addEventListener("click", () => {
+    state.tabs[state.active].text = $("editor").value;
+    const { doc } = parse(tabOf("template").text);
+    state.seq += 1;
+    const id = `subject-${state.seq}`;
+    const skeleton = { weave: "1", templateId: doc?.id ?? "", subjectId: id, subjectLabel: id, facets: {} };
+    for (const facet of doc?.facets ?? []) {
+      skeleton.facets[facet.id] = { fields: {} };
+      for (const field of facet.fields ?? []) skeleton.facets[facet.id].fields[field.key] = { state: "empty" };
+    }
+    state.tabs.push({ id: `values-${state.seq}`, label: `값: ${id}`, text: pretty(skeleton) });
+    state.active = state.tabs.length - 1;
+    drawTabs();
+    drawEditor();
+    refresh();
+  });
+
+  $("drop-values").addEventListener("click", () => {
+    const tab = state.tabs[state.active];
+    if (!tab.id.startsWith("values-")) return;
+    state.tabs.splice(state.active, 1);
+    state.active = 0;
+    drawTabs();
+    drawEditor();
+    refresh();
+  });
+
+  const first = Object.keys(SAMPLES)[0];
+  picker.value = first;
+  loadSample(first);
+}
+
+start();
+</script>
+</body>
+</html>

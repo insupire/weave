@@ -1,0 +1,91 @@
+{
+  "weave": "1",
+  "templateId": "proposal-compare-1",
+  "subjectId": "proposal-b",
+  "subjectLabel": "나 제안서",
+  "facets": {
+    "first-premium": {
+      "fields": {
+        "first-premium": {
+          "state": "filled",
+          "value": 41200,
+          "notes": [
+            { "kind": "quote", "text": "합계보험료 41,200원" },
+            { "kind": "caution", "text": "10년마다 갱신되므로 이 금액은 첫 10년 동안만 유지됩니다." }
+          ]
+        }
+      }
+    },
+    "contract-terms": {
+      "fields": {
+        "payment-period": {
+          "state": "filled",
+          "value": 600,
+          "notes": [
+            { "kind": "note", "text": "전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다." }
+          ]
+        },
+        "maturity-age": { "state": "filled", "value": 90 },
+        "entry-age": {
+          "state": "filled",
+          "value": { "min": 20 },
+          "notes": [
+            { "kind": "caution", "text": "최대 가입나이가 표에서 잘려 읽지 못했습니다." }
+          ]
+        }
+      }
+    },
+    "renewal": {
+      "fields": {
+        "renews": { "state": "filled", "value": true },
+        "renewal-cycle": {
+          "state": "filled",
+          "value": 120,
+          "notes": [{ "kind": "quote", "text": "10년 갱신형" }]
+        }
+      },
+      "notes": [
+        { "kind": "caution", "text": "갱신할 때 보험료가 오르는 것 말고도, 갱신 시점에 회사가 보장을 바꿀 수 있습니다." }
+      ]
+    },
+    "coverage-amounts": {
+      "fields": {
+        "death": {
+          "state": "empty",
+          "notes": [{ "kind": "note", "text": "이 설계안에는 사망보장이 들어 있지 않습니다." }]
+        },
+        "cancer": { "state": "filled", "value": 50000000 },
+        "brain": { "state": "filled", "value": 30000000 }
+      }
+    },
+    "renewal-premium": {
+      "fields": {
+        "premium-curve": {
+          "state": "filled",
+          "value": [
+            { "at": 40, "value": 41200 },
+            { "at": 50, "value": 62800 },
+            { "at": 60, "value": 104500 },
+            { "at": 70, "value": 188300 }
+          ],
+          "notes": [
+            { "kind": "quote", "text": "설계안 4쪽 「갱신 시 예상보험료」 표" },
+            { "kind": "note", "text": "표가 70세까지만 있어 그 뒤는 담지 못했습니다." }
+          ]
+        }
+      }
+    },
+    "riders": {
+      "fields": {
+        "rider-list": {
+          "state": "filled",
+          "value": [
+            { "name": "암진단비", "amount": 50000000, "renews": true, "maturity-age": 90 },
+            { "name": "뇌혈관질환진단비", "amount": 30000000, "renews": true, "maturity-age": 90 },
+            { "name": "허혈성심장질환진단비", "amount": 30000000, "renews": true, "maturity-age": 90 }
+          ]
+        }
+      }
+    }
+  }
+}
