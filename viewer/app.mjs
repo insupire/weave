@@ -10,6 +10,22 @@ import { SAMPLES } from "./samples.mjs";
 import { PAGES } from "./catalog.mjs";
 
 const $ = (id) => document.getElementById(id);
+
+// 목차의 primitive element 표시. **구조를 가리킬 뿐 도메인을 가리키지 않는다** —
+// 돈·병원·서류 같은 그림을 두지 않는다. 다섯이 같은 크기·같은 선 굵기다.
+const ELEMENT_MARK = {
+  stat: '<rect x="3" y="6" width="10" height="4"/>',
+  facts: '<path d="M3 5h10M3 8h10M3 11h6"/>',
+  bars: '<path d="M3 5h9M3 8h5M3 11h11"/>',
+  line: '<path d="M3 11l3-4 3 2 4-5"/>',
+  list: '<path d="M3 4h10v8H3zM3 7.5h10M7 4v8"/>',
+};
+
+function elementIcon(id) {
+  const mark = ELEMENT_MARK[id];
+  if (!mark) return "";
+  return `<svg class="toc-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${mark}</svg>`;
+}
 const pretty = (doc) => JSON.stringify(doc, null, 2);
 
 const state = {
@@ -41,8 +57,8 @@ function drawToc() {
     }
     const link = document.createElement("button");
     link.type = "button";
-    link.className = "toc-link";
-    link.textContent = page.title;
+    link.className = page.kind === "element" ? "toc-link has-icon" : "toc-link";
+    link.innerHTML = `${elementIcon(page.id)}${escapeText(page.title)}`;
     link.setAttribute("aria-pressed", String(page.id === state.page));
     link.addEventListener("click", () => {
       state.page = page.id;
@@ -191,11 +207,13 @@ function drawEditor() {
 function drawFocus(seats) {
   const box = $("focus-buttons");
   box.innerHTML = "";
-  const add = (label, value, title) => {
+  const add = (label, value, title, tone) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "pick";
-    button.textContent = label;
+    button.className = tone ? `pick ${tone}` : "pick";
+    button.innerHTML = tone
+      ? `<span class="swatch" aria-hidden="true"></span>${escapeText(label)}`
+      : escapeText(label);
     if (title) button.setAttribute("title", title);
     button.setAttribute("aria-pressed", String(state.focus === value));
     button.addEventListener("click", () => {
@@ -205,7 +223,7 @@ function drawFocus(seats) {
     box.appendChild(button);
   };
   add("none", null, "아무도 고르지 않음 — 겹치는 것은 강조를 풀고, 고르는 것은 첫 subject 로 돌아간다");
-  for (const seat of seats) add(seat.name, seat.id, seat.id);
+  for (const seat of seats) add(seat.name, seat.id, seat.id, seat.tone);
 }
 
 function refresh() {
@@ -215,6 +233,11 @@ function refresh() {
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
   drawFocus(view?.seats ?? []);
+  // 무엇을 보고 있는지는 화면에 한 번. 고른 것이 있으면 눌린 버튼이 이미 말하므로,
+  // 말해 주지 못할 때(고른 것 없음)만 적는다.
+  const watching = (view?.seats ?? []).find((s) => s.id === view?.shown);
+  $("watching").innerHTML =
+    watching && state.focus === null ? `보는 중 <b>${escapeText(watching.name)}</b>` : "";
 
   const all = [...problems, ...report];
   const strip = $("strip");
