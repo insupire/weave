@@ -1,0 +1,12 @@
+{
+  "order": 1,
+  "name": "제안서 나란히 보기",
+  "about": "원시 요소 다섯을 전부 쓰고 제안서 셋을 견준다. 라 제안서는 아직 분석되지 않아 값 한 벌이 없다.",
+  "subjects": [
+    { "id": "proposal-a", "label": "가 제안서" },
+    { "id": "proposal-b", "label": "나 제안서" },
+    { "id": "proposal-c", "label": "다 제안서" },
+    { "id": "proposal-d", "label": "라 제안서" }
+  ],
+  "focus": "proposal-b"
+}

@@ -40,6 +40,29 @@ class TemplatePasses(unittest.TestCase):
         used = {f["element"] for f in TEMPLATE["facets"]}
         self.assertEqual(used, {"stat", "facts", "bars", "line", "list"})
 
+    def test_template_author_notes_use_the_same_four_kinds(self) -> None:
+        # subject 무관 지식의 자리. 아직 분석된 subject 가 하나도 없어도 남는다.
+        doc = mutate(
+            TEMPLATE,
+            lambda d: facet(d, "monthly-premium").__setitem__(
+                "notes",
+                [
+                    {"kind": "quote", "text": "설계안 1쪽 합계보험료"},
+                    {"kind": "tip", "text": "적립보험료가 섞이면 실제 보장 보험료는 더 적습니다."},
+                    {"kind": "note", "text": "월납 기준입니다."},
+                    {"kind": "caution", "text": "할인 전 금액일 수 있습니다."},
+                ],
+            ),
+        )
+        result = check_template(doc)
+        self.assertTrue(result.ok, [str(p) for p in result.problems])
+
+    def test_facet_has_no_description_field(self) -> None:
+        # 설명은 주석이라는 규칙이 하나로 유지된다.
+        facet_schema = documents()["weave-template.schema.json"]["$defs"]["Facet"]
+        self.assertNotIn("description", facet_schema["properties"])
+        self.assertIn("notes", facet_schema["properties"])
+
 
 class ValuesPass(unittest.TestCase):
     def test_all_filled(self) -> None:
@@ -89,7 +112,13 @@ TEMPLATE_DEFECTS = [
     ("타입에 등급을 더한다", lambda d: field(d, "monthly-premium", "premium").__setitem__("type", "grade"), "is not one of"),
     ("타입에 점수를 더한다", lambda d: field(d, "monthly-premium", "premium").__setitem__("type", "score"), "is not one of"),
     ("필드에 순위를 붙인다", lambda d: field(d, "monthly-premium", "premium").__setitem__("rank", 1), "Additional properties"),
-    ("템플릿에 주석 자리를 만든다", lambda d: facet(d, "monthly-premium").__setitem__("notes", [{"kind": "tip", "text": "x"}]), "Additional properties"),
+    ("facet 에 설명 필드를 따로 만든다", lambda d: facet(d, "riders").__setitem__("description", "특약을 모아 보여 줍니다"), "Additional properties"),
+    ("템플릿 주석에 확실성 수치를 붙인다", lambda d: facet(d, "contract-terms")["notes"][0].__setitem__("confidence", 0.8), "Additional properties"),
+    ("템플릿 주석에 순위를 붙인다", lambda d: facet(d, "contract-terms")["notes"][0].__setitem__("rank", 1), "Additional properties"),
+    ("템플릿 주석 갈래를 늘린다", lambda d: facet(d, "contract-terms")["notes"][0].__setitem__("kind", "grade"), "is not one of"),
+    ("템플릿 주석 갈래에 점수를 더한다", lambda d: facet(d, "contract-terms")["notes"][0].__setitem__("kind", "score"), "is not one of"),
+    ("템플릿 주석에 글이 없다", lambda d: facet(d, "contract-terms")["notes"][0].pop("text"), "'text' is a required property"),
+    ("템플릿 주석을 아홉 개 단다", lambda d: facet(d, "contract-terms").__setitem__("notes", [{"kind": "note", "text": f"{i}"} for i in range(9)]), "is too long"),
     ("막대에 글을 싣는다", lambda d: field(d, "coverage-amounts", "death-benefit").__setitem__("type", "text"), "is not one of"),
     ("추출 지시를 뺀다", lambda d: field(d, "monthly-premium", "premium").pop("description"), "'description' is a required property"),
     ("추출 지시를 빈 글로 둔다", lambda d: field(d, "monthly-premium", "premium").__setitem__("description", "짧다"), "is too short"),

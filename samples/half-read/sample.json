@@ -1,0 +1,12 @@
+{
+  "order": 4,
+  "name": "아직 덜 읽은 제안서들",
+  "about": "값이 많이 비고 아직 분석되지 않은 subject 가 섞였을 때. 「값 없음」과 「아직 분석 중」이 눈으로 갈리는지 본다.",
+  "subjects": [
+    { "id": "scan-1", "label": "첫째 스캔" },
+    { "id": "scan-2", "label": "둘째 스캔" },
+    { "id": "scan-3", "label": "셋째 스캔" },
+    { "id": "scan-4", "label": "넷째 스캔" }
+  ],
+  "focus": "scan-1"
+}

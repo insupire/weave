@@ -1,0 +1,38 @@
+{
+  "weave": "1",
+  "templateId": "half-read-1",
+  "subjectId": "scan-1",
+  "subjectLabel": "첫째 스캔",
+  "facets": {
+    "first-premium": {
+      "fields": {
+        "first-premium": { "state": "filled", "value": 53000, "notes": [{ "kind": "quote", "text": "합계보험료 53,000원" }] }
+      }
+    },
+    "renewal": {
+      "fields": {
+        "renews": { "state": "filled", "value": true },
+        "renewal-cycle": {
+          "state": "empty",
+          "notes": [{ "kind": "caution", "text": "갱신형이라고만 적혀 있고 주기가 어디에도 없습니다." }]
+        },
+        "payment-period": { "state": "empty", "notes": [{ "kind": "caution", "text": "계약사항 표 오른쪽이 잘려 있습니다." }] },
+        "maturity-age": { "state": "empty" }
+      },
+      "notes": [{ "kind": "caution", "text": "2쪽이 비스듬히 스캔돼 표 오른쪽 절반을 읽지 못했습니다." }]
+    },
+    "riders": {
+      "fields": {
+        "rider-list": {
+          "state": "filled",
+          "value": [
+            { "name": "암진단비", "amount": 30000000 },
+            { "name": "뇌혈관질환진단비" },
+            { "name": "허혈성심장질환진단비" }
+          ],
+          "notes": [{ "kind": "caution", "text": "특약 이름은 읽었지만 가입금액 열이 잘려 둘은 비어 있습니다." }]
+        }
+      }
+    }
+  }
+}

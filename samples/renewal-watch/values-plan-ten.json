@@ -1,0 +1,34 @@
+{
+  "weave": "1",
+  "templateId": "renewal-watch-1",
+  "subjectId": "plan-ten",
+  "subjectLabel": "10년 갱신 설계",
+  "facets": {
+    "first-premium": {
+      "fields": { "first-premium": { "state": "filled", "value": 41200 } }
+    },
+    "renewal": {
+      "fields": {
+        "renews": { "state": "filled", "value": true },
+        "renewal-cycle": { "state": "filled", "value": 120, "notes": [{ "kind": "quote", "text": "10년 갱신형" }] },
+        "payment-period": { "state": "filled", "value": 600, "notes": [{ "kind": "note", "text": "전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다." }] },
+        "maturity-age": { "state": "filled", "value": 90 }
+      }
+    },
+    "renewal-premium": {
+      "fields": {
+        "premium-curve": {
+          "state": "filled",
+          "value": [
+            { "at": 40, "value": 41200 },
+            { "at": 50, "value": 62800 },
+            { "at": 60, "value": 104500 },
+            { "at": 70, "value": 188300 },
+            { "at": 80, "value": 331000 }
+          ],
+          "notes": [{ "kind": "quote", "text": "설계안 4쪽 「갱신 시 예상보험료」 표" }]
+        }
+      }
+    }
+  }
+}

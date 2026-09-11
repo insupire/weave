@@ -1,0 +1,27 @@
+{
+  "weave": "1",
+  "templateId": "renewal-watch-1",
+  "subjectId": "plan-keep",
+  "subjectLabel": "비갱신 설계",
+  "facets": {
+    "first-premium": {
+      "fields": { "first-premium": { "state": "filled", "value": 96800, "notes": [{ "kind": "quote", "text": "합계보험료 96,800원" }] } }
+    },
+    "renewal": {
+      "fields": {
+        "renews": { "state": "filled", "value": false },
+        "renewal-cycle": { "state": "empty", "notes": [{ "kind": "note", "text": "비갱신형이라 갱신주기가 없습니다." }] },
+        "payment-period": { "state": "filled", "value": 240 },
+        "maturity-age": { "state": "empty", "notes": [{ "kind": "note", "text": "종신 보장입니다." }] }
+      }
+    },
+    "renewal-premium": {
+      "fields": {
+        "premium-curve": {
+          "state": "empty",
+          "notes": [{ "kind": "note", "text": "비갱신형이라 갱신 예시표가 설계안에 없습니다. 20년 뒤까지 96,800원 그대로입니다." }]
+        }
+      }
+    }
+  }
+}

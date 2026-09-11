@@ -1,0 +1,7 @@
+{
+  "order": 2,
+  "name": "제안서 한 장 뜯어보기",
+  "about": "subject 가 하나뿐일 때. 견줄 상대가 없어도 골격은 같고, 주석이 화면의 대부분을 진다.",
+  "subjects": [{ "id": "proposal-only", "label": "받은 제안서" }],
+  "focus": null
+}
