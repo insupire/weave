@@ -31,7 +31,7 @@
 | `.github/workflows/ci.yml` | 필수 전체 회귀. `make all` 한 줄을 부른다 |
 | `tools/emit_types.py` | 닫힌 어휘를 소비자 언어로 내보낸다 |
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
-| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플은 `test_samples.py`, 그리는 쪽은 `viewer.test.mjs` |
+| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 그리는 쪽은 `viewer.test.mjs` |
 
 `schema/` 넷 — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(focus).
 파일 사이 참조는 상대 `$ref` 라 그대로 복사해 가도 풀린다.
@@ -79,7 +79,9 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 
 **이 sprint 의 남은 weave 변경은 작업 브랜치 하나에 쌓는다.** 중간 PR 도 `develop` 머지도 하지 않고 sprint 종료 때 PR 하나로 올린다(PM `orchestrator.md` §4).
 
-**CI 는 PR 과 `develop` push 에서 `make all` 을 돌린다**([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). 게이트 목록의 정본은 `Makefile` 하나이고 워크플로는 그것을 부르기만 한다 — 워크플로에 검사를 따로 적지 않는다. 실행기는 python 3.13 과 node 24 이고 워크플로가 못박는다. **로컬 통과는 필수 CI 를 대체하지 않는다.**
+**CI 는 `develop` 으로 향하는 PR 에서 `make all` 을 돌린다**([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). 생성·갱신·재개 셋에서 돈다 — 랜딩 PR 에 커밋을 얹으면 입력이 달라지므로 앞 회차를 그대로 믿지 않는다. **작업 브랜치 push 나 브랜치끼리 여는 PR 에서는 돌지 않는다.** 취소는 같은 PR 의 앞 회차만 한다.
+
+게이트 목록의 정본은 `Makefile` 하나이고 워크플로는 그것을 부르기만 한다 — 워크플로에 검사를 따로 적지 않는다. 실행기는 python 3.13 과 node 24 이고 워크플로가 못박는다. **로컬 통과는 필수 CI 를 대체하지 않는다.**
 
 | 무엇을 고쳤나 | 돌릴 것 |
 | --- | --- |
@@ -91,7 +93,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `samples/*/values-*.json` | 파일 이름 차례가 **화면 차례**다. 값 한 벌들이 곧 명단이기 때문이다 |
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
-| `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다 |
+| `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다. 트리거의 형태는 `tests/test_ci.py` 가 본다 |
 | `docs/` · `AGENTS.md` 만 | 없음 |
 
 ## 검사기가 못 보는 것
