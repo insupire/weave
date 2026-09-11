@@ -38,8 +38,12 @@ button:hover { background:var(--soft); }
 button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
 label { font-size:12px; color:var(--mute); }
 
-.about { padding:8px 12px; font-size:12.5px; color:var(--mute);
-  border-bottom:1px solid var(--line); background:#ffffff; }
+.about, .status, .legend { padding:8px 12px; font-size:12.5px; color:var(--mute);
+  border-bottom:1px solid var(--line); background:#ffffff; margin:0; }
+/* 분석뷰에서 걷어낸 도구의 표시들이 사는 자리 */
+.status { font-family:ui-monospace,monospace; font-size:12px; }
+.legend { font-size:12px; }
+label:has(input) { display:inline-flex; align-items:center; gap:4px; }
 
 .tabs { display:flex; flex-wrap:wrap; gap:4px; padding:8px 12px 0; }
 .tab { border:1px solid var(--line); border-bottom:none; border-radius:4px 4px 0 0;
@@ -63,20 +67,17 @@ textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
 
 h1 { font-size:22px; margin:0 0 4px; }
 h2 { font-size:16px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; }
-h2 .element { font:11px/1 ui-monospace,monospace; color:var(--mute);
+/* 원시 요소 배지는 참조 뷰어가 켤 때만 붙는다. 렌더가 낸 글에는 이 이름이 없다. */
+.show-elements h2[data-element]::after { content:attr(data-element);
+  font:11px/1 ui-monospace,monospace; color:var(--mute);
   border:1px solid var(--line); border-radius:3px; padding:3px 5px; }
-.meta, .legend { margin:0 0 10px; font-size:12.5px; color:var(--mute); }
 code { font:12px ui-monospace,monospace; }
-.roster { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-.chip { border:1px solid var(--line); border-radius:14px; padding:3px 10px; font-size:13px; }
-.chip.no-values { border-style:dashed; color:var(--mute); }
 /* focus 는 색이 아니라 테두리와 굵기로 말한다 */
-.chip.is-focus, th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
+th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
   outline:2px solid var(--ink); outline-offset:1px; }
-.is-focus > .who, th.is-focus, .chip.is-focus { font-weight:700; }
+.is-focus > .who, th.is-focus { font-weight:700; }
 .badge { margin-left:6px; font-size:11px; color:var(--mute); white-space:nowrap;
   border:1px solid var(--line); border-radius:3px; padding:1px 4px; }
-.focus-badge { color:var(--ink); border-color:var(--ink); }
 .facet { border-top:1px solid var(--line); padding:22px 0 4px; }
 .body { margin-top:8px; }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:6px; }
@@ -89,7 +90,7 @@ code { font:12px ui-monospace,monospace; }
   border:1px solid var(--ink); border-radius:3px; padding:1px 6px; display:inline-block;
   font-family:ui-monospace,monospace; }
 /* 아직 분석 중 — 값이 비어 있는 것과 눈으로 구별되는 자리 */
-td.unanalyzed, .chip.no-values { background-image:repeating-linear-gradient(
+td.unanalyzed { background-image:repeating-linear-gradient(
   135deg, transparent, transparent 5px, rgba(0,0,0,.05) 5px, rgba(0,0,0,.05) 10px); }
 
 .stat-row { display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; }
@@ -164,8 +165,12 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
       <label>focus</label>
       <span id="focus-buttons"></span>
       <input type="text" id="focus-free" placeholder="없는 id 를 넣어 본다" size="18">
+      <label><input type="checkbox" id="show-elements"> 원시 요소 배지</label>
     </div>
     <p class="about" id="about"></p>
+    <p class="status" id="status"></p>
+    <p class="legend">범례 — <span class="miss empty">값 없음</span> 은 분석했지만 값이 없다,
+      <span class="miss unanalyzed">아직 분석 중</span> 은 값 한 벌이 아직 없다</p>
     <div class="tabs" id="tabs"></div>
     <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
     <div class="strip" id="strip"></div>
@@ -517,14 +522,15 @@ const ELEMENTS = { stat, facts, bars, line, list };
 
 // ---------------------------------------------------------------- 페이지
 
-function roster(subjects, byId, focus) {
-  const chips = subjects.map((subject) => {
-    const analysed = byId.has(subject.id);
-    const badge = analysed ? "" : `<span class="badge">${UNANALYZED}</span>`;
-    const mark = subject.id === focus ? '<span class="badge focus-badge">focus</span>' : "";
-    return `<span class="chip ${subClass(subject, focus)}${analysed ? "" : " no-values"}">${esc(subject.name)}${badge}${mark}</span>`;
-  });
-  return `<div class="roster">${chips.join("")}</div>`;
+/** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
+function viewState(template, seats, byId, focus, wanted) {
+  return {
+    templateId: template.id ?? null,
+    seats: seats.map((s) => ({ ...s, analysed: byId.has(s.id) })),
+    focus,
+    // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
+    focusMissing: wanted && !focus ? wanted : null,
+  };
 }
 
 /**
@@ -533,12 +539,15 @@ function roster(subjects, byId, focus) {
  * @param {object} input  { template, values, subjects, focus }
  *   - subjects 를 주면 그 순서와 명단대로 자리를 잡는다. 값 한 벌이 없는 subject 는 「아직 분석 중」이다.
  *   - focus 는 subject 의 id. null 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다.
- * @returns {{html: string, report: string[]}} report 는 그리지 못한 자리들
+ * @returns {{html: string, report: string[], view: object|null}}
+ *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
+ *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
  */
 function renderView({ template, values = [], subjects = null, focus = null } = {}) {
   const report = [];
   if (!template || typeof template !== "object" || Array.isArray(template)) {
-    return { html: '<div class="broken">템플릿이 없다.</div>', report: ["템플릿이 객체가 아니다"] };
+    // 그릴 분석뷰가 없다. 빈 판을 내고 무슨 일인지는 왼쪽이 말한다.
+    return { html: "", report: ["템플릿이 객체가 아니다"], view: null };
   }
   const byId = new Map();
   for (const doc of values) {
@@ -578,8 +587,9 @@ function renderView({ template, values = [], subjects = null, focus = null } = {
     }
     const title = esc(facet.title ?? facet.id ?? at);
     const draw = ELEMENTS[facet.element];
-    const head =
-      `<h2>${title}<span class="element">${esc(facet.element ?? "?")}</span></h2>` + notesHtml(facet.notes);
+    // 원시 요소 이름은 분석뷰에 나올 자리가 없다. 구조로만 남긴다 —
+    // 참조 뷰어의 배지는 이 속성을 읽어 CSS 가 그리므로 렌더가 낸 글에는 들어가지 않는다.
+    const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>` + notesHtml(facet.notes);
     let body;
     if (!draw) {
       body = undrawable(report, facet.id ?? at, `모르는 원시 요소다 — ${JSON.stringify(facet.element)}`);
@@ -599,18 +609,10 @@ function renderView({ template, values = [], subjects = null, focus = null } = {
     );
   });
 
-  const analysed = seats.filter((s) => byId.has(s.id)).length;
-  const lost =
-    wanted && !seated ? ` <span class="miss">(<code>${esc(wanted)}</code> 은 명단에 없다)</span>` : "";
-  const header =
-    `<header><h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` +
-    `<p class="meta">템플릿 <code>${esc(template.id ?? "?")}</code> · subject ${seats.length} 중 ${analysed} 분석됨 · ` +
-    `focus ${seated ? `<b>${esc(seated)}</b>` : "없음"}${lost}</p>` +
-    roster(seats, byId, seated) +
-    `<p class="legend"><span class="miss empty">${NO_VALUE}</span> 분석했지만 값이 없다 · ` +
-    `<span class="miss unanalyzed">${UNANALYZED}</span> 값 한 벌이 아직 없다</p></header>`;
+  // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
+  const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html: header + sections.join(""), report };
+  return { html, report, view: viewState(template, seats, byId, seated, wanted) };
 }
 
 // ---- viewer/samples.mjs ----
@@ -710,6 +712,7 @@ const state = {
   active: 0,
   focus: null,
   seq: 0, // 더한 값 한 벌의 탭 id 가 겹치지 않게 센다
+  showElements: false, // 원시 요소 배지. 분석뷰의 것이 아니라 뷰어의 것이라 기본은 끔
 };
 
 function loadSample(key) {
@@ -814,10 +817,31 @@ function drawFocusControls(seats) {
   for (const seat of seats) add(seat.name, seat.id);
 }
 
+/** 분석뷰에서 걷어낸 도구의 표시들. 없애는 게 아니라 자리를 옮긴 것이다. */
+function drawStatus(view) {
+  const node = $("status");
+  if (!view) {
+    node.textContent = "템플릿을 읽지 못해 분석뷰를 그리지 못했다.";
+    return;
+  }
+  const analysed = view.seats.filter((s) => s.analysed).length;
+  const parts = [
+    `템플릿 ${view.templateId ?? "?"}`,
+    `subject ${view.seats.length} 중 ${analysed} 분석됨`,
+    `focus ${view.focus ?? "없음"}`,
+  ];
+  // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고 그 사실만 여기서 알린다.
+  if (view.focusMissing) parts.push(`${view.focusMissing} 은 명단에 없어 focus 가 사라졌다`);
+  node.textContent = parts.join(" · ");
+}
+
 function refresh() {
   const { template, values, subjects, problems } = read();
-  const { html, report } = renderView({ template, values, subjects, focus: state.focus });
+  const { html, report, view } = renderView({ template, values, subjects, focus: state.focus });
+  // 오른쪽 판은 분석뷰뿐이다. 배지는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
+  $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
+  drawStatus(view);
 
   const seats =
     subjects?.filter((s) => s && typeof s.id === "string").map((s) => ({ id: s.id, name: s.label || s.id })) ??
@@ -855,6 +879,11 @@ function start() {
   picker.addEventListener("change", () => loadSample(picker.value));
 
   $("editor").addEventListener("input", scheduleRefresh);
+
+  $("show-elements").addEventListener("change", (event) => {
+    state.showElements = Boolean(event.target.checked);
+    refresh();
+  });
 
   $("focus-free").addEventListener("input", (event) => {
     const raw = event.target.value.trim();

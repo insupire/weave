@@ -334,14 +334,15 @@ export const ELEMENTS = { stat, facts, bars, line, list };
 
 // ---------------------------------------------------------------- 페이지
 
-function roster(subjects, byId, focus) {
-  const chips = subjects.map((subject) => {
-    const analysed = byId.has(subject.id);
-    const badge = analysed ? "" : `<span class="badge">${UNANALYZED}</span>`;
-    const mark = subject.id === focus ? '<span class="badge focus-badge">focus</span>' : "";
-    return `<span class="chip ${subClass(subject, focus)}${analysed ? "" : " no-values"}">${esc(subject.name)}${badge}${mark}</span>`;
-  });
-  return `<div class="roster">${chips.join("")}</div>`;
+/** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
+function viewState(template, seats, byId, focus, wanted) {
+  return {
+    templateId: template.id ?? null,
+    seats: seats.map((s) => ({ ...s, analysed: byId.has(s.id) })),
+    focus,
+    // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
+    focusMissing: wanted && !focus ? wanted : null,
+  };
 }
 
 /**
@@ -350,12 +351,15 @@ function roster(subjects, byId, focus) {
  * @param {object} input  { template, values, subjects, focus }
  *   - subjects 를 주면 그 순서와 명단대로 자리를 잡는다. 값 한 벌이 없는 subject 는 「아직 분석 중」이다.
  *   - focus 는 subject 의 id. null 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다.
- * @returns {{html: string, report: string[]}} report 는 그리지 못한 자리들
+ * @returns {{html: string, report: string[], view: object|null}}
+ *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
+ *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
  */
 export function renderView({ template, values = [], subjects = null, focus = null } = {}) {
   const report = [];
   if (!template || typeof template !== "object" || Array.isArray(template)) {
-    return { html: '<div class="broken">템플릿이 없다.</div>', report: ["템플릿이 객체가 아니다"] };
+    // 그릴 분석뷰가 없다. 빈 판을 내고 무슨 일인지는 왼쪽이 말한다.
+    return { html: "", report: ["템플릿이 객체가 아니다"], view: null };
   }
   const byId = new Map();
   for (const doc of values) {
@@ -395,8 +399,9 @@ export function renderView({ template, values = [], subjects = null, focus = nul
     }
     const title = esc(facet.title ?? facet.id ?? at);
     const draw = ELEMENTS[facet.element];
-    const head =
-      `<h2>${title}<span class="element">${esc(facet.element ?? "?")}</span></h2>` + notesHtml(facet.notes);
+    // 원시 요소 이름은 분석뷰에 나올 자리가 없다. 구조로만 남긴다 —
+    // 참조 뷰어의 배지는 이 속성을 읽어 CSS 가 그리므로 렌더가 낸 글에는 들어가지 않는다.
+    const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>` + notesHtml(facet.notes);
     let body;
     if (!draw) {
       body = undrawable(report, facet.id ?? at, `모르는 원시 요소다 — ${JSON.stringify(facet.element)}`);
@@ -416,16 +421,8 @@ export function renderView({ template, values = [], subjects = null, focus = nul
     );
   });
 
-  const analysed = seats.filter((s) => byId.has(s.id)).length;
-  const lost =
-    wanted && !seated ? ` <span class="miss">(<code>${esc(wanted)}</code> 은 명단에 없다)</span>` : "";
-  const header =
-    `<header><h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` +
-    `<p class="meta">템플릿 <code>${esc(template.id ?? "?")}</code> · subject ${seats.length} 중 ${analysed} 분석됨 · ` +
-    `focus ${seated ? `<b>${esc(seated)}</b>` : "없음"}${lost}</p>` +
-    roster(seats, byId, seated) +
-    `<p class="legend"><span class="miss empty">${NO_VALUE}</span> 분석했지만 값이 없다 · ` +
-    `<span class="miss unanalyzed">${UNANALYZED}</span> 값 한 벌이 아직 없다</p></header>`;
+  // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
+  const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html: header + sections.join(""), report };
+  return { html, report, view: viewState(template, seats, byId, seated, wanted) };
 }
