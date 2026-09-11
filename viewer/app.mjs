@@ -142,9 +142,18 @@ function escapeText(text) {
 function drawTabs() {
   const bar = $("tabs");
   bar.innerHTML = "";
+  let grouped = false;
   state.tabs.forEach((tab, index) => {
+    // 템플릿은 하나, 값 한 벌은 여럿. 말 하나가 뒤를 묶어 종류를 가른다.
+    if (!grouped && tab.id.startsWith("values-")) {
+      grouped = true;
+      const mark = document.createElement("span");
+      mark.className = "tab-group";
+      mark.textContent = "값 한 벌";
+      bar.appendChild(mark);
+    }
     const button = document.createElement("button");
-    button.className = "tab";
+    button.className = tab.id === "template" ? "tab tab-template" : "tab tab-values";
     button.type = "button";
     button.setAttribute("aria-pressed", String(index === state.active));
     const broken = tab.text.trim() !== "" && parse(tab.text).error;
@@ -209,54 +218,58 @@ function refresh() {
 
 // ---------------------------------------------------------------- subject 를 더하고 뺀다
 
-/** 값 한 벌이 없는 자리를 만든다. 아직 분석 중이 그렇게 생긴다. */
+/** 더하는 동작은 하나다 — 자리와 값 한 벌이 함께 생긴다. 흔한 경우에 같은 일이기 때문이다. */
 function addSubject() {
-  state.seq += 1;
-  const id = `subject-${state.seq}`;
-  state.subjects.push({ id, label: id });
-  refresh();
-}
-
-function addValues() {
   state.tabs[state.active].text = $("editor").value;
   const { doc } = parse(tabOf("template").text);
-  const covered = new Set(
-    valueTabs().map((t) => parse(t.text).doc?.subjectId).filter(Boolean),
-  );
-  let seat = state.subjects.find((s) => !covered.has(s.id));
-  if (!seat) {
-    state.seq += 1;
-    seat = { id: `subject-${state.seq}`, label: `subject-${state.seq}` };
-    state.subjects.push(seat);
-  }
-  const skeleton = {
-    weave: "1",
-    templateId: doc?.id ?? "",
-    subjectId: seat.id,
-    subjectLabel: seat.label ?? seat.id,
-    facets: {},
-  };
+  state.seq += 1;
+  const seat = { id: `subject-${state.seq}`, label: `subject-${state.seq}` };
+  state.subjects.push(seat);
+
+  const skeleton = { weave: "1", templateId: doc?.id ?? "", subjectId: seat.id, subjectLabel: seat.label, facets: {} };
   for (const facet of doc?.facets ?? []) {
     skeleton.facets[facet.id] = { fields: {} };
     for (const field of facet.fields ?? []) skeleton.facets[facet.id].fields[field.key] = { state: "empty" };
   }
   state.seq += 1;
-  state.tabs.push({ id: `values-${state.seq}`, label: `값: ${seat.id}`, text: pretty(skeleton) });
+  state.tabs.push({ id: `values-${state.seq}`, label: seat.label, text: pretty(skeleton) });
   state.active = state.tabs.length - 1;
   drawTabs();
   drawEditor();
   refresh();
 }
 
+/** 지금 보고 있는 탭이 값 한 벌이면 그 subject, 아니면 마지막 자리. */
+function aimedSeat() {
+  const tab = state.tabs[state.active];
+  const id = tab.id.startsWith("values-") ? parse(tab.text).doc?.subjectId : null;
+  return state.subjects.find((s) => s.id === id) ?? state.subjects[state.subjects.length - 1];
+}
+
+function dropTabOf(seatId) {
+  const index = state.tabs.findIndex((t) => t.id.startsWith("values-") && parse(t.text).doc?.subjectId === seatId);
+  if (index < 0) return false;
+  state.tabs.splice(index, 1);
+  if (state.active >= state.tabs.length) state.active = state.tabs.length - 1;
+  return true;
+}
+
+/** 값 한 벌만 지운다. **자리가 남아 아직 분석 중이 된다** — 그 상태를 만들어 보는 길이다. */
+function dropValues() {
+  const seat = aimedSeat();
+  if (!seat || !dropTabOf(seat.id)) return;
+  drawTabs();
+  drawEditor();
+  refresh();
+}
+
+/** 자리까지 지운다. */
 function dropSubject() {
-  const seat = state.subjects.pop();
+  const seat = aimedSeat();
   if (!seat) return;
+  dropTabOf(seat.id);
+  state.subjects = state.subjects.filter((s) => s.id !== seat.id);
   if (state.focus === seat.id) state.focus = null;
-  const index = state.tabs.findIndex((t) => parse(t.text).doc?.subjectId === seat.id);
-  if (index > 0) {
-    state.tabs.splice(index, 1);
-    if (state.active >= state.tabs.length) state.active = state.tabs.length - 1;
-  }
   drawTabs();
   drawEditor();
   refresh();
@@ -297,7 +310,7 @@ export function start() {
   picker.addEventListener("change", () => loadSample(picker.value));
   $("editor").addEventListener("input", scheduleRefresh);
   $("add-subject").addEventListener("click", addSubject);
-  $("add-values").addEventListener("click", addValues);
+  $("drop-values").addEventListener("click", dropValues);
   $("drop-subject").addEventListener("click", dropSubject);
   $("show-elements").addEventListener("change", (event) => {
     state.showElements = Boolean(event.target.checked);

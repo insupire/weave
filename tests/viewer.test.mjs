@@ -310,6 +310,15 @@ test("장식으로 위계를 만들지 않는다", () => {
   const radii = new Set([...css.matchAll(/border-radius:\s*([^;]+);/g)].map((m) => m[1].trim()));
   assert.deepEqual([...radii], ["var(--r)"], `모서리가 여럿: ${[...radii]}`);
 
+  // 활성·선택을 밑줄로 말하지 않는다 — 왼쪽 띠를 아래로 옮긴 것뿐이다.
+  // 구조로 쓰는 테두리(판 구분선·표)와는 선택자로 가른다.
+  for (const [, sel, body] of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (!sel.includes("[aria-pressed")) continue;
+    assert.ok(!/border-(top|bottom|left|right)/.test(body), `활성 표시에 테두리: ${sel.trim()}`);
+  }
+  // 투명 밑줄을 깔아 두고 색만 바꾸는 우회도 막는다
+  assert.ok(!/border-bottom[^;}]*transparent/.test(css), "투명 밑줄");
+
   // 점선·겹선 장식과 빗금 텍스처와 가운데 정렬
   assert.ok(!/\b(dashed|dotted|double)\b/.test(css), "점선·겹선 장식");
   assert.ok(!css.includes("repeating-linear-gradient"), "빗금 텍스처");
@@ -523,26 +532,32 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   assert.ok(markup.includes('id="add-subject"') && markup.includes('id="drop-subject"'));
   for (const tab of nodes.get("tabs").children) assert.ok(!String(tab.innerHTML).includes("명단"));
 
-  // 값 한 벌 없이 자리만 더하면 아직 분석 중이 된다 — 그 상태를 직접 만들어 볼 수 있어야 한다.
   const click = (id) => nodes.get(id)._on.click();
   const seats = () => nodes.get("focus-buttons").children.length; // none + 자리들
+  const tabs = () => nodes.get("tabs").children.length; // 템플릿 + 「값 한 벌」 + 값 탭들
+  const unanalysed = () => (nodes.get("view").innerHTML.match(new RegExp(UNANALYZED, "g")) ?? []).length;
   const before = seats();
+  const beforeTabs = tabs();
+
+  // **더하는 동작은 하나다** — 자리와 값 한 벌이 함께 생긴다.
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"), "새 자리는 아직 없다");
   click("add-subject");
   assert.equal(seats(), before + 1, "자리가 하나 늘어야 한다");
-  const added = nodes.get("view").innerHTML;
-  assert.ok(added.includes(">subject-"), "새 자리가 분석뷰에 서야 한다");
-  assert.ok(added.includes(UNANALYZED), "값 한 벌 없는 자리는 아직 분석 중이다");
+  assert.equal(tabs(), beforeTabs + 1, "값 탭이 함께 생겨야 한다");
+  assert.ok(nodes.get("view").innerHTML.includes(">subject-"), "새 자리가 분석뷰에 서야 한다");
+
+  // **미분석을 만드는 길** — 값 한 벌만 지우면 자리가 남는다.
+  const wasUnanalysed = unanalysed();
+  click("drop-values");
+  assert.equal(seats(), before + 1, "자리는 남는다");
+  assert.equal(tabs(), beforeTabs, "값 탭만 사라진다");
+  assert.ok(unanalysed() > wasUnanalysed, "아직 분석 중이 하나 늘어야 한다");
+
+  // 자리까지 지우는 길은 따로 있다. 템플릿 탭에서는 마지막 자리를 지운다.
+  nodes.get("tabs").children[0]._on.click();
   click("drop-subject");
   assert.equal(seats(), before, "자리가 도로 줄어야 한다");
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"));
-
-  // 값 한 벌은 빈 자리를 먼저 채우고, 빈 자리가 없으면 자리까지 새로 만든다.
-  const tabs = nodes.get("tabs").children.length;
-  click("add-values");
-  assert.equal(nodes.get("tabs").children.length, tabs + 1, "값 탭이 하나 늘어야 한다");
-  assert.equal(seats(), before, "빈 자리가 있었으므로 그 자리를 채운다");
-  click("add-values");
-  assert.equal(seats(), before + 1, "빈 자리가 없으면 자리까지 새로 만든다");
+  assert.equal(unanalysed(), wasUnanalysed, "미분석도 도로 줄어야 한다");
   fs.rmSync(path.dirname(file), { recursive: true, force: true });
 });

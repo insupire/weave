@@ -57,7 +57,8 @@ def sample_payload() -> dict:
         values = []
         for path in sorted(folder.glob("values-*.json")):
             doc = json.loads(path.read_text(encoding="utf-8"))
-            values.append({"label": f"값: {doc.get('subjectId', path.stem)}", "text": path.read_text(encoding="utf-8")})
+            label = doc.get("subjectLabel") or doc.get("subjectId") or path.stem
+            values.append({"label": label, "text": path.read_text(encoding="utf-8")})
         out[folder.name] = {
             "name": meta["name"],
             "template": (folder / "template.json").read_text(encoding="utf-8"),
