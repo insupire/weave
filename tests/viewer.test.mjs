@@ -403,9 +403,31 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
   const { html } = fix({ focus: "proposal-a" });
   const said = "합계보험료 87,400원 (보장보험료 87,400원 / 적립보험료 0원)";
   const mark = html.match(/<span class="note-mark"[\s\S]*?<\/span><\/span>/)?.[0] ?? "";
-  assert.ok(mark.includes("kind-icon"), "갈래 표시가 값 옆에 서야 한다");
   assert.ok(mark.includes('tabindex="0"') && mark.includes('role="button"'), "키보드로 닿아야 한다");
   assert.ok(mark.includes('class="note-pop"'), "내용이 그 안에서 열려야 한다");
+
+  // **표시는 하나이고 중립이다.** 값 옆에 서는 것은 「붙은 말이 있다」 하나뿐이고,
+  // 갈래를 따라 달라지지 않는다 — 달라지면 값이 갈래로 물든다.
+  const badge = mark.slice(0, mark.indexOf('<span class="note-pop"'));
+  assert.equal((badge.match(/<svg/g) ?? []).length, 1, `값 옆에 표시가 여럿이다: ${badge}`);
+  assert.ok(!/note-(quote|tip|note|caution)/.test(badge), `표시가 갈래를 입는다: ${badge}`);
+  assert.ok(!/\+\d/.test(badge), "넘치는 수를 값 옆에 흘린다");
+  // **갈래는 툴팁 안에서 산다** — 열면 줄마다 자기 갈래 표시와 이름을 갖는다.
+  const notes = FIX.filled.facets["monthly-premium"].fields["premium"].notes;
+  assert.ok(notes.length > 1, "고정 케이스에 말이 여럿 걸린 값이 있어야 한다");
+  const pop = mark.slice(mark.indexOf('<span class="note-pop"'));
+  for (const note of notes) {
+    assert.ok(pop.includes(note.text), `툴팁에 ${note.text.slice(0, 12)} 가 없다`);
+    assert.match(pop, new RegExp(`note-${note.kind}"`), `툴팁 줄이 ${note.kind} 갈래를 잃었다`);
+  }
+  // 몇 개인지는 **둘 이상일 때만** 적는다. 수는 갈래가 아니라 분량이다.
+  assert.match(badge, new RegExp(`<span class="note-count">${notes.length}</span>`));
+  const one = fix({ focus: "proposal-c" }).html.match(/<span class="note-mark"[\s\S]*?<\/span><\/span>/)[0];
+  assert.ok(!one.slice(0, one.indexOf("note-pop")).includes("note-count"), "하나인데 수를 적는다");
+
+  // 표시가 갈래색을 받는 길이 CSS 에도 없다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  assert.ok(!/\.(note-mark|mark-icon)[^{]*\{[^}]*var\(--kind/.test(css), "표시가 갈래색을 받는다");
   // 내용은 본문에 펼쳐지지 않고 표시 안에 있다.
   const at = html.indexOf(said);
   assert.ok(at > 0, "붙은 말이 있어야 한다");
@@ -468,24 +490,60 @@ test("말은 데이터 뒤에 한자리에 모인다", () => {
   assert.ok(!/\.said[^{]*\{[^}]*border/.test(fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8")));
 });
 
-test("그리는 것과 말이 맞는다", () => {
-  // 겹치는 쪽은 전원의 말을, focus 를 따라 바뀌는 쪽은 **그리고 있는 subject 의 말만** 낸다.
-  const { html } = fix({ focus: "proposal-a" });
-  const mine = "설계안 2쪽 계약사항 표에서 읽었습니다."; // 가 제안서의 contract-terms 주석
-  const facts = sectionOf(html, "facts");
-  assert.ok(textOf(facts).includes(mine), "고른 subject 의 말이 서야 한다");
-  assert.ok(!textOf(facts).includes("계약사항 표가 잘려 있어"), "안 그리는 subject 의 말이 붙어 있다");
+test("subject 의 말은 언제나 고른 subject 것이다", () => {
+  // **규칙이 하나다.** 겹쳐 그리든 하나만 그리든, 아래에 서는 subject 의 말은 고른 것뿐이다.
+  // element 로 갈리지 않으므로 다섯 자리에서 같은 것을 본다.
+  //
+  // 판정이 실제로 무언가를 보는지부터 — 고정 케이스에 subject 마다 facet 주석이 있어야
+  // 「남의 말이 빠졌는지」를 물을 수 있다. (없으면 빈 반복문이 초록으로 지나간다.)
+  const mineOf = (doc, facetId) => (doc.facets?.[facetId]?.notes ?? []).map((n) => n.text);
+  for (const facetId of ["contract-terms", "riders"]) {
+    const owners = FIX.values.filter((doc) => mineOf(doc, facetId).length > 0);
+    assert.ok(owners.length >= 2, `${facetId}: subject 둘 이상이 말을 가져야 가를 수 있다`);
+  }
 
-  // 다른 subject 를 고르면 말도 따라 바뀐다.
-  const other = sectionOf(fix({ focus: "proposal-b" }).html, "facts");
-  assert.ok(textOf(other).includes("계약사항 표가 잘려 있어"));
-  assert.ok(!textOf(other).includes(mine));
+  for (const facetId of ["contract-terms", "riders"]) {
+    const element = FIX.template.facets.find((f) => f.id === facetId).element;
+    for (const doc of FIX.values) {
+      const part = sectionOf(fix({ focus: doc.subjectId }).html, element);
+      for (const other of FIX.values) {
+        const shown = mineOf(other, facetId).every((text) => textOf(part).includes(text));
+        if (other.subjectId === doc.subjectId) {
+          assert.ok(shown, `${element}/${doc.subjectId}: 고른 subject 의 말이 빠졌다`);
+        } else {
+          for (const text of mineOf(other, facetId)) {
+            assert.ok(!textOf(part).includes(text),
+              `${element}/${doc.subjectId}: 고르지 않은 ${other.subjectId} 의 말이 붙어 있다`);
+          }
+        }
+      }
+    }
+  }
 
-  // 겹치는 쪽은 전원의 말을 그대로 낸다.
-  const list = sectionOf(html, "list");
+  // focus 가 없으면 첫 subject 다 — 화면이 그리는 것과 말이 여전히 맞는다.
+  const none = sectionOf(fix({ focus: null }).html, "list");
+  assert.ok(textOf(none).includes(mineOf(FIX.values[0], "riders")[0]), "첫 subject 의 말이 서야 한다");
+  assert.ok(!textOf(none).includes(mineOf(FIX.values[2], "riders")[0]));
+
+  // **값에 붙은 말을 본문 아래에 펴는 자리(line · list)도 같은 규칙을 따른다.**
+  // 여기가 감춰지지 않고 펴지는 유일한 자리라, 규칙이 갈리면 화면에서 바로 드러난다.
+  const curve = "갱신 예상표를 그대로 옮겼습니다."; // proposal-a 의 premium-curve
+  const riders = "특약 목록은 비어 있습니다."; // proposal-c 의 rider-list
+  assert.ok(textOf(sectionOf(fix({ focus: "proposal-a" }).html, "line")).includes(curve));
+  assert.ok(!textOf(sectionOf(fix({ focus: "proposal-c" }).html, "line")).includes(curve),
+    "line: 고르지 않은 subject 의 값에 붙은 말이 펴져 있다");
+  assert.ok(textOf(sectionOf(fix({ focus: "proposal-c" }).html, "list")).includes(riders));
+  assert.ok(!textOf(sectionOf(fix({ focus: "proposal-a" }).html, "list")).includes(riders),
+    "list: 고르지 않은 subject 의 값에 붙은 말이 펴져 있다");
+
+  // **facet 에 붙은 말은 그대로 전부 선다** — 그건 subject 의 것이 아니다.
   for (const doc of FIX.values) {
-    for (const note of doc.facets["riders"]?.notes ?? []) {
-      assert.ok(textOf(list).includes(note.text), `list: ${doc.subjectId} 의 말이 빠졌다`);
+    const html = fix({ focus: doc.subjectId }).html;
+    for (const facet of FIX.template.facets) {
+      for (const note of facet.notes ?? []) {
+        assert.ok(textOf(sectionOf(html, facet.element)).includes(note.text),
+          `${facet.id}/${doc.subjectId}: facet 에 붙은 말이 사라졌다`);
+      }
     }
   }
 });

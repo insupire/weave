@@ -217,12 +217,16 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 .note .kind { color:var(--kind, var(--mute)); font-size:11px; line-height:1.85; white-space:nowrap; }
 
 /* **필드에 붙는 말.** 표시는 값 옆에 늘 서 있고 내용은 가리키거나 초점을 받으면 열린다.
-   갈래 표시가 보이는 것이 핵심이다 — 인용(근거)과 주의(한계)는 값과 함께 읽혀야 뜻이 산다. */
+   **표시는 하나이고 중립이다** — 「여기 붙은 말이 있다」만 말한다. 갈래에 따라 달라지면
+   값이 갈래로 물든다. 갈래는 열었을 때 줄마다 선다. */
 .note-mark { position:relative; display:inline-flex; align-items:center; gap:2px;
   margin-left:6px; vertical-align:-2px; cursor:help; color:var(--mute); }
 .note-mark:hover, .note-mark:focus { color:var(--ink); outline:none; }
 .note-mark:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.note-more { font-size:10px; }
+/* 표시 자체는 갈래를 모른다 — 글자색을 따라가고 갈래색을 받지 않는다. */
+.note-mark > .mark-icon { stroke:currentColor; }
+/* 몇 개 붙었는지. 둘 이상일 때만 선다. 수는 갈래가 아니라 분량이다. */
+.note-count { font-size:10px; font-variant-numeric:tabular-nums; }
 .note-pop { position:absolute; left:0; top:calc(100% + 6px); z-index:5; display:none;
   min-width:260px; max-width:min(380px, 60vw); padding:10px 12px;
   background:#ffffff; border:1px solid var(--line); border-radius:var(--r); text-align:left; }
@@ -240,10 +244,11 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 .note-note { --kind:var(--mute); }    /* info — 사람이 준 예대로 중립 회색 */
 .note-caution { --kind:#b42318; }     /* warning 의 통용색 */
 
-.kind-icon { width:12px; height:12px; margin-right:4px; vertical-align:-2px;
-  fill:none; stroke:var(--kind, var(--mute)); stroke-width:2;
-  stroke-linecap:round; stroke-linejoin:round; }
-.note .kind, .note-mark .kind-icon { color:var(--kind, var(--mute)); }
+.kind-icon, .mark-icon { width:12px; height:12px; margin-right:4px; vertical-align:-2px;
+  fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.kind-icon { stroke:var(--kind, var(--mute)); }
+.mark-icon { stroke:var(--mute); }
+.note .kind { color:var(--kind, var(--mute)); }
 .note .text { color:var(--ink); }
 /* 좁은 자리에서는 매달린 라벨이 폭을 먹는다. 같은 줄에 흘려 보낸다. */
 td .note { display:block; }

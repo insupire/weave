@@ -105,17 +105,22 @@ function kindIcon(kind) {
 /**
  * **필드에 붙는 주석.** 본문에 펼치지 않고 표시를 세워 그 자리에서 연다.
  *
- * 감추는 만큼 잃는 것이 있으므로 **갈래 표시는 값 옆에 확실히 선다** — 인용(근거)과
- * 주의(한계)가 붙어 있다는 것 자체가 값과 함께 읽혀야 하는 정보다.
+ * **표시는 하나이고 중립이다.** 갈래를 값 옆에 늘어놓지 않는다 — 표시가 갈래를 따라
+ * 달라지면 값이 갈래로 물들고, 그것은 「평가를 색으로 말하지 않는다」에서 걷어낸 자리다.
+ * 값 옆의 표시가 하는 말은 **「여기 붙은 말이 있다」** 하나뿐이다.
+ * **갈래는 툴팁 안에서 산다** — 열면 줄마다 자기 갈래 표시와 색을 갖는다.
+ *
  * 여는 길 셋 — 가리키기(hover) · 초점(키보드) · 좁은 화면에서는 아래에서 올라오는 판.
  */
 function notePop(notes) {
   if (!Array.isArray(notes) || notes.length === 0) return "";
-  const marks = notes.slice(0, 3).map((n) => kindIcon(n?.kind ?? "note")).join("");
-  const more = notes.length > 3 ? `<span class="note-more">+${notes.length - 3}</span>` : "";
+  // 수는 **둘 이상일 때만** 적는다. 하나인데 「1」을 붙이면 표시가 이미 하는 말을 두 번 한다.
+  // 여럿일 때는 열기 전에 분량을 알려 주므로 값을 한다.
+  const count = notes.length > 1 ? `<span class="note-count">${notes.length}</span>` : "";
   return (
     `<span class="note-mark" tabindex="0" role="button" aria-label="붙은 말 ${notes.length}">` +
-    `${marks}${more}<span class="note-pop" role="tooltip">${notesHtml(notes)}` +
+    `<svg class="mark-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">${ICON.note}</svg>` +
+    `${count}<span class="note-pop" role="tooltip">${notesHtml(notes)}` +
     `<button type="button" class="pop-close">닫기</button></span></span>`
   );
 }
@@ -185,8 +190,12 @@ function readsOf(ctx, facet, decl) {
   }));
 }
 
-function fieldNotes(reads) {
-  return reads.map(({ subject, entry }) => notesHtml(entry?.notes, subject.name)).join("");
+/** 값에 붙은 말을 본문 아래에 편다. **고른 subject 것뿐이다** — 말의 규칙은 하나다. */
+function fieldNotes(ctx, reads) {
+  return reads
+    .filter(({ subject }) => subject.id === ctx.shown)
+    .map(({ subject, entry }) => notesHtml(entry?.notes, subject.name))
+    .join("");
 }
 
 /** focus 를 따라 바뀌는 쪽이 지금 그리는 subject. 없으면 첫째다. */
@@ -304,7 +313,9 @@ function line(ctx, facet) {
   const body = series.length
     ? lineSvg(series, axis, decl.type, ctx.focus)
     : `<div class="blank">${stateSpan("empty")}</div>`;
+  // 아래에 서는 말은 **고른 subject 것뿐이다** — 겹쳐 그려도 말의 규칙은 하나다.
   const notes = series
+    .filter(({ subject }) => subject.id === ctx.shown)
     .map(({ subject, notes: n }) => notesHtml(n, subject.name))
     .join("");
   return (
@@ -391,7 +402,8 @@ function list(ctx, facet) {
     .map(({ subject }) => ({ ...subject, said: stateSpan() }));
   if (rows.size === 0) {
     return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-      `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>${blankRow(blanks)}${fieldNotes(reads)}`;
+      `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>${blankRow(blanks)}` +
+      fieldNotes(ctx, reads);
   }
 
   const head = [`<th class="corner">${esc(key.label ?? key.key)}</th>`];
@@ -424,7 +436,7 @@ function list(ctx, facet) {
     `<div class="table-scroll"><table class="items"><thead><tr>${head.join("")}</tr></thead>` +
     `<tbody>${body.join("")}</tbody></table></div>` +
     // 문장을 덧붙이지 않는다 — 그 subject 의 칸이 이미 「값 없음」이라고 말한다.
-    fieldNotes(reads)
+    fieldNotes(ctx, reads)
   );
 }
 
@@ -515,12 +527,14 @@ export function renderView({ template, values = [], focus = null } = {}) {
     // 예외를 두지 않는다. 읽는 규칙이 둘이면 매번 어디 있는지 찾게 된다.
     // 둘을 가르는 것은 띠도 상자도 아니고 **자리와 글**이다: subject 것은 이름이 앞에 선다.
     //
-    // **그리는 것과 말이 맞아야 한다** — 겹치는 쪽은 전원의 말을, focus 를 따라 바뀌는 쪽은
-    // **그리고 있는 subject 의 말만** 낸다. 보이지도 않는 subject 의 말은 무엇에 대한 말인지 알 수 없다.
-    const speaking = COMPARE[facet.element] === "focus" ? seats.filter((s) => s.id === shown) : seats;
+    // **subject 의 말은 언제나 고른 subject 것이다.** element 로 갈리지 않는다 — 규칙이 하나다.
+    // 겹쳐 그리는 facet 이라도 아래에 서는 말은 지금 고른 subject 것이고, focus 를 옮기면
+    // 말이 따라온다. 고른 것이 없으면 첫 subject 이며, 그것이 화면이 그리고 있는 subject 다.
+    // **facet 에 붙은 말은 전부 선다** — 그건 subject 의 것이 아니다.
+    const mine = seats.find((s) => s.id === shown);
     const said =
       notesHtml(facet.notes) +
-      speaking.map((s) => notesHtml(facetNotes(byId.get(s.id), facet.id), s.name)).join("");
+      (mine ? notesHtml(facetNotes(byId.get(mine.id), facet.id), mine.name) : "");
     return (
       `<section class="facet element-${esc(facet.element ?? "unknown")}">${head}` +
       `<div class="body">${body}</div>` +

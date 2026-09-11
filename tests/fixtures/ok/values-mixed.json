@@ -4,40 +4,86 @@
   "subjectId": "proposal-c",
   "facets": {
     "monthly-premium": {
-      "fields": { "premium": { "state": "filled", "value": 62000 } }
+      "fields": {
+        "premium": {
+          "state": "filled",
+          "value": 62000
+        }
+      }
     },
     "contract-terms": {
       "fields": {
-        "payment-period": { "state": "filled", "value": 120 },
-        "renewal": { "state": "filled", "value": true },
+        "payment-period": {
+          "state": "filled",
+          "value": 120
+        },
+        "renewal": {
+          "state": "filled",
+          "value": true
+        },
         "maturity-age": {
           "state": "empty",
           "notes": [
-            { "kind": "note", "text": "종신 보장이라 만기나이가 없습니다." }
+            {
+              "kind": "note",
+              "text": "종신 보장이라 만기나이가 없습니다."
+            }
           ]
         },
-        "entry-age": { "state": "filled", "value": { "min": 20 } },
-        "start-date": { "state": "empty" }
+        "entry-age": {
+          "state": "filled",
+          "value": {
+            "min": 20
+          }
+        },
+        "start-date": {
+          "state": "empty"
+        }
       }
     },
     "coverage-amounts": {
       "fields": {
-        "death-benefit": { "state": "empty" },
-        "cancer-benefit": { "state": "filled", "value": 10000000 }
+        "death-benefit": {
+          "state": "empty"
+        },
+        "cancer-benefit": {
+          "state": "filled",
+          "value": 10000000
+        }
       }
     },
     "premium-by-age": {
       "fields": {
         "premium-curve": {
           "state": "filled",
-          "value": [{ "at": 45, "value": 62000 }]
+          "value": [
+            {
+              "at": 45,
+              "value": 62000
+            }
+          ]
         }
       }
     },
     "riders": {
       "fields": {
-        "rider-list": { "state": "filled", "value": [] }
-      }
+        "rider-list": {
+          "state": "filled",
+          "value": [],
+          "notes": [
+            {
+              "kind": "note",
+              "text": "특약 목록은 비어 있습니다."
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "특약 없이 주계약 하나로만 된 설계입니다."
+        }
+      ]
     }
   }
 }
