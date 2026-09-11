@@ -8,7 +8,7 @@ export const PAGES = [
     "title": "weave 란",
     "lead": "분석뷰를 선언하는 스키마와 그것을 그리는 참조 구현이다. 보험을 모른다.",
     "paragraphs": [
-      "분석 템플릿 하나에 subject 마다 값 한 벌이 주입되어 분석뷰가 된다. 렌더는 여러 벌을 한 화면에 함께 그리므로 모든 facet 이 본래 비교형이다.",
+      "분석 템플릿 하나에 subject 마다 값 한 벌이 주입되어 분석뷰가 된다. 렌더는 여러 벌을 한 화면에 그리되 나란히 늘어놓지 않고 한 좌표에 겹친다 — 순위를 문장으로 말하지 않는 대신 비교를 시각이 맡기로 한 설계다. 겹칠 수 없는 것(참거짓·글)만 나란히 가른다.",
       "템플릿은 facet 의 배열이고, facet 하나는 primitive element 하나와 그것이 요구하는 필드들이다. 필드 선언에 붙은 설명이 곧 분석에게 주는 추출 지시다. 무엇을 그릴지와 무엇을 찾을지를 한 문서가 함께 말한다.",
       "순위·등급·점수·경고색·확실성 수치를 표현할 문법이 없다. 객관성을 문서가 아니라 스키마로 강제하는 자리다. 문법에 없으므로 나올 수 없다.",
       "왼쪽에서 primitive element 를 하나씩 보고, 플레이그라운드에서 직접 고쳐 가며 화면이 어떻게 되는지 볼 수 있다."
@@ -19,8 +19,8 @@ export const PAGES = [
     "kind": "element",
     "group": "primitive element",
     "title": "stat",
-    "draws": "값 하나를 크게. subject 수만큼 카드가 나란히 선다",
-    "note": "수만 담는 자리가 아니다. 참거짓도 날짜도 값 하나다",
+    "draws": "값 하나를 한 좌표에 겹친다. 값은 크게 위에, 이름은 그 아래",
+    "note": "참거짓과 글은 잴 자가 없어 겹칠 수 없다. 그때만 카드로 나란히 선다",
     "fields": "1",
     "shapes": [
       "single",
@@ -117,8 +117,8 @@ export const PAGES = [
     "kind": "element",
     "group": "primitive element",
     "title": "facts",
-    "draws": "라벨과 값 여럿. subject 가 여럿이면 행이 항목, 열이 subject 인 표가 된다",
-    "note": "표는 따로 없다. 계약사항표 한 장도 이것 하나로 짠다",
+    "draws": "필드마다 좌표 하나. subject 가 그 위에 함께 얹힌다",
+    "note": "값들이 놓인 범위만큼 축을 편다. 표는 따로 없다 — 계약사항표 한 장도 이것 하나로 짠다",
     "fields": "1–12",
     "shapes": [
       "single",
@@ -242,8 +242,8 @@ export const PAGES = [
     "kind": "element",
     "group": "primitive element",
     "title": "bars",
-    "draws": "크기 비교. 눈금은 필드마다 따로 잡는다",
-    "note": "비교 축이 필드라서 서로 다른 필드의 막대 길이를 견주면 안 된다",
+    "draws": "크기 비교. 0 을 왼쪽 끝으로 잡아 0 에서의 거리가 곧 크기다",
+    "note": "자는 필드마다 따로 잡는다. 서로 다른 필드의 자리를 견주면 안 된다",
     "fields": "1–6",
     "shapes": [
       "single"
@@ -345,7 +345,7 @@ export const PAGES = [
     "kind": "element",
     "group": "primitive element",
     "title": "line",
-    "draws": "축 위의 변화. subject 마다 선 하나",
+    "draws": "축 위의 변화. subject 마다 선 하나가 한 좌표에 겹친다",
     "note": "선은 색이 아니라 점선 무늬로 갈린다. 가로축은 age·date·duration·number 만 된다",
     "fields": "1",
     "shapes": [
@@ -455,8 +455,8 @@ export const PAGES = [
     "kind": "element",
     "group": "primitive element",
     "title": "list",
-    "draws": "반복되는 항목. subject 마다 표 하나",
-    "note": "항목이 없으면 「항목 없음」이고, 값을 읽지 못한 「값 없음」과 다르다",
+    "draws": "반복되는 항목을 하나로 합친다. 같은 항목이 한 줄에 서고 subject 가 그 줄에서 갈린다",
+    "note": "누가 그 항목을 갖고 누가 안 갖는지가 한 줄에서 읽힌다. 목록을 못 읽은 「값 없음」과 그 항목이 없는 「없음」은 다르다",
     "fields": "1",
     "shapes": [
       "items"

@@ -72,14 +72,38 @@ test("primitive element 가 렌더의 분기 전부다", () => {
   assert.deepEqual(Object.keys(ELEMENTS).sort(), [...enumerated].sort());
 });
 
+/** 한 facet 의 마크업만 잘라 낸다. element 별로 무엇이 그려졌는지 따로 본다. */
+function sectionOf(html, element) {
+  const at = html.indexOf(`element-${element}"`);
+  assert.ok(at >= 0, `element-${element} 가 없다`);
+  const end = html.indexOf("<section", at);
+  return end < 0 ? html.slice(at) : html.slice(at, end);
+}
+
 test("primitive element 다섯이 전부 그려진다", () => {
   const { html } = fix();
   for (const element of Object.keys(ELEMENTS)) assert.match(html, new RegExp(`element-${element}`));
-  assert.match(html, /<svg/); // line
-  assert.match(html, /class="track"/); // bars
-  assert.match(html, /class="facts"/); // facts
-  assert.match(html, /class="items"/); // list
-  assert.match(html, /class="big"/); // stat
+  // 겹치는 것들은 좌표 하나를 함께 쓴다. 무엇으로 겹쳤는지가 element 마다 다르다.
+  assert.match(sectionOf(html, "stat"), /class="big-value/); // 값이 크게, 한 좌표에
+  assert.match(sectionOf(html, "facts"), /svg class="overlay"/); // 필드마다 좌표 하나
+  assert.match(sectionOf(html, "bars"), /class="origin"/); // 0 을 왼쪽 끝으로 잡는다
+  assert.match(sectionOf(html, "line"), /svg class="line"/); // 축 위의 변화
+  assert.match(sectionOf(html, "list"), /table class="items"/); // 항목이 좌표다
+});
+
+test("subject 를 나란히 늘어놓지 않고 한 좌표에 겹친다", () => {
+  // 순위를 문장으로 말하지 않는 대신 비교를 시각이 맡는다 (glossary §3.14 원칙 7).
+  const { html } = fix();
+  for (const element of ["stat", "facts", "bars"]) {
+    const part = sectionOf(html, element);
+    // subject 마다 좌표를 따로 주지 않는다 — 한 필드에 축이 하나다.
+    const axes = (part.match(/svg class="overlay"/g) ?? []).length;
+    const fields = FIX.template.facets.find((f) => f.element === element).fields.length;
+    assert.ok(axes <= fields, `${element}: 축이 필드보다 많다 (${axes} > ${fields})`);
+    assert.ok(axes > 0, `${element}: 겹치는 좌표가 없다`);
+  }
+  // list 는 항목이 좌표다. subject 마다 표를 따로 두지 않는다.
+  assert.equal((sectionOf(html, "list").match(/<table/g) ?? []).length, 1);
 });
 
 test("모르는 primitive element 는 조용히 넘어가지 않는다", () => {
@@ -222,8 +246,13 @@ test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
     assert.ok(shown.includes(facet.title), facet.id); // 골격은 그대로
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
-  // 모든 facet 이 「값 없음」으로 그려지고
-  assert.equal((shown.match(new RegExp(NO_VALUE, "g")) ?? []).length >= FIX.template.facets.length, true);
+  // **facet 마다** 그 subject 가 값이 없다는 것이 보인다. 겹친 자리에서 조용히 사라지면 안 된다.
+  for (const facet of FIX.template.facets) {
+    const part = textOf(sectionOf(html, facet.element));
+    assert.ok(part.includes(NO_VALUE), `${facet.id}: 값 없음이 안 보인다`);
+  }
+  // 겹치는 좌표에는 얹을 자리가 없으므로 축 아래에 적는다.
+  assert.match(html, /class="offs"/);
   // 주석이 이유를 facet 마다 말한다
   assert.equal((shown.match(new RegExp(said, "g")) ?? []).length, FIX.template.facets.length);
   // 옆자리는 멀쩡히 채워진다 — 「여럿 중 하나가 거의 비어 있다」는 조합이 그대로 산다
@@ -239,8 +268,16 @@ test("값 한 벌이 하나도 없으면 골격만 남는다", () => {
 
 // ---------------------------------------------------------------- focus
 
-const focusedNames = (html) =>
-  new Set([...html.matchAll(/is-focus[^>]*>\s*<div class="who">([^<]+)<\/div>/g)].map((m) => m[1]));
+/** focus 표시가 붙은 자리에서 읽히는 subject 이름. 겹친 화면에서 어느 것이 무엇인지 가르는 자리다. */
+function focusedNames(html) {
+  const all = FIX.values.map((v) => v.subjectLabel ?? v.subjectId).concat("아직 안 본 제안서");
+  const hits = new Set();
+  // 글을 담는 태그만 본다. circle·line 같은 자기닫힘 표시를 섞으면 옆 이름까지 삼킨다.
+  for (const m of html.matchAll(/<(text|th|td|span|b)[^>]*class="[^"]*is-focus[^"]*"[^>]*>([\s\S]*?)<\/\1>/g)) {
+    for (const name of all) if (m[2].includes(name)) hits.add(name);
+  }
+  return hits;
+}
 
 test("focus 가 null 이면 아무것도 강조하지 않는다", () => {
   assert.ok(!fix({ focus: null }).html.includes("is-focus"));

@@ -126,74 +126,190 @@ function drawCell(report, where, decl, value) {
 
 // ---------------------------------------------------------------- primitive element 다섯
 
-function stat(ctx, facet) {
-  const decl = facet.fields[0];
-  const cards = ctx.subjects.map((subject) => {
-    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
+//
+// **subject 를 한 좌표에 겹친다.** 순위 문법을 스키마에서 뺀 대신 비교를 시각이 맡기로 했으므로
+// (glossary §3.14 원칙 7), 나란히 늘어놓아 사람이 머릿속에서 견주게 하면 안 된다.
+// 한 좌표란 **값이 같은 자로 재어지는 자리**다 — 한 필드, 한 열, 한 항목.
+// 잴 자가 없는 것(참거짓·글)만 나란히 가른다 (원칙 9).
+
+/** 한 자로 잴 수 있는 타입. 이것들만 겹칠 수 있다. */
+const MEASURABLE = new Set(["number", "money", "ratio", "duration", "age", "date"]);
+
+function axisNumberOf(type, raw) {
+  if (type === "date") {
+    const ms = Date.parse(`${raw}T00:00:00Z`);
+    return Number.isNaN(ms) ? null : ms / 86400000;
+  }
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+}
+
+/** 글의 너비를 어림잡는다. 한글은 글자 크기만큼, 나머지는 그 절반쯤. */
+function textWidth(text, size) {
+  let w = 0;
+  for (const ch of String(text)) w += /[ᄀ-ᇿ㄰-㆏가-힯一-鿿]/.test(ch) ? size : size * 0.56;
+  return w;
+}
+
+/** 이름표가 겹치지 않게 줄을 나눠 준다. 자리는 값이 정하고 줄만 비켜 준다. */
+function intoLanes(marks, width) {
+  const ends = [];
+  return marks
+    .slice()
+    .sort((a, b) => a.x - b.x)
+    .map((mark) => {
+      const w = mark.w ?? textWidth(mark.text, 11);
+      const left = Math.max(2, Math.min(width - w - 2, mark.x - w / 2));
+      let lane = 0;
+      while (ends[lane] !== undefined && ends[lane] + 8 > left) lane += 1;
+      ends[lane] = left + w;
+      return { ...mark, left, lane };
+    });
+}
+
+/** 좌표에 못 얹은 subject. **겹친 자리에서도 사라지면 안 된다** — 없다는 것 자체가 정보다. */
+function blankRow(blanks) {
+  if (blanks.length === 0) return "";
+  const said = blanks
+    .map((b) => `<span class="off ${b.focused ? "is-focus" : ""}"><b class="who">${esc(b.name)}</b> ${b.said}</span>`)
+    .join("");
+  return `<div class="offs">${said}</div>`;
+}
+
+/**
+ * **겹치는 좌표 하나.** subject 마다 자리를 주지 않고 같은 축에 얹는다.
+ * `zero` 면 0 을 왼쪽 끝으로 잡아 크기가 길이로 읽히고, 아니면 값들이 놓인 범위를 편다.
+ */
+function overlayAxis(ctx, facet, reads, decl, { zero = false, big = false } = {}) {
+  // 좌표의 폭은 실제로 그려지는 폭에 가깝게 잡는다. 크게 잡으면 글자가 줄어 안 읽힌다.
+  const W = 600;
+  const pad = big ? 16 : 10;
+  const marks = [];
+  const blanks = [];
+  for (const { subject, state, entry } of reads) {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
-    const body =
-      state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
+    if (state !== "filled") {
+      blanks.push({ ...subject, said: stateSpan() });
+      continue;
+    }
+    const raw = entry.value;
+    const lo = axisNumberOf(decl.type, decl.shape === "range" ? raw?.min ?? raw?.max : raw);
+    const hi = axisNumberOf(decl.type, decl.shape === "range" ? raw?.max ?? raw?.min : raw);
+    const shown = formatValue(decl, raw);
+    // 값은 있는데 좌표에 못 얹는다. **조용히 「값 없음」으로 삼키지 않는다** — 무엇이 이상한지 적는다.
+    if (lo === null || hi === null || shown === null) {
+      const why = `선언한 모양(${decl.shape ?? "없음"})과 값의 생김새가 다르다`;
+      blanks.push({ ...subject, said: undrawable(ctx.report, where, why, JSON.stringify(raw)) });
+      continue;
+    }
+    marks.push({ subject, lo: Math.min(lo, hi), hi: Math.max(lo, hi), shown });
+  }
+  if (marks.length === 0) {
+    return `<div class="blank">${stateSpan()}</div>${blankRow(blanks)}`;
+  }
+
+  const values = marks.flatMap((m) => [m.lo, m.hi]);
+  const useZero = zero && decl.type !== "date" && Math.min(...values) >= 0;
+  const lo = useZero ? 0 : Math.min(...values);
+  const hi = Math.max(...values);
+  const span = hi - lo || 1;
+  const inner = W - pad * 2;
+  const at = (v) => pad + ((v - lo) / span) * inner;
+
+  const axisY = big ? 46 : 18;
+  const labelTop = big ? 64 : 34;
+  // big 이면 값과 이름이 위아래로 한 자리를 쓴다. 넓은 쪽으로 자리를 잡아야 둘 다 안 겹친다.
+  const placed = intoLanes(
+    marks.map((m) => {
+      const text = big ? m.subject.name : `${m.subject.name} ${m.shown}`;
+      const w = big ? Math.max(textWidth(text, 11), textWidth(m.shown, 17)) : textWidth(text, 11);
+      return { ...m, x: at((m.lo + m.hi) / 2), text, w };
+    }),
+    W,
+  );
+  const height = labelTop + (Math.max(...placed.map((p) => p.lane)) + 1) * 15;
+
+  const parts = [`<line class="rule" x1="${pad}" y1="${axisY}" x2="${W - pad}" y2="${axisY}"/>`];
+  if (useZero) parts.push(`<text class="origin" x="${pad}" y="${axisY + 12}">0</text>`);
+  for (const mark of placed) {
+    const focused = mark.subject.focused ? " is-focus" : "";
+    if (mark.hi > mark.lo) {
+      parts.push(`<line class="span${focused}" x1="${at(mark.lo).toFixed(1)}" y1="${axisY}" x2="${at(mark.hi).toFixed(1)}" y2="${axisY}"/>`);
+      for (const end of [mark.lo, mark.hi]) {
+        parts.push(`<line class="cap${focused}" x1="${at(end).toFixed(1)}" y1="${axisY - 4}" x2="${at(end).toFixed(1)}" y2="${axisY + 4}"/>`);
+      }
+    } else {
+      parts.push(`<circle class="dot${focused}" cx="${mark.x.toFixed(1)}" cy="${axisY}" r="${mark.subject.focused ? 4.5 : 3.2}"/>`);
+    }
+    const y = labelTop + mark.lane * 15;
+    if (mark.lane > 0) {
+      parts.push(`<line class="lead" x1="${mark.x.toFixed(1)}" y1="${axisY + 6}" x2="${mark.x.toFixed(1)}" y2="${y - 9}"/>`);
+    }
+    // 값은 이름과 같은 자리에서 위로 선다. 자리를 함께 잡았으므로 겹치지 않는다.
+    if (big) {
+      parts.push(`<text class="big-value${focused}" x="${mark.left.toFixed(1)}" y="${axisY - 14}">${esc(mark.shown)}</text>`);
+    }
+    parts.push(`<text class="tag${focused}" x="${mark.left.toFixed(1)}" y="${y}">${esc(mark.text)}</text>`);
+  }
+  return (
+    `<svg class="overlay" viewBox="0 0 ${W} ${height}" role="img">${parts.join("")}</svg>` + blankRow(blanks)
+  );
+}
+
+/** 잴 자가 없어 겹칠 수 없는 값들. 나란히 두되 한 줄에 모은다 (원칙 9). */
+function sideBySide(ctx, facet, reads, decl) {
+  const said = reads.map(({ subject, state, entry }) => {
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    const shown = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
     return (
-      `<div class="card ${subClass(subject, ctx.focus)}">` +
-      `<div class="who">${esc(subject.name)}</div><div class="big">${body}</div>` +
-      `${notesHtml(entry?.notes)}</div>`
+      `<span class="pair ${subject.focused ? "is-focus" : ""}">` +
+      `<b class="who">${esc(subject.name)}</b> ${shown}</span>`
     );
   });
-  return `<div class="stat-row"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${cards.join("")}</div>`;
+  return `<div class="pairs">${said.join("")}</div>`;
+}
+
+function readsOf(ctx, facet, decl) {
+  return ctx.subjects.map((subject) => ({
+    subject: { ...subject, focused: subject.id === ctx.focus },
+    ...cell(ctx.byId.get(subject.id), facet.id, decl.key),
+  }));
+}
+
+function fieldNotes(reads) {
+  return reads.map(({ subject, entry }) => notesHtml(entry?.notes, subject.name)).join("");
+}
+
+// ---------------------------------------------------------------- primitive element 다섯
+
+function stat(ctx, facet) {
+  const decl = facet.fields[0];
+  const reads = readsOf(ctx, facet, decl);
+  const body = MEASURABLE.has(decl.type)
+    ? overlayAxis(ctx, facet, reads, decl, { zero: true, big: true })
+    : sideBySide(ctx, facet, reads, decl); // 참거짓·글은 잴 자가 없다
+  return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}${fieldNotes(reads)}`;
 }
 
 function facts(ctx, facet) {
-  const head = ['<th class="corner">항목</th>'];
-  for (const subject of ctx.subjects) {
-    head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}</th>`);
-  }
-  const rows = facet.fields.map((decl) => {
-    const cells = [`<th class="row-label" scope="row">${esc(decl.label ?? decl.key)}</th>`];
-    for (const subject of ctx.subjects) {
-      const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
-      const where = `${facet.id}/${decl.key}/${subject.id}`;
-      const inner = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
-      const focused = subject.id === ctx.focus ? " is-focus" : "";
-      cells.push(`<td class="cell ${state}${focused}">${inner}${notesHtml(entry?.notes)}</td>`);
-    }
-    return `<tr>${cells.join("")}</tr>`;
-  });
-  return `<table class="facts"><thead><tr>${head.join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+  return facet.fields
+    .map((decl) => {
+      const reads = readsOf(ctx, facet, decl);
+      const body = MEASURABLE.has(decl.type)
+        ? overlayAxis(ctx, facet, reads, decl)
+        : sideBySide(ctx, facet, reads, decl);
+      return `<div class="row"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}${fieldNotes(reads)}</div>`;
+    })
+    .join("");
 }
 
 function bars(ctx, facet) {
-  const groups = facet.fields.map((decl) => {
-    const reads = ctx.subjects.map((subject) => ({ subject, ...cell(ctx.byId.get(subject.id), facet.id, decl.key) }));
-    const numbers = reads
-      .filter((r) => r.state === "filled" && typeof r.entry.value === "number" && Number.isFinite(r.entry.value))
-      .map((r) => r.entry.value);
-    // 눈금은 필드마다 따로 잡는다. 비교 축이 필드이기 때문이다.
-    const top = numbers.length ? Math.max(...numbers) : 0;
-    const rows = reads.map(({ subject, state, entry }) => {
-      const where = `${facet.id}/${decl.key}/${subject.id}`;
-      let mark = '<span class="track"></span>';
-      let text;
-      if (state === "filled") {
-        const value = entry.value;
-        if (typeof value === "number" && Number.isFinite(value)) {
-          const width = top > 0 && value > 0 ? (value / top) * 100 : 0;
-          mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
-          text = esc(formatScalar(decl.type, value));
-        } else {
-          text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(value));
-        }
-      } else {
-        text = stateSpan();
-      }
-      return (
-        `<div class="bar-row ${subClass(subject, ctx.focus)}">` +
-        `<span class="who">${esc(subject.name)}</span>${mark}<span class="val">${text}</span>` +
-        `${notesHtml(entry?.notes)}</div>`
-      );
-    });
-    return `<div class="bar-group"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${rows.join("")}</div>`;
-  });
-  return groups.join("");
+  return facet.fields
+    .map((decl) => {
+      const reads = readsOf(ctx, facet, decl);
+      // 크기 비교라 0 을 왼쪽 끝으로 잡는다. 거리가 곧 크기다.
+      return `<div class="row"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${overlayAxis(ctx, facet, reads, decl, { zero: true })}${fieldNotes(reads)}</div>`;
+    })
+    .join("");
 }
 
 function line(ctx, facet) {
@@ -291,42 +407,70 @@ function lineSvg(series, axis, type, focus) {
   return `<svg class="line" viewBox="0 0 ${W} ${H}" role="img">${parts.join("")}</svg>`;
 }
 
+/**
+ * 겹치는 좌표가 **항목**이다. subject 마다 표를 따로 두지 않고 목록을 하나로 합친다 —
+ * 누가 무엇을 갖고 누가 안 갖는지가 한 줄에서 읽힌다.
+ * 한 항목의 여러 열은 하나의 자로 줄일 수 없어 그 안에서만 나란히 선다 (원칙 9).
+ */
 function list(ctx, facet) {
   const decl = facet.fields[0];
   const columns = Array.isArray(decl.columns) ? decl.columns : [];
-  const blocks = ctx.subjects.map((subject) => {
-    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
-    const where = `${facet.id}/${decl.key}/${subject.id}`;
-    let body;
-    if (state !== "filled") {
-      body = `<div class="blank">${stateSpan()}</div>`;
-    } else if (!Array.isArray(entry.value)) {
-      body = `<div class="blank">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
-    } else if (entry.value.length === 0) {
-      body = `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>`;
-    } else {
-      const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
-      const rows = entry.value.map((item) => {
-        const cells = columns.map((column) =>
-          column.key in (item ?? {})
-            ? `<td>${esc(formatScalar(column.type, item[column.key]))}</td>`
-            : '<td><span class="dash">·</span></td>',
-        );
-        const extra = Object.keys(item ?? {}).filter((k) => !columns.some((c) => c.key === k));
-        if (extra.length) ctx.report.push(`${where}: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
-        return `<tr>${cells.join("")}</tr>`;
-      });
-      body = `<table class="items"><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+  if (columns.length === 0) return `<div class="blank">${stateSpan()}</div>`;
+  const [key, ...rest] = columns;
+
+  const reads = readsOf(ctx, facet, decl);
+  const rows = new Map(); // 항목 이름 → subjectId → 항목
+  const unread = new Set(); // 목록 자체를 못 읽은 subject
+  for (const { subject, state, entry } of reads) {
+    if (state !== "filled" || !Array.isArray(entry.value)) {
+      unread.add(subject.id);
+      continue;
     }
-    return (
-      `<div class="list-block ${subClass(subject, ctx.focus)}">` +
-      `<div class="who">${esc(subject.name)}</div>${body}${notesHtml(entry?.notes)}</div>`
-    );
+    for (const item of entry.value) {
+      const name = item?.[key.key];
+      if (name === undefined) continue;
+      const at = String(name);
+      if (!rows.has(at)) rows.set(at, new Map());
+      rows.get(at).set(subject.id, item);
+    }
+  }
+
+  const blanks = reads
+    .filter(({ subject }) => unread.has(subject.id))
+    .map(({ subject }) => ({ ...subject, said: stateSpan() }));
+  if (rows.size === 0) {
+    return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
+      `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>${blankRow(blanks)}${fieldNotes(reads)}`;
+  }
+
+  const head = [`<th class="corner">${esc(key.label ?? key.key)}</th>`];
+  for (const { subject } of reads) {
+    head.push(`<th class="${subject.focused ? "is-focus" : ""}">${esc(subject.name)}</th>`);
+  }
+  const body = [...rows.entries()].map(([name, held]) => {
+    const cells = reads.map(({ subject }) => {
+      if (unread.has(subject.id)) return `<td>${stateSpan()}</td>`;
+      const item = held.get(subject.id);
+      if (!item) return '<td><span class="miss">없음</span></td>';
+      const pairs = rest.map((column) =>
+        column.key in item
+          ? `<span class="cell-pair"><b class="who">${esc(column.label ?? column.key)}</b> ${esc(formatScalar(column.type, item[column.key]))}</span>`
+          : "",
+      );
+      const extra = Object.keys(item).filter((k) => !columns.some((c) => c.key === k));
+      if (extra.length) ctx.report.push(`${facet.id}/${name}: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
+      return `<td class="${subject.focused ? "is-focus" : ""}">${pairs.join("") || "<span class=\"miss\">있음</span>"}</td>`;
+    });
+    return `<tr><th class="row-label" scope="row">${esc(name)}</th>${cells.join("")}</tr>`;
   });
-  return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${blocks.join("")}`;
+
+  return (
+    `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
+    `<table class="items"><thead><tr>${head.join("")}</tr></thead><tbody>${body.join("")}</tbody></table>` +
+    blankRow(blanks) + fieldNotes(reads)
+  );
 }
 
-// primitive element 다섯. 이 표가 렌더의 분기 전부다.
 export const ELEMENTS = { stat, facts, bars, line, list };
 
 // ---------------------------------------------------------------- 페이지
