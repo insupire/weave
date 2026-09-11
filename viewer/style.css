@@ -252,7 +252,11 @@ svg .series-label.is-focus { font-weight:700; }
 .card .note, td .note { display:block; }
 .card .note .kind, td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
 .note .who { font-weight:600; color:var(--mute); }
-.subject-notes { margin-top:12px; }
+/* 말은 데이터 뒤에 한자리에 모인다. facet 것과 subject 것 사이는 여백이 가른다 —
+   띠도 상자도 만들지 않는다. subject 것은 이름이 앞에 서서 스스로 갈린다. */
+.said { margin-top:16px; }
+.said .notes { margin-top:0; }
+.said .notes + .notes { margin-top:10px; }
 
 @media (max-width: 900px) {
   /* 좁은 화면엔 가리키기가 없다. 아래에서 올라오는 판으로 연다. */

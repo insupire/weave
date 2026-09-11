@@ -333,8 +333,11 @@ test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
   }
   // 겹치는 쪽은 축 아래에 이름이 남는다.
   assert.match(html, /class="offs"/);
-  // 주석이 이유를 facet 마다 말한다
-  assert.equal((shown.match(new RegExp(said, "g")) ?? []).length, FIX.template.facets.length);
+  // 주석이 이유를 facet 마다 말한다. 고르는 쪽은 **그리는 subject 의 말만** 내므로 그 subject 를 골라 센다.
+  const mineSaid = textOf(
+    renderView({ template: FIX.template, values: [FIX.filled, blank], focus: blank.subjectId }).html,
+  );
+  assert.equal((mineSaid.match(new RegExp(said, "g")) ?? []).length, FIX.template.facets.length);
   // 옆자리는 멀쩡히 채워진다 — 「여럿 중 하나가 거의 비어 있다」는 조합이 그대로 산다
   assert.ok(shown.includes("87,400원"));
 });
@@ -410,9 +413,9 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
     "필드에 붙은 말이 본문에 펼쳐져 있다");
   // facet 에 붙은 것은 감추지 않는다 — 먼저 알아야 할 것이다.
   const head = sectionOf(html, "stat");
-  const beforeBody = head.slice(0, head.indexOf('class="body"'));
-  assert.ok(textOf(beforeBody).includes("적립보험료를 뺀 보장 보험료입니다."),
-    "facet 에 붙은 말은 본문에 있어야 한다");
+  const afterBody = head.slice(head.indexOf('class="body"'));
+  assert.ok(textOf(afterBody).includes("적립보험료를 뺀 보장 보험료입니다."),
+    "facet 에 붙은 말은 본문 뒤에 남아 있어야 한다");
 });
 
 test("아이콘은 lucide 실물을 옮겨 온 것이다", () => {
@@ -441,6 +444,50 @@ test("주석 갈래를 정본 이름으로 부른다", () => {
   assert.deepEqual(Object.keys(KIND_LABEL).sort(), [...kinds].sort());
   const shown = textOf(fix().html);
   for (const name of Object.values(KIND_LABEL)) assert.ok(shown.includes(` ${name} `), name);
+});
+
+test("말은 데이터 뒤에 한자리에 모인다", () => {
+  // facet 제목 → 본문 → facet 주석 → subject 주석. 예외를 두지 않는다 —
+  // 읽는 규칙이 둘이면 매번 어디 있는지 찾게 된다.
+  const { html } = fix({ focus: "proposal-a" });
+  for (const facet of FIX.template.facets) {
+    if (!(facet.notes ?? []).length) continue;
+    const part = sectionOf(html, facet.element);
+    const body = part.indexOf('class="body"');
+    const said = part.indexOf('class="said"');
+    assert.ok(body >= 0 && said > body, `${facet.id}: 말 묶음이 데이터보다 앞에 선다`);
+    // **첫 등장**으로 본다 — 위아래 두 군데에 두면 규칙이 둘이 되는 것은 마찬가지다.
+    const facetSaid = part.indexOf(facet.notes[0].text.slice(0, 12));
+    assert.ok(facetSaid > 0, `${facet.id}: facet 에 붙은 말이 없다`);
+    assert.ok(facetSaid > body, `${facet.id}: 말이 데이터보다 앞에도 선다`);
+    // facet 에 붙은 것이 subject 에 붙은 것보다 앞에 선다.
+    const whoAt = part.indexOf('<b class="who">', said);
+    if (whoAt > 0) assert.ok(facetSaid < whoAt, `${facet.id}: subject 것이 facet 것보다 앞에 선다`);
+  }
+  // 가르는 것은 띠도 상자도 아니다 — subject 것은 이름이 앞에 서서 스스로 갈린다.
+  assert.ok(!/\.said[^{]*\{[^}]*border/.test(fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8")));
+});
+
+test("그리는 것과 말이 맞는다", () => {
+  // 겹치는 쪽은 전원의 말을, focus 를 따라 바뀌는 쪽은 **그리고 있는 subject 의 말만** 낸다.
+  const { html } = fix({ focus: "proposal-a" });
+  const mine = "설계안 2쪽 계약사항 표에서 읽었습니다."; // 가 제안서의 contract-terms 주석
+  const facts = sectionOf(html, "facts");
+  assert.ok(textOf(facts).includes(mine), "고른 subject 의 말이 서야 한다");
+  assert.ok(!textOf(facts).includes("계약사항 표가 잘려 있어"), "안 그리는 subject 의 말이 붙어 있다");
+
+  // 다른 subject 를 고르면 말도 따라 바뀐다.
+  const other = sectionOf(fix({ focus: "proposal-b" }).html, "facts");
+  assert.ok(textOf(other).includes("계약사항 표가 잘려 있어"));
+  assert.ok(!textOf(other).includes(mine));
+
+  // 겹치는 쪽은 전원의 말을 그대로 낸다.
+  const list = sectionOf(html, "list");
+  for (const doc of FIX.values) {
+    for (const note of doc.facets["riders"]?.notes ?? []) {
+      assert.ok(textOf(list).includes(note.text), `list: ${doc.subjectId} 의 말이 빠졌다`);
+    }
+  }
 });
 
 test("값에 붙은 것과 facet 에 붙은 것이 모두 보인다", () => {

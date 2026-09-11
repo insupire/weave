@@ -509,7 +509,7 @@ export function renderView({ template, values = [], focus = null } = {}) {
     const draw = ELEMENTS[facet.element];
     // primitive element 이름은 분석뷰에 나올 자리가 없다. 구조로만 남긴다 —
     // 참조 뷰어의 배지는 이 속성을 읽어 CSS 가 그리므로 렌더가 낸 글에는 들어가지 않는다.
-    const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>` + notesHtml(facet.notes);
+    const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>`;
     let body;
     if (!draw) {
       body = undrawable(report, facet.id ?? at, `모르는 primitive element 다 — ${JSON.stringify(facet.element)}`);
@@ -520,11 +520,20 @@ export function renderView({ template, values = [], focus = null } = {}) {
     } else {
       body = draw(ctx, facet);
     }
-    const subjectNotes = seats.map((s) => notesHtml(facetNotes(byId.get(s.id), facet.id), s.name)).join("");
+    // **말은 데이터 뒤에 선다.** facet 에 붙은 것과 subject 에 붙은 것이 한자리에 모인다 —
+    // 예외를 두지 않는다. 읽는 규칙이 둘이면 매번 어디 있는지 찾게 된다.
+    // 둘을 가르는 것은 띠도 상자도 아니고 **자리와 글**이다: subject 것은 이름이 앞에 선다.
+    //
+    // **그리는 것과 말이 맞아야 한다** — 겹치는 쪽은 전원의 말을, focus 를 따라 바뀌는 쪽은
+    // **그리고 있는 subject 의 말만** 낸다. 보이지도 않는 subject 의 말은 무엇에 대한 말인지 알 수 없다.
+    const speaking = COMPARE[facet.element] === "focus" ? seats.filter((s) => s.id === shown) : seats;
+    const said =
+      notesHtml(facet.notes) +
+      speaking.map((s) => notesHtml(facetNotes(byId.get(s.id), facet.id), s.name)).join("");
     return (
       `<section class="facet element-${esc(facet.element ?? "unknown")}">${head}` +
       `<div class="body">${body}</div>` +
-      (subjectNotes ? `<div class="subject-notes">${subjectNotes}</div>` : "") +
+      (said ? `<div class="said">${said}</div>` : "") +
       "</section>"
     );
   });
