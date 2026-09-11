@@ -22,6 +22,7 @@
 | `weave/` | 검사기 (Python). **판정은 전부 여기 하나에 있다** |
 | `viewer/render.mjs` | 참조 렌더. primitive element 다섯을 그린다. 문서를 받아 HTML 문자열을 내는 순수 함수 |
 | `viewer/app.mjs` · `style.css` · `shell.html` | 설명서의 목차·본문과 그 안의 플레이그라운드 |
+| `viewer/icons.mjs` | lucide 아이콘 아홉을 **인라인으로 옮겨 둔 것.** 출처·버전·라이선스가 파일 머리에 있다 |
 | `catalog/guide.json` | element 가 아닌 쪽의 산문. 목차의 앞뒤가 여기서 나온다 |
 | `samples/` | **템플릿 샘플** 넷. 한 벌 = `sample.json`(차례·명단·focus) + `template.json` + `values-*.json` |
 | `catalog/elements.json` | primitive element 설명서의 **산문과 보기**. 제약은 적지 않는다 |
@@ -172,7 +173,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | 무엇 | 조건 |
 | --- | --- |
 | **subject 를 가르는 색** (`--sub-1..6`) | **자리 차례로 배정한다.** 값의 크기와 아무 관계가 없다. 빨강·초록 극을 피하고 여섯이 비슷한 밝기다 |
-| **갈래를 가리키는 아이콘** | 주석 넷과 primitive element 다섯뿐. **인라인 SVG 로만** — 아이콘 폰트도 CDN 도 안 된다 |
+| **갈래를 가리키는 아이콘** | 주석 넷과 primitive element 다섯뿐. **lucide 실물을 인라인으로 옮긴다**(`viewer/icons.mjs`) — 기억으로 그리지 않고, 아이콘 폰트도 CDN 도 쓰지 않는다 |
 | **타이포와 여백** | 크기 단계·줄간·여백. 가장 싸게 좋아지는 자리다 |
 
 ### 하지 않는 것
@@ -186,6 +187,15 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | 둥근 상자에 왼쪽 띠를 덧대기 · 활성을 **밑줄**로 말하기 | 뜻 없는 장식이 위계를 흉내 낸다. 굵기·색조·면으로 말한다 |
 | 덩어리마다 다른 `border-radius` · 점선·겹선 장식 · 빗금 · 그림자 | 모서리는 한 값뿐이고 진짜 컨테이너에만 |
 | 빈 자리를 점선 상자와 가운데 정렬로 꾸미기 · 배지와 알약 남발 | 틀이 아니라 자리다. 글로 말한다 |
+
+### 아이콘을 고칠 때
+
+[`viewer/icons.mjs`](viewer/icons.mjs) 는 **lucide 실물을 옮겨 둔 것**이다 — `npm pack lucide-static@<버전>` 으로 풀어
+`icons/<이름>.svg` 의 안쪽을 그대로 가져온다. **기억으로 path 를 그리지 않는다.** 비슷하지만 다른 그림이 된다.
+출처·버전·라이선스(ISC)는 그 파일 머리에 적혀 있고, 아홉 가운데 어느 이름을 썼는지도 주석에 있다.
+
+고를 때 — **갈래를 가리키는 것만**. 도메인(돈·병원·서류)도, 심각도를 말하는 그림(경고 삼각형·느낌표)도 안 된다.
+주석 넷은 **같은 무게로 보이는 것**을 고른다.
 
 ### 기계가 보는 것과 사람이 봐야 하는 것
 

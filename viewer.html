@@ -185,7 +185,8 @@ th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
 .fact { display:contents; }
 .facts dt { color:var(--mute); font-size:13px; padding-top:1px; }
 .facts dd { margin:0; }
-.big { font-size:27px; letter-spacing:-.01em; }
+.big { font-size:27px; letter-spacing:-.01em; display:flex; align-items:center; gap:2px; }
+.big .note-mark { vertical-align:baseline; }
 .big .miss, .big .undrawable { font-size:15px; }
 
 /* 막대. 자는 subject 전체의 최대값으로 고정돼 focus 를 옮겨도 길이를 견줄 수 있다. */
@@ -228,6 +229,22 @@ svg .series-label.is-focus { font-weight:700; }
 .note { display:grid; grid-template-columns:2.8em 1fr; gap:0 10px;
   font-size:12.5px; padding:1px 0; }
 .note .kind { color:var(--mute); font-size:11px; line-height:1.85; white-space:nowrap; }
+
+/* **필드에 붙는 말.** 표시는 값 옆에 늘 서 있고 내용은 가리키거나 초점을 받으면 열린다.
+   갈래 표시가 보이는 것이 핵심이다 — 인용(근거)과 주의(한계)는 값과 함께 읽혀야 뜻이 산다. */
+.note-mark { position:relative; display:inline-flex; align-items:center; gap:2px;
+  margin-left:6px; vertical-align:-2px; cursor:help; color:var(--mute); }
+.note-mark:hover, .note-mark:focus { color:var(--ink); outline:none; }
+.note-mark:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.note-more { font-size:10px; }
+.note-pop { position:absolute; left:0; top:calc(100% + 6px); z-index:5; display:none;
+  min-width:260px; max-width:min(380px, 60vw); padding:10px 12px;
+  background:#ffffff; border:1px solid var(--line); border-radius:var(--r); text-align:left; }
+.note-mark:hover .note-pop, .note-mark:focus-within .note-pop, .note-mark:focus .note-pop { display:block; }
+.note-pop .notes { margin:0; }
+.note-pop .note { cursor:auto; }
+.pop-close { display:none; }
+
 /* 갈래 표시. **넷이 똑같은 크기와 선 굵기**다 — 갈래이지 심각도가 아니다. */
 .kind-icon { width:10px; height:10px; margin-right:4px; vertical-align:-1px;
   fill:none; stroke:var(--mute); stroke-width:1.4; }
@@ -240,6 +257,11 @@ svg .series-label.is-focus { font-weight:700; }
 .subject-notes { margin-top:12px; }
 
 @media (max-width: 900px) {
+  /* 좁은 화면엔 가리키기가 없다. 아래에서 올라오는 판으로 연다. */
+  .note-pop { position:fixed; inset:auto 0 0 0; max-width:none; min-width:0;
+    border:none; border-top:1px solid var(--line); padding:18px 18px 22px; }
+  .pop-close { display:block; margin-top:14px; margin-left:auto; }
+
   /* 좁아도 판이 스스로 스크롤한다 — 문서 전체가 밀리면 띠가 또 사라진다. */
   .site { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
   /* 목차가 판을 스스로 스크롤하게 됐으므로 위쪽을 다 먹지 않게 묶는다. */
@@ -303,6 +325,40 @@ svg .series-label.is-focus { font-weight:700; }
   </main>
 </div>
 <script type="module">
+// ---- viewer/icons.mjs ----
+// lucide 아이콘. **실물을 그대로 옮겼다** — 기억으로 그리지 않는다.
+//
+//   출처   npm lucide-static@1.44.0 의 icons/<name>.svg
+//   라이선스 ISC — Copyright (c) 2026 Lucide Icons and Contributors
+//            https://github.com/lucide-icons/lucide/blob/main/LICENSE
+//   다시 받기 npm pack lucide-static@1.44.0 로 풀어 icons/ 에서 아래 이름을 꺼낸다
+//
+// CDN 도 아이콘 폰트도 쓰지 않는다 — 파일 하나로 열려야 하므로 여기 인라인한다.
+// **갈래를 가리키는 것만** 고른다. 도메인(돈·병원·서류)도, 심각도를 말하는 그림도 두지 않는다.
+
+const LUCIDE_VERSION = "1.44.0";
+
+const ICON = {
+  // 주석 갈래 — 인용 (lucide `quote`)
+  quote: "<path d=\"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\" /> <path d=\"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\" />",
+  // 주석 갈래 — 팁 (lucide `lightbulb`)
+  tip: "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /> <path d=\"M9 18h6\" /> <path d=\"M10 22h4\" />",
+  // 주석 갈래 — 보충 (lucide `sticky-note`)
+  note: "<path d=\"M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z\" /> <path d=\"M15 3v5a1 1 0 0 0 1 1h5\" />",
+  // 주석 갈래 — 주의. 단서를 가리키는 기호이지 위험을 말하지 않는다 (lucide `asterisk`)
+  caution: "<path d=\"M12 5v14\" /> <path d=\"m18.065 8.496-12.125 7\" /> <path d=\"m5.94 8.504 12.125 7\" />",
+  // primitive element — stat (lucide `hash`)
+  stat: "<line x1=\"4\" x2=\"20\" y1=\"9\" y2=\"9\" /> <line x1=\"4\" x2=\"20\" y1=\"15\" y2=\"15\" /> <line x1=\"10\" x2=\"8\" y1=\"3\" y2=\"21\" /> <line x1=\"16\" x2=\"14\" y1=\"3\" y2=\"21\" />",
+  // primitive element — facts (lucide `table-properties`)
+  facts: "<path d=\"M15 3v18\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /> <path d=\"M21 9H3\" /> <path d=\"M21 15H3\" />",
+  // primitive element — bars (lucide `chart-bar`)
+  bars: "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\" /> <path d=\"M7 16h8\" /> <path d=\"M7 11h12\" /> <path d=\"M7 6h3\" />",
+  // primitive element — line (lucide `chart-line`)
+  line: "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\" /> <path d=\"m19 9-5 5-4-4-3 3\" />",
+  // primitive element — list (lucide `table`)
+  list: "<path d=\"M12 3v18\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /> <path d=\"M3 9h18\" /> <path d=\"M3 15h18\" />",
+};
+
 // ---- viewer/render.mjs ----
 // 참조 렌더. 무엇이 올바른 렌더인지의 기준이다.
 //
@@ -315,6 +371,7 @@ svg .series-label.is-focus { font-weight:700; }
 // **전부 비어 있는 값 한 벌과 주석**이 말한다.
 // **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
 // 자리를 표시하고 무엇이 이상한지 적기만 한다.
+
 
 // 주석 갈래 넷의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
 // 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
@@ -397,19 +454,29 @@ function axisNumber(axis, raw) {
 
 // ---------------------------------------------------------------- HTML 조각
 
-// 주석 갈래의 표. **넷이 같은 크기·같은 선 굵기**다 — 「주의」가 더 위험해 보이면 안 된다.
-// 도형만 다르고 뜻은 옆의 말이 진다. 도메인을 가리키는 그림을 두지 않는다.
-const KIND_MARK = {
-  quote: '<path d="M4 4v4M7.5 4v4"/>',
-  tip: '<path d="M6 2.5 9.5 6 6 9.5 2.5 6z"/>',
-  note: '<circle cx="6" cy="6" r="3.2"/>',
-  caution: '<rect x="3" y="3" width="6" height="6"/>',
-};
-
+/** 갈래 표시. **넷이 같은 크기·같은 선 굵기**다 — 「주의」가 더 위험해 보이면 안 된다. */
 function kindIcon(kind) {
-  const mark = KIND_MARK[kind];
-  if (!mark) return "";
-  return `<svg class="kind-icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">${mark}</svg>`;
+  const body = ICON[kind];
+  if (!body) return "";
+  return `<svg class="kind-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">${body}</svg>`;
+}
+
+/**
+ * **필드에 붙는 주석.** 본문에 펼치지 않고 표시를 세워 그 자리에서 연다.
+ *
+ * 감추는 만큼 잃는 것이 있으므로 **갈래 표시는 값 옆에 확실히 선다** — 인용(근거)과
+ * 주의(한계)가 붙어 있다는 것 자체가 값과 함께 읽혀야 하는 정보다.
+ * 여는 길 셋 — 가리키기(hover) · 초점(키보드) · 좁은 화면에서는 아래에서 올라오는 판.
+ */
+function notePop(notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return "";
+  const marks = notes.slice(0, 3).map((n) => kindIcon(n?.kind ?? "note")).join("");
+  const more = notes.length > 3 ? `<span class="note-more">+${notes.length - 3}</span>` : "";
+  return (
+    `<span class="note-mark" tabindex="0" role="button" aria-label="붙은 말 ${notes.length}">` +
+    `${marks}${more}<span class="note-pop" role="tooltip">${notesHtml(notes)}` +
+    `<button type="button" class="pop-close">닫기</button></span></span>`
+  );
 }
 
 function notesHtml(notes, where = "") {
@@ -506,8 +573,7 @@ function stat(ctx, facet) {
   const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-    `<div class="big">${value}</div>` +
-    notesHtml(entry?.notes)
+    `<div class="big">${value}${notePop(entry?.notes)}</div>`
   );
 }
 
@@ -521,7 +587,7 @@ function facts(ctx, facet) {
     const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
     return (
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
-      `<dd>${value}${notesHtml(entry?.notes)}</dd></div>`
+      `<dd>${value}${notePop(entry?.notes)}</dd></div>`
     );
   });
   return `<dl class="facts">${rows.join("")}</dl>`;
@@ -552,7 +618,7 @@ function bars(ctx, facet) {
     }
     return (
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}</span>${mark}` +
-      `<span class="val">${text}</span>${notesHtml(entry?.notes)}</div>`
+      `<span class="val">${text}${notePop(entry?.notes)}</span></div>`
     );
   });
   return rows.join("");
@@ -567,9 +633,11 @@ function line(ctx, facet) {
     const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     if (state !== "filled") {
+      // 문장을 쓰지 않는다. **이름이 흐리게 남는 것**이 「이 자리에 못 그렸다」를 말한다.
       misses.push(
-        `<div class="${subClass(subject, ctx.focus)} miss-row">` +
-          `<span class="who">${esc(subject.name)}</span>${stateSpan()}${notesHtml(entry?.notes)}</div>`,
+        `<span class="off ${subject.tone}${subject.id === ctx.focus ? " is-focus" : ""}">` +
+          `<span class="swatch" aria-hidden="true"></span><b class="who">${esc(subject.name)}</b>` +
+          `${notePop(entry?.notes)}</span>`,
       );
       continue;
     }
@@ -589,8 +657,9 @@ function line(ctx, facet) {
       }
     if (broken || points.length === 0) {
       misses.push(
-        `<div class="${subClass(subject, ctx.focus)} miss-row"><span class="who">${esc(subject.name)}</span>` +
-          `${undrawable(ctx.report, where, broken ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</div>`,
+        `<span class="off ${subject.tone}${subject.id === ctx.focus ? " is-focus" : ""}">` +
+          `<span class="swatch" aria-hidden="true"></span><b class="who">${esc(subject.name)}</b> ` +
+          `${undrawable(ctx.report, where, broken ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</span>`,
       );
       continue;
     }
@@ -604,7 +673,7 @@ function line(ctx, facet) {
     .join("");
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}` +
-    (misses.length ? `<div class="miss-rows">${misses.join("")}</div>` : "") +
+    (misses.length ? `<div class="offs">${misses.join("")}</div>` : "") +
     notes
   );
 }
@@ -716,7 +785,8 @@ function list(ctx, facet) {
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
     `<table class="items"><thead><tr>${head.join("")}</tr></thead><tbody>${body.join("")}</tbody></table>` +
-    blankRow(blanks) + fieldNotes(reads)
+    // 문장을 덧붙이지 않는다 — 그 subject 의 칸이 이미 「값 없음」이라고 말한다.
+    fieldNotes(reads)
   );
 }
 
@@ -1535,18 +1605,10 @@ const $ = (id) => document.getElementById(id);
 
 // 목차의 primitive element 표시. **구조를 가리킬 뿐 도메인을 가리키지 않는다** —
 // 돈·병원·서류 같은 그림을 두지 않는다. 다섯이 같은 크기·같은 선 굵기다.
-const ELEMENT_MARK = {
-  stat: '<rect x="3" y="6" width="10" height="4"/>',
-  facts: '<path d="M3 5h10M3 8h10M3 11h6"/>',
-  bars: '<path d="M3 5h9M3 8h5M3 11h11"/>',
-  line: '<path d="M3 11l3-4 3 2 4-5"/>',
-  list: '<path d="M3 4h10v8H3zM3 7.5h10M7 4v8"/>',
-};
-
 function elementIcon(id) {
-  const mark = ELEMENT_MARK[id];
-  if (!mark) return "";
-  return `<svg class="toc-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${mark}</svg>`;
+  const body = ICON[id];
+  if (!body) return "";
+  return `<svg class="toc-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">${body}</svg>`;
 }
 const pretty = (doc) => JSON.stringify(doc, null, 2);
 
@@ -1840,6 +1902,15 @@ function start() {
   }
   picker.addEventListener("change", () => loadSample(picker.value));
   $("editor").addEventListener("input", scheduleRefresh);
+
+  // 붙은 말은 초점을 받으면 열린다(CSS). 닫는 길 둘 — 닫기 단추와 Esc.
+  $("view").addEventListener("click", (event) => {
+    const close = event.target.closest?.(".pop-close");
+    if (close) close.closest(".note-mark")?.blur();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") document.activeElement?.closest?.(".note-mark")?.blur();
+  });
   $("add-subject").addEventListener("click", addSubject);
   $("drop-subject").addEventListener("click", dropSubject);
   $("show-elements").addEventListener("change", (event) => {

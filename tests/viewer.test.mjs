@@ -17,6 +17,7 @@ import { PAGES } from "../viewer/catalog.mjs";
 import {
   COMPARE, ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, TONES, UNDRAWABLE, formatScalar, renderView,
 } from "../viewer/render.mjs";
+import { ICON } from "../viewer/icons.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), "utf-8"));
@@ -242,6 +243,18 @@ test("값이 없는 facet 도 자리를 남기고 없다고 말한다", () => {
   assert.ok(shown.includes(NO_VALUE));
 });
 
+test("겹치는 자리에서 「값 없음」 문장을 되풀이하지 않는다", () => {
+  // 사실은 남기되 문장은 쓰지 않는다 — line 은 이름이 흐리게 남고, list 는 칸이 이미 말한다.
+  const { html } = fix({ focus: "proposal-b" });
+  const off = sectionOf(html, "line").match(/<div class="offs">[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.ok(off.includes("나 제안서"), "이름이 남아야 한다");
+  assert.ok(!off.includes(NO_VALUE), "문장이 되풀이된다");
+  // list 는 축 아래 줄을 두지 않는다. 칸이 「값 없음」이라고 말한다.
+  const listPart = sectionOf(html, "list");
+  assert.ok(!listPart.includes('class="offs"'), "list 에 문장 줄이 남아 있다");
+  assert.ok(textOf(listPart).includes(NO_VALUE), "칸이 말해야 한다");
+});
+
 test("빈 목록은 값이 없는 것과 다르다", () => {
   const shown = textOf(renderView({ template: FIX.template, values: [FIX.mixed] }).html);
   assert.ok(shown.includes(NO_ITEMS));
@@ -309,14 +322,16 @@ test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
     assert.ok(shown.includes(facet.title), facet.id); // 골격은 그대로
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
-  // **facet 마다** 그 subject 가 값이 없다는 것이 보인다. 조용히 사라지면 안 된다.
-  // focus 를 따라 바뀌는 쪽은 그 subject 를 골라야 그 사실이 보인다.
+  // **facet 마다** 그 subject 가 이 자리에 못 섰다는 것이 남는다. 조용히 사라지면 안 된다.
+  // 말하는 법은 둘이다 — 「값 없음」이라는 말이 서거나, **이름이 흐리게 남거나.**
   const mine = renderView({ template: FIX.template, values: [FIX.filled, blank], focus: blank.subjectId });
   for (const facet of FIX.template.facets) {
-    const part = textOf(sectionOf(mine.html, facet.element));
-    assert.ok(part.includes(NO_VALUE), `${facet.id}: 값 없음이 안 보인다`);
+    const part = sectionOf(mine.html, facet.element);
+    const said = textOf(part).includes(NO_VALUE);
+    const stood = part.includes('class="off ') && textOf(part).includes(blank.subjectLabel);
+    assert.ok(said || stood, `${facet.id}: 못 선 사실이 사라졌다`);
   }
-  // 겹치는 쪽은 축 아래에 적는다 — 얹을 자리가 없어도 이름이 남는다.
+  // 겹치는 쪽은 축 아래에 이름이 남는다.
   assert.match(html, /class="offs"/);
   // 주석이 이유를 facet 마다 말한다
   assert.equal((shown.match(new RegExp(said, "g")) ?? []).length, FIX.template.facets.length);
@@ -378,6 +393,41 @@ test("없는 id 면 focus 만 사라진다", () => {
 test("주석 네 갈래가 각각 보인다", () => {
   const { html } = fix();
   for (const kind of ["quote", "tip", "note", "caution"]) assert.match(html, new RegExp(`note-${kind}`));
+});
+
+test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
+  // 감추는 만큼 잃는 것이 있으므로 **붙어 있다는 것 자체는 감춰지지 않는다.**
+  const { html } = fix({ focus: "proposal-a" });
+  const said = "합계보험료 87,400원 (보장보험료 87,400원 / 적립보험료 0원)";
+  const mark = html.match(/<span class="note-mark"[\s\S]*?<\/span><\/span>/)?.[0] ?? "";
+  assert.ok(mark.includes("kind-icon"), "갈래 표시가 값 옆에 서야 한다");
+  assert.ok(mark.includes('tabindex="0"') && mark.includes('role="button"'), "키보드로 닿아야 한다");
+  assert.ok(mark.includes('class="note-pop"'), "내용이 그 안에서 열려야 한다");
+  // 내용은 본문에 펼쳐지지 않고 표시 안에 있다.
+  const at = html.indexOf(said);
+  assert.ok(at > 0, "붙은 말이 있어야 한다");
+  assert.ok(html.lastIndexOf('class="note-pop"', at) > html.lastIndexOf('class="body"', at),
+    "필드에 붙은 말이 본문에 펼쳐져 있다");
+  // facet 에 붙은 것은 감추지 않는다 — 먼저 알아야 할 것이다.
+  const head = sectionOf(html, "stat");
+  const beforeBody = head.slice(0, head.indexOf('class="body"'));
+  assert.ok(textOf(beforeBody).includes("적립보험료를 뺀 보장 보험료입니다."),
+    "facet 에 붙은 말은 본문에 있어야 한다");
+});
+
+test("아이콘은 lucide 실물을 옮겨 온 것이다", () => {
+  const src = fs.readFileSync(path.join(ROOT, "viewer/icons.mjs"), "utf-8");
+  assert.match(src, /lucide-static@\d+\.\d+\.\d+/, "어느 버전에서 왔는지 적혀 있어야 한다");
+  assert.match(src, /ISC/, "라이선스 고지");
+  // 갈래를 가리키는 것만 — 주석 넷과 primitive element 다섯.
+  assert.deepEqual(
+    Object.keys(ICON).sort(),
+    [...Object.keys(KIND_LABEL), ...Object.keys(ELEMENTS)].sort(),
+  );
+  // 심각도를 말하는 그림을 쓰지 않는다.
+  for (const banned of ["triangle-alert", "circle-alert", "octagon-alert", "shield-alert", "ban"]) {
+    assert.ok(!src.includes(banned), `심각도 아이콘: ${banned}`);
+  }
 });
 
 test("주석 갈래를 정본 이름으로 부른다", () => {
@@ -653,9 +703,11 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
     },
     appendChild(child) { this.children.push(child); },
     addEventListener(type, fn) { this._on[type] = fn; },
+    closest() { return null; },
     setAttribute(name, value) { this[name] = value; },
   });
   globalThis.document = {
+    addEventListener() {},
     createElement: make,
     getElementById(id) {
       if (!nodes.has(id)) nodes.set(id, make("div"));

@@ -8,23 +8,16 @@
 import { esc, renderView } from "./render.mjs";
 import { SAMPLES } from "./samples.mjs";
 import { PAGES } from "./catalog.mjs";
+import { ICON } from "./icons.mjs";
 
 const $ = (id) => document.getElementById(id);
 
 // 목차의 primitive element 표시. **구조를 가리킬 뿐 도메인을 가리키지 않는다** —
 // 돈·병원·서류 같은 그림을 두지 않는다. 다섯이 같은 크기·같은 선 굵기다.
-const ELEMENT_MARK = {
-  stat: '<rect x="3" y="6" width="10" height="4"/>',
-  facts: '<path d="M3 5h10M3 8h10M3 11h6"/>',
-  bars: '<path d="M3 5h9M3 8h5M3 11h11"/>',
-  line: '<path d="M3 11l3-4 3 2 4-5"/>',
-  list: '<path d="M3 4h10v8H3zM3 7.5h10M7 4v8"/>',
-};
-
 function elementIcon(id) {
-  const mark = ELEMENT_MARK[id];
-  if (!mark) return "";
-  return `<svg class="toc-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${mark}</svg>`;
+  const body = ICON[id];
+  if (!body) return "";
+  return `<svg class="toc-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">${body}</svg>`;
 }
 const pretty = (doc) => JSON.stringify(doc, null, 2);
 
@@ -318,6 +311,15 @@ export function start() {
   }
   picker.addEventListener("change", () => loadSample(picker.value));
   $("editor").addEventListener("input", scheduleRefresh);
+
+  // 붙은 말은 초점을 받으면 열린다(CSS). 닫는 길 둘 — 닫기 단추와 Esc.
+  $("view").addEventListener("click", (event) => {
+    const close = event.target.closest?.(".pop-close");
+    if (close) close.closest(".note-mark")?.blur();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") document.activeElement?.closest?.(".note-mark")?.blur();
+  });
   $("add-subject").addEventListener("click", addSubject);
   $("drop-subject").addEventListener("click", dropSubject);
   $("show-elements").addEventListener("change", (event) => {

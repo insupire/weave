@@ -174,7 +174,8 @@ th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
 .fact { display:contents; }
 .facts dt { color:var(--mute); font-size:13px; padding-top:1px; }
 .facts dd { margin:0; }
-.big { font-size:27px; letter-spacing:-.01em; }
+.big { font-size:27px; letter-spacing:-.01em; display:flex; align-items:center; gap:2px; }
+.big .note-mark { vertical-align:baseline; }
 .big .miss, .big .undrawable { font-size:15px; }
 
 /* 막대. 자는 subject 전체의 최대값으로 고정돼 focus 를 옮겨도 길이를 견줄 수 있다. */
@@ -217,6 +218,22 @@ svg .series-label.is-focus { font-weight:700; }
 .note { display:grid; grid-template-columns:2.8em 1fr; gap:0 10px;
   font-size:12.5px; padding:1px 0; }
 .note .kind { color:var(--mute); font-size:11px; line-height:1.85; white-space:nowrap; }
+
+/* **필드에 붙는 말.** 표시는 값 옆에 늘 서 있고 내용은 가리키거나 초점을 받으면 열린다.
+   갈래 표시가 보이는 것이 핵심이다 — 인용(근거)과 주의(한계)는 값과 함께 읽혀야 뜻이 산다. */
+.note-mark { position:relative; display:inline-flex; align-items:center; gap:2px;
+  margin-left:6px; vertical-align:-2px; cursor:help; color:var(--mute); }
+.note-mark:hover, .note-mark:focus { color:var(--ink); outline:none; }
+.note-mark:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.note-more { font-size:10px; }
+.note-pop { position:absolute; left:0; top:calc(100% + 6px); z-index:5; display:none;
+  min-width:260px; max-width:min(380px, 60vw); padding:10px 12px;
+  background:#ffffff; border:1px solid var(--line); border-radius:var(--r); text-align:left; }
+.note-mark:hover .note-pop, .note-mark:focus-within .note-pop, .note-mark:focus .note-pop { display:block; }
+.note-pop .notes { margin:0; }
+.note-pop .note { cursor:auto; }
+.pop-close { display:none; }
+
 /* 갈래 표시. **넷이 똑같은 크기와 선 굵기**다 — 갈래이지 심각도가 아니다. */
 .kind-icon { width:10px; height:10px; margin-right:4px; vertical-align:-1px;
   fill:none; stroke:var(--mute); stroke-width:1.4; }
@@ -229,6 +246,11 @@ svg .series-label.is-focus { font-weight:700; }
 .subject-notes { margin-top:12px; }
 
 @media (max-width: 900px) {
+  /* 좁은 화면엔 가리키기가 없다. 아래에서 올라오는 판으로 연다. */
+  .note-pop { position:fixed; inset:auto 0 0 0; max-width:none; min-width:0;
+    border:none; border-top:1px solid var(--line); padding:18px 18px 22px; }
+  .pop-close { display:block; margin-top:14px; margin-left:auto; }
+
   /* 좁아도 판이 스스로 스크롤한다 — 문서 전체가 밀리면 띠가 또 사라진다. */
   .site { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
   /* 목차가 판을 스스로 스크롤하게 됐으므로 위쪽을 다 먹지 않게 묶는다. */

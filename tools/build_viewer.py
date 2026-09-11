@@ -87,6 +87,7 @@ def html_source(samples_js: str, catalog_js: str) -> str:
     """디스크가 아니라 방금 만든 글을 받는다. --check 가 묵은 파일을 보면 안 된다."""
     script = "\n\n".join(
         [
+            f"// ---- viewer/icons.mjs ----\n{inline((VIEWER / 'icons.mjs').read_text(encoding='utf-8'))}",
             f"// ---- viewer/render.mjs ----\n{inline((VIEWER / 'render.mjs').read_text(encoding='utf-8'))}",
             f"// ---- viewer/samples.mjs ----\n{inline(samples_js)}",
             f"// ---- viewer/catalog.mjs ----\n{inline(catalog_js)}",

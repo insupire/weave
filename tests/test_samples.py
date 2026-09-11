@@ -222,12 +222,30 @@ class BuiltViewerIsNotStale(unittest.TestCase):
                 self.assertTrue(path.exists(), "python3 tools/build_viewer.py 를 돌린다")
                 self.assertEqual(path.read_text(encoding="utf-8"), text, "갈렸다. make viewer 로 다시 쓴다")
 
-    def test_the_page_carries_no_outside_reference(self) -> None:
-        """의존성 없는 한 장이다. CDN 도 서버도 쓰지 않는다 — 오프라인에서 죽지 않아야 한다."""
+    def test_the_page_makes_no_outside_request(self) -> None:
+        """의존성 없는 한 장이다. CDN 도 서버도 쓰지 않는다 — 오프라인에서 죽지 않아야 한다.
+
+        막는 것은 **바깥 요청**이지 글자가 아니다. 주석 속 출처·라이선스 URL 은 요청을 만들지
+        않으므로 남는다 — 아이콘의 출처 고지가 빌드 산출물까지 따라가야 한다.
+        """
         page = build_viewer.OUT_HTML.read_text(encoding="utf-8")
-        for forbidden in ("http://", "https://", "<script src", "<link rel=\"stylesheet\"", "fetch("):
+        for forbidden in (
+            "<script src", '<link rel="stylesheet"', "@import", "fetch(",
+            "XMLHttpRequest", 'src="http', "href=\"http", "url(http",
+        ):
             with self.subTest(forbidden):
                 self.assertNotIn(forbidden, page)
+
+        # 그 밖에 주소가 나오는 줄은 전부 주석이어야 한다.
+        for number, line in enumerate(page.splitlines(), 1):
+            if "http" not in line:
+                continue
+            said = line.strip()
+            with self.subTest(f"{number}: {said[:40]}"):
+                self.assertTrue(
+                    said.startswith(("//", "*", "/*", "<!--")) or said.endswith("-->"),
+                    "주석이 아닌 자리에 주소가 있다",
+                )
 
     def test_every_sample_is_inlined(self) -> None:
         page = build_viewer.OUT_HTML.read_text(encoding="utf-8")

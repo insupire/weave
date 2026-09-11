@@ -10,6 +10,8 @@
 // **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
 // 자리를 표시하고 무엇이 이상한지 적기만 한다.
 
+import { ICON } from "./icons.mjs";
+
 // 주석 갈래 넷의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
 // 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
 export const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
@@ -91,19 +93,29 @@ function axisNumber(axis, raw) {
 
 // ---------------------------------------------------------------- HTML 조각
 
-// 주석 갈래의 표. **넷이 같은 크기·같은 선 굵기**다 — 「주의」가 더 위험해 보이면 안 된다.
-// 도형만 다르고 뜻은 옆의 말이 진다. 도메인을 가리키는 그림을 두지 않는다.
-const KIND_MARK = {
-  quote: '<path d="M4 4v4M7.5 4v4"/>',
-  tip: '<path d="M6 2.5 9.5 6 6 9.5 2.5 6z"/>',
-  note: '<circle cx="6" cy="6" r="3.2"/>',
-  caution: '<rect x="3" y="3" width="6" height="6"/>',
-};
-
+/** 갈래 표시. **넷이 같은 크기·같은 선 굵기**다 — 「주의」가 더 위험해 보이면 안 된다. */
 function kindIcon(kind) {
-  const mark = KIND_MARK[kind];
-  if (!mark) return "";
-  return `<svg class="kind-icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">${mark}</svg>`;
+  const body = ICON[kind];
+  if (!body) return "";
+  return `<svg class="kind-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">${body}</svg>`;
+}
+
+/**
+ * **필드에 붙는 주석.** 본문에 펼치지 않고 표시를 세워 그 자리에서 연다.
+ *
+ * 감추는 만큼 잃는 것이 있으므로 **갈래 표시는 값 옆에 확실히 선다** — 인용(근거)과
+ * 주의(한계)가 붙어 있다는 것 자체가 값과 함께 읽혀야 하는 정보다.
+ * 여는 길 셋 — 가리키기(hover) · 초점(키보드) · 좁은 화면에서는 아래에서 올라오는 판.
+ */
+function notePop(notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return "";
+  const marks = notes.slice(0, 3).map((n) => kindIcon(n?.kind ?? "note")).join("");
+  const more = notes.length > 3 ? `<span class="note-more">+${notes.length - 3}</span>` : "";
+  return (
+    `<span class="note-mark" tabindex="0" role="button" aria-label="붙은 말 ${notes.length}">` +
+    `${marks}${more}<span class="note-pop" role="tooltip">${notesHtml(notes)}` +
+    `<button type="button" class="pop-close">닫기</button></span></span>`
+  );
 }
 
 function notesHtml(notes, where = "") {
@@ -200,8 +212,7 @@ function stat(ctx, facet) {
   const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-    `<div class="big">${value}</div>` +
-    notesHtml(entry?.notes)
+    `<div class="big">${value}${notePop(entry?.notes)}</div>`
   );
 }
 
@@ -215,7 +226,7 @@ function facts(ctx, facet) {
     const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
     return (
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
-      `<dd>${value}${notesHtml(entry?.notes)}</dd></div>`
+      `<dd>${value}${notePop(entry?.notes)}</dd></div>`
     );
   });
   return `<dl class="facts">${rows.join("")}</dl>`;
@@ -246,7 +257,7 @@ function bars(ctx, facet) {
     }
     return (
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}</span>${mark}` +
-      `<span class="val">${text}</span>${notesHtml(entry?.notes)}</div>`
+      `<span class="val">${text}${notePop(entry?.notes)}</span></div>`
     );
   });
   return rows.join("");
@@ -261,9 +272,11 @@ function line(ctx, facet) {
     const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     if (state !== "filled") {
+      // 문장을 쓰지 않는다. **이름이 흐리게 남는 것**이 「이 자리에 못 그렸다」를 말한다.
       misses.push(
-        `<div class="${subClass(subject, ctx.focus)} miss-row">` +
-          `<span class="who">${esc(subject.name)}</span>${stateSpan()}${notesHtml(entry?.notes)}</div>`,
+        `<span class="off ${subject.tone}${subject.id === ctx.focus ? " is-focus" : ""}">` +
+          `<span class="swatch" aria-hidden="true"></span><b class="who">${esc(subject.name)}</b>` +
+          `${notePop(entry?.notes)}</span>`,
       );
       continue;
     }
@@ -283,8 +296,9 @@ function line(ctx, facet) {
       }
     if (broken || points.length === 0) {
       misses.push(
-        `<div class="${subClass(subject, ctx.focus)} miss-row"><span class="who">${esc(subject.name)}</span>` +
-          `${undrawable(ctx.report, where, broken ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</div>`,
+        `<span class="off ${subject.tone}${subject.id === ctx.focus ? " is-focus" : ""}">` +
+          `<span class="swatch" aria-hidden="true"></span><b class="who">${esc(subject.name)}</b> ` +
+          `${undrawable(ctx.report, where, broken ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</span>`,
       );
       continue;
     }
@@ -298,7 +312,7 @@ function line(ctx, facet) {
     .join("");
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}` +
-    (misses.length ? `<div class="miss-rows">${misses.join("")}</div>` : "") +
+    (misses.length ? `<div class="offs">${misses.join("")}</div>` : "") +
     notes
   );
 }
@@ -410,7 +424,8 @@ function list(ctx, facet) {
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
     `<table class="items"><thead><tr>${head.join("")}</tr></thead><tbody>${body.join("")}</tbody></table>` +
-    blankRow(blanks) + fieldNotes(reads)
+    // 문장을 덧붙이지 않는다 — 그 subject 의 칸이 이미 「값 없음」이라고 말한다.
+    fieldNotes(reads)
   );
 }
 
