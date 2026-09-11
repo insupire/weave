@@ -57,7 +57,7 @@ def sample_payload() -> dict:
         values = []
         for path in sorted(folder.glob("values-*.json")):
             doc = json.loads(path.read_text(encoding="utf-8"))
-            # 탭 이름은 명단(args.subjects)이 준다. 여기서는 어느 자리의 것인지만 싣는다.
+            # 탭 이름은 값 한 벌의 subjectLabel 이 준다. 여기서는 어느 자리의 것인지만 싣는다.
             values.append({"id": doc["subjectId"], "text": path.read_text(encoding="utf-8")})
         out[folder.name] = {
             "name": meta["name"],

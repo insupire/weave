@@ -95,13 +95,7 @@ label:has(input) { display:inline-flex; align-items:center; gap:5px; }
 /* 탭 하나가 곧 subject 다. 템플릿은 하나뿐이라 홀로 앞에 서고, 사이를 자리(간격)가 가른다.
    묶는 말을 두지 않는다 — 탭이 이미 subject 인데 그 위에 또 적으면 같은 말을 두 번 한다. */
 .tab-subject:first-of-type { margin-left:16px; }
-/* 아직 분석 전임을 장식이 아니라 글과 색조로 말한다. 분석뷰의 「아직 분석 중」과 같은 기울기다. */
-.tab-state { font-size:11px; font-style:italic; color:var(--mute); margin-left:5px; font-weight:400; }
 
-/* 값 한 벌이 없는 subject 를 고른 자리 */
-.no-values { flex:1; padding:20px 16px; }
-.no-values[hidden] { display:none; }
-.no-values p { margin:0 0 12px; font-size:13px; color:var(--mute); max-width:48ch; }
 textarea { flex:1; width:100%; margin:0; border:none; padding:14px;
   resize:none; background:#ffffff; color:var(--ink);
   font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
@@ -128,11 +122,7 @@ th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
 .body { margin-top:10px; }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 .who { font-size:12.5px; color:var(--mute); }
-/* 열 머리에 붙는 말. 알약이 아니다. */
-.seat-note { display:block; font-size:11px; font-weight:400; font-style:italic; color:var(--mute); white-space:nowrap; }
 .miss { font-size:12.5px; color:var(--mute); }
-/* 「아직 분석 중」과 「값 없음」은 말이 다르고 기울기가 다르다. 빗금을 치지 않는다. */
-.miss.unanalyzed { font-style:italic; }
 .dash { color:var(--mute); }
 /* 틀이 아니라 자리다 */
 .blank { padding:4px 0 8px; }

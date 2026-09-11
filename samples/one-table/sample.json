@@ -2,24 +2,6 @@
   "order": 3,
   "name": "계약사항표 한 장",
   "args": {
-    "subjects": [
-      {
-        "id": "plan-a",
-        "label": "가 설계"
-      },
-      {
-        "id": "plan-b",
-        "label": "나 설계"
-      },
-      {
-        "id": "plan-c",
-        "label": "다 설계"
-      },
-      {
-        "id": "plan-d",
-        "label": "라 설계"
-      }
-    ],
     "focus": "plan-a"
   }
 }

@@ -4,6 +4,9 @@
 // 고정 케이스를 걸 수 있다 (`tests/viewer.test.mjs`).
 //
 // **facet 종류를 아는 분기가 없다.** element 로만 고른다 (ELEMENTS 표).
+// **subject 마다 값 한 벌이 정확히 하나 있다.** 비어 있을 수 있고, 누가 자리에 서는지는 그 값 한 벌들이
+// 말한다 — 명단을 따로 받지 않는다. 아직 분석되지 않았다는 것도 특별한 상태가 아니라
+// **전부 비어 있는 값 한 벌과 주석**이 말한다.
 // **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
 // 자리를 표시하고 무엇이 이상한지 적기만 한다.
 
@@ -12,7 +15,6 @@
 export const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
 
 export const NO_VALUE = "값 없음";
-export const UNANALYZED = "아직 분석 중";
 export const NO_ITEMS = "항목 없음";
 export const UNDRAWABLE = "그리지 못한다";
 
@@ -31,7 +33,7 @@ export function esc(text) {
 // ---------------------------------------------------------------- 값 읽기
 
 function cell(valueset, facetId, key) {
-  if (!valueset) return { state: "unanalyzed", entry: null };
+  if (!valueset) return { state: "empty", entry: null };
   const facet = valueset.facets?.[facetId];
   if (!facet) return { state: "empty", entry: null };
   const entry = facet.fields?.[key];
@@ -99,10 +101,9 @@ function notesHtml(notes, where = "") {
   return `<ul class="notes">${rows.join("")}</ul>`;
 }
 
-function stateSpan(state) {
-  return state === "unanalyzed"
-    ? `<span class="miss unanalyzed">${UNANALYZED}</span>`
-    : `<span class="miss empty">${NO_VALUE}</span>`;
+/** 값이 없다는 말. 갈래가 하나뿐이다 — 왜 없는지는 주석이 글로 말한다. */
+function stateSpan() {
+  return `<span class="miss empty">${NO_VALUE}</span>`;
 }
 
 function subClass(subject, focus) {
@@ -131,7 +132,7 @@ function stat(ctx, facet) {
     const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     const body =
-      state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan(state);
+      state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
     return (
       `<div class="card ${subClass(subject, ctx.focus)}">` +
       `<div class="who">${esc(subject.name)}</div><div class="big">${body}</div>` +
@@ -144,18 +145,14 @@ function stat(ctx, facet) {
 function facts(ctx, facet) {
   const head = ['<th class="corner">항목</th>'];
   for (const subject of ctx.subjects) {
-    const badge = ctx.byId.has(subject.id) ? "" : `<small class="seat-note">${UNANALYZED}</small>`;
-    head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}${badge}</th>`);
+    head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}</th>`);
   }
   const rows = facet.fields.map((decl) => {
     const cells = [`<th class="row-label" scope="row">${esc(decl.label ?? decl.key)}</th>`];
     for (const subject of ctx.subjects) {
       const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
       const where = `${facet.id}/${decl.key}/${subject.id}`;
-      let inner;
-      if (state === "filled") inner = drawCell(ctx.report, where, decl, entry.value);
-      else if (state === "unanalyzed") inner = `<span class="dash" title="${UNANALYZED}">—</span>`;
-      else inner = stateSpan(state);
+      const inner = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
       const focused = subject.id === ctx.focus ? " is-focus" : "";
       cells.push(`<td class="cell ${state}${focused}">${inner}${notesHtml(entry?.notes)}</td>`);
     }
@@ -186,7 +183,7 @@ function bars(ctx, facet) {
           text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(value));
         }
       } else {
-        text = stateSpan(state);
+        text = stateSpan();
       }
       return (
         `<div class="bar-row ${subClass(subject, ctx.focus)}">` +
@@ -210,7 +207,7 @@ function line(ctx, facet) {
     if (state !== "filled") {
       misses.push(
         `<div class="${subClass(subject, ctx.focus)} miss-row">` +
-          `<span class="who">${esc(subject.name)}</span>${stateSpan(state)}${notesHtml(entry?.notes)}</div>`,
+          `<span class="who">${esc(subject.name)}</span>${stateSpan()}${notesHtml(entry?.notes)}</div>`,
       );
       continue;
     }
@@ -302,7 +299,7 @@ function list(ctx, facet) {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     let body;
     if (state !== "filled") {
-      body = `<div class="blank">${stateSpan(state)}</div>`;
+      body = `<div class="blank">${stateSpan()}</div>`;
     } else if (!Array.isArray(entry.value)) {
       body = `<div class="blank">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
     } else if (entry.value.length === 0) {
@@ -335,9 +332,9 @@ export const ELEMENTS = { stat, facts, bars, line, list };
 // ---------------------------------------------------------------- 페이지
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
-function viewState(seats, byId, focus, wanted) {
+function viewState(seats, focus, wanted) {
   return {
-    seats: seats.map((s) => ({ ...s, analysed: byId.has(s.id) })),
+    seats,
     focus,
     // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
     focusMissing: wanted && !focus ? wanted : null,
@@ -347,14 +344,14 @@ function viewState(seats, byId, focus, wanted) {
 /**
  * 분석뷰 하나를 HTML 로 그린다.
  *
- * @param {object} input  { template, values, subjects, focus }
- *   - subjects 를 주면 그 순서와 명단대로 자리를 잡는다. 값 한 벌이 없는 subject 는 「아직 분석 중」이다.
+ * @param {object} input  { template, values, focus }
+ *   - 자리와 그 차례는 **값 한 벌들이 정한다.** 명단을 따로 받지 않는다.
  *   - focus 는 subject 의 id. null 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다.
  * @returns {{html: string, report: string[], view: object|null}}
  *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
  *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
  */
-export function renderView({ template, values = [], subjects = null, focus = null } = {}) {
+export function renderView({ template, values = [], focus = null } = {}) {
   const report = [];
   if (!template || typeof template !== "object" || Array.isArray(template)) {
     // 그릴 분석뷰가 없다. 빈 판을 내고 무슨 일인지는 왼쪽이 말한다.
@@ -369,13 +366,8 @@ export function renderView({ template, values = [], subjects = null, focus = nul
     }
   }
 
-  let roll = subjects;
-  if (!Array.isArray(roll) || roll.length === 0) {
-    roll = [...byId.values()].map((v) => ({ id: v.subjectId, label: v.subjectLabel }));
-  }
-  const seats = roll
-    .filter((s) => s && typeof s.id === "string")
-    .map((s) => ({ id: s.id, name: s.label || byId.get(s.id)?.subjectLabel || s.id }));
+  // 자리는 값 한 벌들이 정한다. 차례는 넘어온 차례이고 배치일 뿐 우열이 아니다.
+  const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
 
   const wanted = focus;
   const seated = seats.some((s) => s.id === wanted) ? wanted : null;
@@ -423,5 +415,5 @@ export function renderView({ template, values = [], subjects = null, focus = nul
   // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
   const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html, report, view: viewState(seats, byId, seated, wanted) };
+  return { html, report, view: viewState(seats, seated, wanted) };
 }

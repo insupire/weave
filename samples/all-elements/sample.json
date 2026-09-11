@@ -2,24 +2,6 @@
   "order": 1,
   "name": "다섯 가지로 훑어보기",
   "args": {
-    "subjects": [
-      {
-        "id": "proposal-a",
-        "label": "가 제안서"
-      },
-      {
-        "id": "proposal-b",
-        "label": "나 제안서"
-      },
-      {
-        "id": "proposal-c",
-        "label": "다 제안서"
-      },
-      {
-        "id": "proposal-d",
-        "label": "라 제안서"
-      }
-    ],
     "focus": "proposal-b"
   }
 }

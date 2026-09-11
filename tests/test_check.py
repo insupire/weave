@@ -85,11 +85,19 @@ class ValuesPass(unittest.TestCase):
         for doc in (FILLED, EMPTY, MIXED):
             self.assertTrue(check_valueset(doc, TEMPLATE).ok)
 
-    def test_unanalyzed_subject_is_not_a_field_state(self) -> None:
-        # 아직 분석되지 않은 subject 는 값 한 벌 자체가 없다. 검사기가 할 말이 없는 자리다.
-        analysed = [FILLED, MIXED]
-        self.assertTrue(all(check_valueset(d, TEMPLATE).ok for d in analysed))
-        self.assertNotIn("proposal-z", {d["subjectId"] for d in analysed})
+    def test_not_analysed_is_an_all_empty_valueset_not_a_state(self) -> None:
+        """아직 분석하지 않았다는 것도 구조가 아니라 **전부 비어 있는 값 한 벌과 주석**이 말한다.
+
+        상태를 새로 만드는 길은 막혀 있고(``TEMPLATE_DEFECTS``·``VALUE_DEFECTS`` 참조),
+        전부 빈 값 한 벌은 그냥 통과한다 — 그것이 이 언어가 미분석을 말하는 방법이다.
+        """
+        self.assertTrue(check_valueset(EMPTY, TEMPLATE).ok)
+        states = {
+            entry["state"]
+            for facet in EMPTY["facets"].values()
+            for entry in facet["fields"].values()
+        }
+        self.assertEqual(states, {"empty"})
 
 
 def mutate(base: dict, fn) -> dict:
@@ -228,28 +236,22 @@ class RenderArgs(unittest.TestCase):
         self.assertFalse(args.is_valid({"focus": 0}))
         self.assertFalse(args.is_valid({"sortBy": "score"}))
 
-    def test_subjects_are_part_of_the_contract(self) -> None:
-        """아직 분석되지 않은 subject 는 값 한 벌이 없다. 부르는 쪽이 말해 주지 않으면 그릴 수 없다."""
-        self.assertTrue(check_render_args({"subjects": [{"id": "a"}]}).ok)
-        self.assertTrue(check_render_args({"subjects": [{"id": "a", "label": "가"}], "focus": "a"}).ok)
-        self.assertTrue(check_render_args({}).ok, "주지 않으면 값 한 벌에서 뽑는다")
+    def test_the_roster_is_not_a_render_arg(self) -> None:
+        """subject 마다 값 한 벌이 정확히 하나 있으므로 값 한 벌들이 곧 명단이다.
 
-    def test_subject_id_is_the_handle_not_an_index(self) -> None:
-        self.assertFalse(check_render_args({"subjects": ["a", "b"]}).ok)
-        self.assertFalse(check_render_args({"subjects": [{"id": 0}]}).ok)
-        self.assertFalse(check_render_args({"subjects": []}).ok)
+        명단을 인자로 받으면 「값 한 벌이 없는 subject」라는 예외가 생기고, 그러면 왜 없는지를
+        언어가 분류하지 않는다는 규칙이 깨진다.
+        """
+        self.assertTrue(check_render_args({}).ok)
+        self.assertTrue(check_render_args({"focus": "a"}).ok)
+        result = check_render_args({"subjects": [{"id": "a"}]})
+        self.assertFalse(result.ok, "명단은 렌더 인자가 아니다")
+        self.assertIn("Additional properties", " | ".join(str(p) for p in result.problems))
 
-    def test_the_roster_carries_no_ranking(self) -> None:
-        for leak in ({"rank": 1}, {"score": 90}, {"grade": "A"}, {"weight": 2}, {"best": True}):
-            with self.subTest(leak):
-                result = check_render_args({"subjects": [{"id": "a", **leak}]})
-                self.assertFalse(result.ok)
-                self.assertIn("Additional properties", " | ".join(str(p) for p in result.problems))
-
-    def test_a_seat_cannot_be_claimed_twice(self) -> None:
-        result = check_render_args({"subjects": [{"id": "a"}, {"id": "a"}]})
-        self.assertFalse(result.ok)
-        self.assertIn("subject id 가 겹친다", " | ".join(str(p) for p in result.problems))
+    def test_the_schema_declares_focus_and_nothing_else(self) -> None:
+        args = documents()["weave-render-args.schema.json"]
+        self.assertEqual(list(args["properties"]), ["focus"])
+        self.assertNotIn("$defs", args, "자리(Seat) 정의가 남아 있다")
 
 
 if __name__ == "__main__":

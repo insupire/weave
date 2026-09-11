@@ -15,15 +15,17 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNANALYZED, UNDRAWABLE, formatScalar, renderView,
+  ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNDRAWABLE, formatScalar, renderView,
 } from "../viewer/render.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), "utf-8"));
+const parseJson = (t) => JSON.parse(t);
 
 // ---------------------------------------------------------------- 재료
 
-/** 값 상태 조합의 fixture. primitive element 다섯을 전부 쓰고 채움·빔·섞임 한 벌씩. */
+/** 값 상태 조합의 fixture. primitive element 다섯을 전부 쓰고 채움·빔·섞임 한 벌씩.
+ *  **subject 마다 값 한 벌이 정확히 하나 있다** — 그중 하나(proposal-b)가 전부 비어 있다. */
 const FIX = {
   template: read("tests/fixtures/ok/template.json"),
   filled: read("tests/fixtures/ok/values-filled.json"), // proposal-a · 전부 채움
@@ -31,12 +33,9 @@ const FIX = {
   mixed: read("tests/fixtures/ok/values-mixed.json"), // proposal-c · 섞임, 빈 목록 포함
 };
 FIX.values = [FIX.filled, FIX.empty, FIX.mixed];
-FIX.subjects = FIX.values.map((v) => ({ id: v.subjectId, label: v.subjectLabel }));
-/** 값 한 벌이 없는 subject 를 섞은 명단. 스키마가 아니라 뷰어의 인자다. */
-const WITH_UNANALYSED = [...FIX.subjects, { id: "proposal-z", label: "아직 안 본 제안서" }];
 
 const fix = (overrides = {}) =>
-  renderView({ template: FIX.template, values: FIX.values, subjects: FIX.subjects, focus: null, ...overrides });
+  renderView({ template: FIX.template, values: FIX.values, focus: null, ...overrides });
 
 // 뷰어가 띄우는 차례. sample.json 의 order 가 정한다.
 const sampleNames = fs
@@ -53,7 +52,7 @@ function sample(name) {
     .filter((f) => f.startsWith("values-") && f.endsWith(".json"))
     .sort()
     .map((f) => read(path.join(dir, f)));
-  // args 는 weave-render-args 문서 그대로다.
+  // args 는 weave-render-args 문서 그대로다 — 이제 focus 하나뿐이다.
   return { ...meta.args, name: meta.name, template: read(path.join(dir, "template.json")), values };
 }
 
@@ -61,7 +60,7 @@ function sample(name) {
 const elementPages = () => PAGES.filter((p) => p.kind === "element");
 
 const drawSample = (s, overrides = {}) =>
-  renderView({ template: s.template, values: s.values, subjects: s.subjects, focus: s.focus ?? null, ...overrides });
+  renderView({ template: s.template, values: s.values, focus: s.focus ?? null, ...overrides });
 
 /** 태그를 걷어낸 글. 사람이 화면에서 읽을 것에 가깝다. */
 const textOf = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
@@ -95,7 +94,7 @@ test("모르는 primitive element 는 조용히 넘어가지 않는다", () => {
 
 test("렌더 결과에 도구가 덧붙인 것이 없다", () => {
   // 오른쪽 판은 앱이 그대로 가져다 쓸 분석뷰다. 뷰어의 표시가 따라가면 안 된다.
-  const pages = [fix({ subjects: WITH_UNANALYSED, focus: "proposal-a" }).html,
+  const pages = [fix({ focus: "proposal-a" }).html,
                  ...sampleNames.map((name) => drawSample(sample(name)).html)];
   for (const html of pages) {
     for (const gone of [
@@ -119,13 +118,10 @@ test("렌더 결과에 도구가 덧붙인 것이 없다", () => {
 });
 
 test("걷어낸 것들은 화면 상태로 나가 뷰어가 바깥에 적는다", () => {
-  const { view } = fix({ subjects: WITH_UNANALYSED, focus: "proposal-b" });
+  const { view } = fix({ focus: "proposal-b" });
   assert.equal(view.focus, "proposal-b");
   assert.equal(view.focusMissing, null);
-  assert.deepEqual(
-    view.seats.map((s) => [s.id, s.analysed]),
-    [["proposal-a", true], ["proposal-b", true], ["proposal-c", true], ["proposal-z", false]],
-  );
+  assert.deepEqual(view.seats.map((s) => s.id), ["proposal-a", "proposal-b", "proposal-c"]);
 });
 
 test("primitive element 는 이름표가 아니라 구조로 남는다", () => {
@@ -157,7 +153,6 @@ test("값이 없는 facet 도 자리를 남기고 없다고 말한다", () => {
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
   assert.ok(shown.includes(NO_VALUE));
-  assert.ok(!shown.includes(UNANALYZED));
 });
 
 test("빈 목록은 값이 없는 것과 다르다", () => {
@@ -184,32 +179,62 @@ test("subject 가 하나여도 primitive element 다섯이 다 선다", () => {
   for (const element of Object.keys(ELEMENTS)) assert.ok(html.includes(`element-${element}`), element);
 });
 
-// ---------------------------------------------------------------- 미분석 subject
+// ------------------------------------ 값 한 벌 없는 subject 라는 것은 없다
 
-test("값 한 벌이 없는 subject 는 아직 분석 중으로 보인다", () => {
-  const { html } = fix({ subjects: WITH_UNANALYSED });
-  const shown = textOf(html);
-  assert.ok(shown.includes(UNANALYZED));
-  assert.ok(shown.includes("아직 안 본 제안서"));
-  assert.ok(html.includes('class="miss unanalyzed"'));
-  assert.ok(html.includes('class="miss empty"'));
-  // 명단 chip 이 아니라 facet 이 직접 말한다. 알약이 아니라 글이다.
-  assert.ok(!html.includes('class="badge"'), "알약을 두르지 않는다");
-  assert.ok(html.includes(`<small class="seat-note">${UNANALYZED}</small>`), "표 머리가 말해야 한다");
+test("자리는 값 한 벌이 정한다 — 명단을 따로 받지 않는다", () => {
+  // subject 마다 값 한 벌이 정확히 하나. 「값 한 벌이 없는 subject」라는 개념이 사라졌다.
+  const { view } = fix();
+  assert.deepEqual(view.seats.map((s) => s.id), FIX.values.map((v) => v.subjectId));
+  for (const seat of view.seats) assert.ok(!("analysed" in seat), "분석 여부라는 자리가 없다");
+  // 명단을 넘겨도 렌더가 받지 않는다.
+  const meddled = renderView({
+    template: FIX.template, values: FIX.values, subjects: [{ id: "proposal-z", label: "없는 자리" }],
+  });
+  assert.equal(meddled.html, fix().html, "명단은 렌더 인자가 아니다");
+  assert.ok(!meddled.html.includes("없는 자리"));
 });
 
-test("아무것도 분석되지 않아도 명단과 골격이 남는다", () => {
-  const { html } = renderView({ template: FIX.template, values: [], subjects: WITH_UNANALYSED });
+test("렌더 결과에 아직 분석 중이라는 상태가 없다", () => {
+  const pages = [fix().html, ...sampleNames.map((name) => drawSample(sample(name)).html)];
+  for (const html of pages) {
+    assert.ok(!html.includes("아직 분석 중"), "미분석 상태가 되살아났다");
+    assert.ok(!html.includes("unanalyz"), "미분석 표시가 되살아났다");
+    assert.ok(!html.includes("seat-note"));
+  }
+});
+
+test("렌더 인자는 focus 하나뿐이다", () => {
+  const args = read("schema/weave-render-args.schema.json");
+  assert.deepEqual(Object.keys(args.properties), ["focus"]);
+  assert.equal(args.additionalProperties, false);
+  assert.ok(!("$defs" in args), "자리(Seat) 정의가 남아 있다");
+});
+
+test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
+  // 아직 분석하지 않았다는 것을 구조가 아니라 **빈 값과 주석**이 말한다.
+  const said = "아직 분석하지 않았습니다.";
+  const blank = structuredClone(FIX.empty);
+  for (const facet of Object.values(blank.facets)) facet.notes = [{ kind: "caution", text: said }];
+  const { html } = renderView({ template: FIX.template, values: [FIX.filled, blank] });
   const shown = textOf(html);
-  // subjectLabel 이 없는 subject 는 id 로 선다 (proposal-c 가 그렇다).
-  for (const seat of WITH_UNANALYSED) assert.ok(shown.includes(seat.label ?? seat.id), seat.id);
+
+  for (const facet of FIX.template.facets) {
+    assert.ok(shown.includes(facet.title), facet.id); // 골격은 그대로
+    assert.ok(html.includes(`element-${facet.element}`), facet.id);
+  }
+  // 모든 facet 이 「값 없음」으로 그려지고
+  assert.equal((shown.match(new RegExp(NO_VALUE, "g")) ?? []).length >= FIX.template.facets.length, true);
+  // 주석이 이유를 facet 마다 말한다
+  assert.equal((shown.match(new RegExp(said, "g")) ?? []).length, FIX.template.facets.length);
+  // 옆자리는 멀쩡히 채워진다 — 「여럿 중 하나가 거의 비어 있다」는 조합이 그대로 산다
+  assert.ok(shown.includes("87,400원"));
+});
+
+test("값 한 벌이 하나도 없으면 골격만 남는다", () => {
+  const { html, view } = renderView({ template: FIX.template, values: [] });
+  const shown = textOf(html);
+  assert.deepEqual(view.seats, []);
   for (const facet of FIX.template.facets) assert.ok(shown.includes(facet.title), facet.id);
-});
-
-test("명단을 주지 않으면 분석된 subject 만 선다", () => {
-  const shown = textOf(renderView({ template: FIX.template, values: FIX.values }).html);
-  assert.ok(!shown.includes("아직 안 본 제안서"));
-  assert.ok(!shown.includes(UNANALYZED));
 });
 
 // ---------------------------------------------------------------- focus
@@ -228,9 +253,9 @@ test("focus 는 그 subject 하나만 잡는다", () => {
   assert.deepEqual(focusedNames(html), new Set(["가 제안서"]));
 });
 
-test("아직 분석되지 않은 subject 도 focus 가 된다", () => {
-  const { html } = fix({ subjects: WITH_UNANALYSED, focus: "proposal-z" });
-  assert.deepEqual(focusedNames(html), new Set(["아직 안 본 제안서"]));
+test("거의 비어 있는 subject 도 focus 가 된다", () => {
+  const { html } = fix({ focus: "proposal-b" });
+  assert.deepEqual(focusedNames(html), new Set(["나 제안서"]));
 });
 
 test("없는 id 면 focus 만 사라진다", () => {
@@ -270,7 +295,7 @@ test("값에 붙은 것과 facet 에 붙은 것이 모두 보인다", () => {
 });
 
 test("템플릿 주석은 아직 분석된 subject 가 하나도 없어도 남는다", () => {
-  const shown = textOf(renderView({ template: FIX.template, values: [], subjects: WITH_UNANALYSED }).html);
+  const shown = textOf(renderView({ template: FIX.template, values: [] }).html);
   for (const facet of FIX.template.facets) {
     assert.ok(facet.notes?.length, `${facet.id}: fixture 가 템플릿 주석을 가져야 한다`);
     for (const note of facet.notes) assert.ok(shown.includes(note.text), note.text.slice(0, 20));
@@ -436,11 +461,19 @@ test("샘플 넷이 전부 그려지고 아무것도 던지지 않는다", () =>
   }
 });
 
-test("값이 비는 경우와 미분석 subject 가 샘플에도 남아 있다", () => {
-  // 샘플을 가르는 축은 아니지만 그 상태들은 여전히 보여야 한다.
+test("값이 비는 경우가 샘플에도 남아 있다", () => {
+  // 샘플을 가르는 축은 아니지만 그 상태는 여전히 보여야 한다.
   const pages = sampleNames.map((name) => textOf(drawSample(sample(name)).html));
   assert.ok(pages.some((p) => p.includes(NO_VALUE)), "값 없음이 어느 샘플에도 없다");
-  assert.ok(pages.some((p) => p.includes(UNANALYZED)), "아직 분석 중이 어느 샘플에도 없다");
+  // 전부 빈 값 한 벌이 미분석의 자리를 이어받았다. 샘플에도 그 한 벌이 있어야 한다.
+  const allBlank = sampleNames.flatMap((name) =>
+    sample(name).values.filter((doc) =>
+      Object.values(doc.facets).every((f) => Object.values(f.fields).every((e) => e.state === "empty"))));
+  assert.ok(allBlank.length > 0, "전부 빈 값 한 벌이 어느 샘플에도 없다");
+  for (const doc of allBlank) {
+    const said = Object.values(doc.facets).flatMap((f) => f.notes ?? []);
+    assert.ok(said.length > 0, `${doc.subjectId}: 왜 비었는지 주석이 말해야 한다`);
+  }
 });
 
 // ---------------------------------------------------------------- primitive element 설명서
@@ -470,7 +503,7 @@ test("설명서의 보기가 자기가 말한 제약 안에 있다", () => {
 test("설명서의 보기가 그 자리에서 그려진다", () => {
   for (const row of elementPages()) {
     const { html, report } = renderView({
-      template: row.demo.template, values: row.demo.values, subjects: row.demo.subjects, focus: null,
+      template: row.demo.template, values: row.demo.values, focus: null,
     });
     assert.deepEqual(report, [], `${row.id}: ${report.join(" | ")}`);
     assert.ok(html.includes(`element-${row.id}`), row.id);
@@ -532,57 +565,45 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   assert.ok(markup.includes('id="add-subject"') && markup.includes('id="drop-subject"'));
   for (const tab of nodes.get("tabs").children) assert.ok(!String(tab.innerHTML).includes("명단"));
 
-  // **탭은 subject 단위다.** 명단에 있는 subject 는 값 한 벌이 있든 없든 전부 탭을 갖는다.
+  // **탭은 값 한 벌마다 하나다.** subject 마다 값 한 벌이 정확히 하나이므로 탭이 곧 subject 다.
   const sample0 = sample(sampleNames[0]);
   const tabNames = () => nodes.get("tabs").children.map((t) => String(t.innerHTML));
-  assert.equal(tabNames().length, sample0.subjects.length + 1, "템플릿 하나 + subject 마다 하나");
-  for (const seat of sample0.subjects) {
-    assert.ok(tabNames().some((n) => n.includes(seat.label)), `탭이 없다: ${seat.id}`);
+  assert.equal(tabNames().length, sample0.values.length + 1, "템플릿 하나 + 값 한 벌마다 하나");
+  for (const doc of sample0.values) {
+    assert.ok(tabNames().some((n) => n.includes(doc.subjectLabel ?? doc.subjectId)), `탭이 없다: ${doc.subjectId}`);
   }
-  // 값 한 벌이 없는 subject 의 탭이 그 사실을 말한다. 묶는 말은 없다.
-  const analysed = new Set(sample0.values.map((v) => v.subjectId));
-  const blankSeat = sample0.subjects.find((s) => !analysed.has(s.id));
-  assert.ok(blankSeat, "샘플에 아직 분석되지 않은 subject 가 있어야 한다");
-  assert.ok(tabNames().some((n) => n.includes(blankSeat.label) && n.includes("분석 전")));
   assert.ok(!markup.includes("tab-group"), "묶는 말이 돌아왔다");
+  assert.ok(!markup.includes("분석 전"), "미분석 표시가 되살아났다");
+  assert.ok(!markup.includes("no-values") && !markup.includes("drop-values"),
+    "값 한 벌만 지우고 만드는 길이 되살아났다");
 
   const click = (id) => nodes.get(id)._on.click();
   const seats = () => nodes.get("focus-buttons").children.length; // none + 자리들
-  const tabs = () => nodes.get("tabs").children.length; // 템플릿 + subject 마다 하나
-  const unanalysed = () => (nodes.get("view").innerHTML.match(new RegExp(UNANALYZED, "g")) ?? []).length;
+  const tabs = () => nodes.get("tabs").children.length; // 템플릿 + 값 한 벌마다 하나
+  const blanks = () => (nodes.get("view").innerHTML.match(new RegExp(NO_VALUE, "g")) ?? []).length;
   const before = seats();
   const beforeTabs = tabs();
+  const wasBlank = blanks();
 
-  // **더하는 동작은 하나다** — 자리와 값 한 벌이 함께 생긴다.
+  // **더하고 지우는 것은 subject 하나뿐이다.** 더하면 전부 비어 있는 값 한 벌이 생긴다 —
+  // 그것이 「아직 분석하지 않았다」를 만드는 길이다.
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"), "새 자리는 아직 없다");
   click("add-subject");
   assert.equal(seats(), before + 1, "자리가 하나 늘어야 한다");
-  assert.equal(tabs(), beforeTabs + 1, "subject 탭이 함께 생겨야 한다");
+  assert.equal(tabs(), beforeTabs + 1, "탭이 함께 생겨야 한다");
   assert.ok(nodes.get("view").innerHTML.includes(">subject-"), "새 자리가 분석뷰에 서야 한다");
-  assert.equal(nodes.get("editor").hidden, false, "값 한 벌이 있으니 편집기가 선다");
-  assert.equal(nodes.get("drop-values").hidden, false, "지울 값 한 벌이 있다");
+  assert.ok(blanks() > wasBlank, "새 자리의 모든 facet 이 값 없음으로 그려져야 한다");
+  const made = parseJson(nodes.get("editor").value);
+  assert.ok(Object.values(made.facets).every((f) => Object.values(f.fields).every((e) => e.state === "empty")),
+    "만들어진 값 한 벌이 전부 비어 있어야 한다");
+  assert.ok(Object.values(made.facets).every((f) => (f.notes ?? []).length > 0),
+    "왜 비었는지 주석이 말해야 한다");
 
-  // **미분석을 만드는 길** — 값 한 벌만 지운다. **탭은 남고** 그 자리가 아직 분석 중이 된다.
-  const wasUnanalysed = unanalysed();
-  click("drop-values");
-  assert.equal(seats(), before + 1, "자리는 남는다");
-  assert.equal(tabs(), beforeTabs + 1, "탭도 남는다 — 탭은 subject 단위다");
-  assert.ok(unanalysed() > wasUnanalysed, "아직 분석 중이 하나 늘어야 한다");
-  assert.equal(nodes.get("editor").hidden, true, "편집기 대신 분석 전 안내가 선다");
-  assert.equal(nodes.get("no-values").hidden, false);
-  assert.ok(nodes.get("no-values-said").textContent.includes("아직 분석 전"));
-  assert.equal(nodes.get("drop-values").hidden, true, "지울 값 한 벌이 없다");
-  assert.ok(nodes.get("tabs").children.some((t) => String(t.innerHTML).includes("분석 전")));
-
-  // 그 자리에서 값 한 벌을 만들 수 있다 — 위의 되돌리기다.
-  click("make-values");
-  assert.equal(unanalysed(), wasUnanalysed, "미분석이 도로 줄어야 한다");
-  assert.equal(nodes.get("editor").hidden, false);
-
-  // 자리까지 지우는 길은 따로 있다.
+  // 지우는 길은 하나다.
   click("drop-subject");
   assert.equal(seats(), before, "자리가 도로 줄어야 한다");
   assert.equal(tabs(), beforeTabs, "탭도 도로 줄어야 한다");
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"));
+  assert.equal(blanks(), wasBlank);
   fs.rmSync(path.dirname(file), { recursive: true, force: true });
 });

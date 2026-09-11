@@ -106,13 +106,7 @@ label:has(input) { display:inline-flex; align-items:center; gap:5px; }
 /* 탭 하나가 곧 subject 다. 템플릿은 하나뿐이라 홀로 앞에 서고, 사이를 자리(간격)가 가른다.
    묶는 말을 두지 않는다 — 탭이 이미 subject 인데 그 위에 또 적으면 같은 말을 두 번 한다. */
 .tab-subject:first-of-type { margin-left:16px; }
-/* 아직 분석 전임을 장식이 아니라 글과 색조로 말한다. 분석뷰의 「아직 분석 중」과 같은 기울기다. */
-.tab-state { font-size:11px; font-style:italic; color:var(--mute); margin-left:5px; font-weight:400; }
 
-/* 값 한 벌이 없는 subject 를 고른 자리 */
-.no-values { flex:1; padding:20px 16px; }
-.no-values[hidden] { display:none; }
-.no-values p { margin:0 0 12px; font-size:13px; color:var(--mute); max-width:48ch; }
 textarea { flex:1; width:100%; margin:0; border:none; padding:14px;
   resize:none; background:#ffffff; color:var(--ink);
   font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
@@ -139,11 +133,7 @@ th.is-focus, .card.is-focus, .bar-row.is-focus, .list-block.is-focus {
 .body { margin-top:10px; }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 .who { font-size:12.5px; color:var(--mute); }
-/* 열 머리에 붙는 말. 알약이 아니다. */
-.seat-note { display:block; font-size:11px; font-weight:400; font-style:italic; color:var(--mute); white-space:nowrap; }
 .miss { font-size:12.5px; color:var(--mute); }
-/* 「아직 분석 중」과 「값 없음」은 말이 다르고 기울기가 다르다. 빗금을 치지 않는다. */
-.miss.unanalyzed { font-style:italic; }
 .dash { color:var(--mute); }
 /* 틀이 아니라 자리다 */
 .blank { padding:4px 0 8px; }
@@ -244,19 +234,12 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
             <label for="sample">샘플</label>
             <select id="sample"></select>
             <button type="button" id="add-subject"
-              title="자리와 값 한 벌이 함께 생긴다">＋ subject</button>
+              title="전부 비어 있는 값 한 벌이 생긴다">＋ subject</button>
             <button type="button" id="drop-subject"
-              title="지금 보고 있는 subject 를 자리까지 지운다. 템플릿 탭에서는 마지막 자리">－ subject</button>
-            <button type="button" id="drop-values"
-              title="값 한 벌만 지운다. 자리가 남아 「아직 분석 중」이 된다">－ 값 한 벌</button>
+              title="지금 보고 있는 subject 를 지운다. 템플릿 탭에서는 마지막 것">－ subject</button>
           </div>
           <div class="tabs" id="tabs"></div>
           <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
-          <!-- 값 한 벌이 없는 subject 의 탭. 그 사실을 말하고 거기서 만들 수 있다. -->
-          <div class="no-values" id="no-values" hidden>
-            <p id="no-values-said"></p>
-            <button type="button" id="make-values">값 한 벌 만들기</button>
-          </div>
           <div class="strip" id="strip"></div>
         </div>
         <div class="pane view">
@@ -278,6 +261,9 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 // 고정 케이스를 걸 수 있다 (`tests/viewer.test.mjs`).
 //
 // **facet 종류를 아는 분기가 없다.** element 로만 고른다 (ELEMENTS 표).
+// **subject 마다 값 한 벌이 정확히 하나 있다.** 비어 있을 수 있고, 누가 자리에 서는지는 그 값 한 벌들이
+// 말한다 — 명단을 따로 받지 않는다. 아직 분석되지 않았다는 것도 특별한 상태가 아니라
+// **전부 비어 있는 값 한 벌과 주석**이 말한다.
 // **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
 // 자리를 표시하고 무엇이 이상한지 적기만 한다.
 
@@ -286,7 +272,6 @@ svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
 const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
 
 const NO_VALUE = "값 없음";
-const UNANALYZED = "아직 분석 중";
 const NO_ITEMS = "항목 없음";
 const UNDRAWABLE = "그리지 못한다";
 
@@ -305,7 +290,7 @@ function esc(text) {
 // ---------------------------------------------------------------- 값 읽기
 
 function cell(valueset, facetId, key) {
-  if (!valueset) return { state: "unanalyzed", entry: null };
+  if (!valueset) return { state: "empty", entry: null };
   const facet = valueset.facets?.[facetId];
   if (!facet) return { state: "empty", entry: null };
   const entry = facet.fields?.[key];
@@ -373,10 +358,9 @@ function notesHtml(notes, where = "") {
   return `<ul class="notes">${rows.join("")}</ul>`;
 }
 
-function stateSpan(state) {
-  return state === "unanalyzed"
-    ? `<span class="miss unanalyzed">${UNANALYZED}</span>`
-    : `<span class="miss empty">${NO_VALUE}</span>`;
+/** 값이 없다는 말. 갈래가 하나뿐이다 — 왜 없는지는 주석이 글로 말한다. */
+function stateSpan() {
+  return `<span class="miss empty">${NO_VALUE}</span>`;
 }
 
 function subClass(subject, focus) {
@@ -405,7 +389,7 @@ function stat(ctx, facet) {
     const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     const body =
-      state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan(state);
+      state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
     return (
       `<div class="card ${subClass(subject, ctx.focus)}">` +
       `<div class="who">${esc(subject.name)}</div><div class="big">${body}</div>` +
@@ -418,18 +402,14 @@ function stat(ctx, facet) {
 function facts(ctx, facet) {
   const head = ['<th class="corner">항목</th>'];
   for (const subject of ctx.subjects) {
-    const badge = ctx.byId.has(subject.id) ? "" : `<small class="seat-note">${UNANALYZED}</small>`;
-    head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}${badge}</th>`);
+    head.push(`<th class="${subClass(subject, ctx.focus)}">${esc(subject.name)}</th>`);
   }
   const rows = facet.fields.map((decl) => {
     const cells = [`<th class="row-label" scope="row">${esc(decl.label ?? decl.key)}</th>`];
     for (const subject of ctx.subjects) {
       const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
       const where = `${facet.id}/${decl.key}/${subject.id}`;
-      let inner;
-      if (state === "filled") inner = drawCell(ctx.report, where, decl, entry.value);
-      else if (state === "unanalyzed") inner = `<span class="dash" title="${UNANALYZED}">—</span>`;
-      else inner = stateSpan(state);
+      const inner = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
       const focused = subject.id === ctx.focus ? " is-focus" : "";
       cells.push(`<td class="cell ${state}${focused}">${inner}${notesHtml(entry?.notes)}</td>`);
     }
@@ -460,7 +440,7 @@ function bars(ctx, facet) {
           text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(value));
         }
       } else {
-        text = stateSpan(state);
+        text = stateSpan();
       }
       return (
         `<div class="bar-row ${subClass(subject, ctx.focus)}">` +
@@ -484,7 +464,7 @@ function line(ctx, facet) {
     if (state !== "filled") {
       misses.push(
         `<div class="${subClass(subject, ctx.focus)} miss-row">` +
-          `<span class="who">${esc(subject.name)}</span>${stateSpan(state)}${notesHtml(entry?.notes)}</div>`,
+          `<span class="who">${esc(subject.name)}</span>${stateSpan()}${notesHtml(entry?.notes)}</div>`,
       );
       continue;
     }
@@ -576,7 +556,7 @@ function list(ctx, facet) {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     let body;
     if (state !== "filled") {
-      body = `<div class="blank">${stateSpan(state)}</div>`;
+      body = `<div class="blank">${stateSpan()}</div>`;
     } else if (!Array.isArray(entry.value)) {
       body = `<div class="blank">${undrawable(ctx.report, where, "목록은 항목의 배열을 요구한다", JSON.stringify(entry.value).slice(0, 80))}</div>`;
     } else if (entry.value.length === 0) {
@@ -609,9 +589,9 @@ const ELEMENTS = { stat, facts, bars, line, list };
 // ---------------------------------------------------------------- 페이지
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
-function viewState(seats, byId, focus, wanted) {
+function viewState(seats, focus, wanted) {
   return {
-    seats: seats.map((s) => ({ ...s, analysed: byId.has(s.id) })),
+    seats,
     focus,
     // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
     focusMissing: wanted && !focus ? wanted : null,
@@ -621,14 +601,14 @@ function viewState(seats, byId, focus, wanted) {
 /**
  * 분석뷰 하나를 HTML 로 그린다.
  *
- * @param {object} input  { template, values, subjects, focus }
- *   - subjects 를 주면 그 순서와 명단대로 자리를 잡는다. 값 한 벌이 없는 subject 는 「아직 분석 중」이다.
+ * @param {object} input  { template, values, focus }
+ *   - 자리와 그 차례는 **값 한 벌들이 정한다.** 명단을 따로 받지 않는다.
  *   - focus 는 subject 의 id. null 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다.
  * @returns {{html: string, report: string[], view: object|null}}
  *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
  *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
  */
-function renderView({ template, values = [], subjects = null, focus = null } = {}) {
+function renderView({ template, values = [], focus = null } = {}) {
   const report = [];
   if (!template || typeof template !== "object" || Array.isArray(template)) {
     // 그릴 분석뷰가 없다. 빈 판을 내고 무슨 일인지는 왼쪽이 말한다.
@@ -643,13 +623,8 @@ function renderView({ template, values = [], subjects = null, focus = null } = {
     }
   }
 
-  let roll = subjects;
-  if (!Array.isArray(roll) || roll.length === 0) {
-    roll = [...byId.values()].map((v) => ({ id: v.subjectId, label: v.subjectLabel }));
-  }
-  const seats = roll
-    .filter((s) => s && typeof s.id === "string")
-    .map((s) => ({ id: s.id, name: s.label || byId.get(s.id)?.subjectLabel || s.id }));
+  // 자리는 값 한 벌들이 정한다. 차례는 넘어온 차례이고 배치일 뿐 우열이 아니다.
+  const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
 
   const wanted = focus;
   const seated = seats.some((s) => s.id === wanted) ? wanted : null;
@@ -697,7 +672,7 @@ function renderView({ template, values = [], subjects = null, focus = null } = {
   // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
   const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html, report, view: viewState(seats, byId, seated, wanted) };
+  return { html, report, view: viewState(seats, seated, wanted) };
 }
 
 // ---- viewer/samples.mjs ----
@@ -719,27 +694,13 @@ const SAMPLES = {
       {
         "id": "proposal-c",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-c\",\n  \"subjectLabel\": \"다 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"filled\",\n          \"value\": 29900,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 29,900원\" }]\n        }\n      }\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": { \"state\": \"filled\", \"value\": 480 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 80 },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"min\": 15, \"max\": 60 } }\n      },\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"주계약 하나뿐이라 계약사항 표가 짧습니다.\" }\n      ]\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": {\n          \"state\": \"filled\",\n          \"value\": 60,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }]\n        }\n      }\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"암만 보장하는 상품이라 사망보장이 없습니다.\" }]\n        },\n        \"cancer\": { \"state\": \"filled\", \"value\": 20000000 },\n        \"brain\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"뇌혈관질환은 보장하지 않습니다.\" }]\n        }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 29900 },\n            { \"at\": 45, \"value\": 38100 },\n            { \"at\": 50, \"value\": 49700 }\n          ],\n          \"notes\": [\n            { \"kind\": \"caution\", \"text\": \"예시표가 50세까지만 있습니다. 만기가 80세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [],\n          \"notes\": [\n            { \"kind\": \"tip\", \"text\": \"특약 없이 주계약 하나로만 된 설계입니다. 보장은 단순하지만 빠진 위험이 많다는 뜻이기도 합니다.\" }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "proposal-d",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-d\",\n  \"subjectLabel\": \"라 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": {\n          \"state\": \"empty\"\n        },\n        \"maturity-age\": {\n          \"state\": \"empty\"\n        },\n        \"entry-age\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": {\n          \"state\": \"empty\"\n        },\n        \"renewal-cycle\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": {\n          \"state\": \"empty\"\n        },\n        \"cancer\": {\n          \"state\": \"empty\"\n        },\n        \"brain\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "proposal-a",
-          "label": "가 제안서"
-        },
-        {
-          "id": "proposal-b",
-          "label": "나 제안서"
-        },
-        {
-          "id": "proposal-c",
-          "label": "다 제안서"
-        },
-        {
-          "id": "proposal-d",
-          "label": "라 제안서"
-        }
-      ],
       "focus": "proposal-b"
     }
   },
@@ -761,20 +722,6 @@ const SAMPLES = {
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "plan-a",
-          "label": "가 설계"
-        },
-        {
-          "id": "plan-b",
-          "label": "나 설계"
-        },
-        {
-          "id": "plan-c",
-          "label": "다 설계"
-        }
-      ],
       "focus": null
     }
   },
@@ -793,27 +740,13 @@ const SAMPLES = {
       {
         "id": "plan-c",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-table-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 설계\",\n  \"facets\": {\n    \"terms\": {\n      \"fields\": {\n        \"first-premium\": { \"state\": \"filled\", \"value\": 29900 },\n        \"pay-cycle\": { \"state\": \"empty\" },\n        \"payment-period\": { \"state\": \"empty\" },\n        \"insured-age\": { \"state\": \"filled\", \"value\": 45 },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"max\": 60 } },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 80 },\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60 },\n        \"main-amount\": { \"state\": \"filled\", \"value\": 20000000 },\n        \"start-date\": { \"state\": \"empty\" }\n      },\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"계약사항표 오른쪽이 잘려 있어 납입 관련 칸을 읽지 못했습니다.\" }\n      ]\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-d",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-table-1\",\n  \"subjectId\": \"plan-d\",\n  \"subjectLabel\": \"라 설계\",\n  \"facets\": {\n    \"terms\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"empty\"\n        },\n        \"pay-cycle\": {\n          \"state\": \"empty\"\n        },\n        \"payment-period\": {\n          \"state\": \"empty\"\n        },\n        \"insured-age\": {\n          \"state\": \"empty\"\n        },\n        \"entry-age\": {\n          \"state\": \"empty\"\n        },\n        \"maturity-age\": {\n          \"state\": \"empty\"\n        },\n        \"renews\": {\n          \"state\": \"empty\"\n        },\n        \"renewal-cycle\": {\n          \"state\": \"empty\"\n        },\n        \"main-amount\": {\n          \"state\": \"empty\"\n        },\n        \"start-date\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 설계안이 도착했지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "plan-a",
-          "label": "가 설계"
-        },
-        {
-          "id": "plan-b",
-          "label": "나 설계"
-        },
-        {
-          "id": "plan-c",
-          "label": "다 설계"
-        },
-        {
-          "id": "plan-d",
-          "label": "라 설계"
-        }
-      ],
       "focus": "plan-a"
     }
   },
@@ -822,33 +755,19 @@ const SAMPLES = {
     "template": "{\n  \"weave\": \"1\",\n  \"id\": \"renewal-watch-1\",\n  \"title\": \"갱신되면 얼마가 되나\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"지금 내는 돈\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료는 뺀다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"지금 싼 것이 계속 싼 것은 아닙니다. 아래 갱신 곡선과 함께 봅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신 조건\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 비운다.\"\n        },\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 비우고 종신이라고 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"갱신주기가 짧을수록 보험료가 자주 조금씩 오르고, 길수록 드물게 많이 오릅니다.\" },\n        { \"kind\": \"tip\", \"text\": \"비갱신형은 납입기간이 끝나면 더 내지 않습니다. 갱신형 전기납은 보장받는 내내 냅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"나이에 따른 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\" },\n        { \"kind\": \"note\", \"text\": \"선이 없는 설계는 갱신 예시표가 없다는 뜻이지 보험료가 오르지 않는다는 증거는 아닙니다.\" }\n      ]\n    }\n  ]\n}\n",
     "values": [
       {
-        "id": "plan-five",
-        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-five\",\n  \"subjectLabel\": \"5년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 33500 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60, \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 33500 },\n            { \"at\": 45, \"value\": 42700 },\n            { \"at\": 50, \"value\": 55900 },\n            { \"at\": 55, \"value\": 74300 },\n            { \"at\": 60, \"value\": 99800 }\n          ],\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"예시표가 60세까지만 있습니다. 만기가 90세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
-      },
-      {
         "id": "plan-keep",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-keep\",\n  \"subjectLabel\": \"비갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 96800, \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 96,800원\" }] } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": false },\n        \"renewal-cycle\": { \"state\": \"empty\", \"notes\": [{ \"kind\": \"note\", \"text\": \"비갱신형이라 갱신주기가 없습니다.\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 240 },\n        \"maturity-age\": { \"state\": \"empty\", \"notes\": [{ \"kind\": \"note\", \"text\": \"종신 보장입니다.\" }] }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"비갱신형이라 갱신 예시표가 설계안에 없습니다. 20년 뒤까지 96,800원 그대로입니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
       },
       {
         "id": "plan-ten",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-ten\",\n  \"subjectLabel\": \"10년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 41200 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 120, \"notes\": [{ \"kind\": \"quote\", \"text\": \"10년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600, \"notes\": [{ \"kind\": \"note\", \"text\": \"전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다.\" }] },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 41200 },\n            { \"at\": 50, \"value\": 62800 },\n            { \"at\": 60, \"value\": 104500 },\n            { \"at\": 70, \"value\": 188300 },\n            { \"at\": 80, \"value\": 331000 }\n          ],\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"설계안 4쪽 「갱신 시 예상보험료」 표\" }]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-five",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-five\",\n  \"subjectLabel\": \"5년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 33500 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60, \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 33500 },\n            { \"at\": 45, \"value\": 42700 },\n            { \"at\": 50, \"value\": 55900 },\n            { \"at\": 55, \"value\": 74300 },\n            { \"at\": 60, \"value\": 99800 }\n          ],\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"예시표가 60세까지만 있습니다. 만기가 90세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "plan-keep",
-          "label": "비갱신 설계"
-        },
-        {
-          "id": "plan-ten",
-          "label": "10년 갱신 설계"
-        },
-        {
-          "id": "plan-five",
-          "label": "5년 갱신 설계"
-        }
-      ],
       "focus": "plan-five"
     }
   }
@@ -895,16 +814,6 @@ const PAGES = [
     ],
     "everyType": true,
     "demo": {
-      "subjects": [
-        {
-          "id": "a",
-          "label": "가"
-        },
-        {
-          "id": "b",
-          "label": "나"
-        }
-      ],
       "template": {
         "weave": "1",
         "id": "demo-stat",
@@ -1003,16 +912,6 @@ const PAGES = [
     ],
     "everyType": true,
     "demo": {
-      "subjects": [
-        {
-          "id": "a",
-          "label": "가"
-        },
-        {
-          "id": "b",
-          "label": "나"
-        }
-      ],
       "template": {
         "weave": "1",
         "id": "demo-facts",
@@ -1134,16 +1033,6 @@ const PAGES = [
     ],
     "everyType": false,
     "demo": {
-      "subjects": [
-        {
-          "id": "a",
-          "label": "가"
-        },
-        {
-          "id": "b",
-          "label": "나"
-        }
-      ],
       "template": {
         "weave": "1",
         "id": "demo-bars",
@@ -1247,16 +1136,6 @@ const PAGES = [
     ],
     "everyType": false,
     "demo": {
-      "subjects": [
-        {
-          "id": "a",
-          "label": "가"
-        },
-        {
-          "id": "b",
-          "label": "나"
-        }
-      ],
       "template": {
         "weave": "1",
         "id": "demo-line",
@@ -1370,16 +1249,6 @@ const PAGES = [
     ],
     "everyType": true,
     "demo": {
-      "subjects": [
-        {
-          "id": "a",
-          "label": "가"
-        },
-        {
-          "id": "b",
-          "label": "나"
-        }
-      ],
       "template": {
         "weave": "1",
         "id": "demo-list",
@@ -1491,7 +1360,7 @@ const PAGES = [
     "lead": "왼쪽에서 템플릿과 값을 고치면 오른쪽 분석뷰가 그 자리에서 바뀐다.",
     "paragraphs": [
       "여기는 JSON 으로 읽히는지만 본다. 스키마 판정은 검사기가 한다 — python -m weave template tpl.json · python -m weave values --template tpl.json values-a.json · python -m weave args args.json",
-      "subject 를 더하고 빼는 것은 화면의 동작이다. 값 한 벌 없이 자리만 더하면 아직 분석 중으로 선다."
+      "subject 를 더하고 빼는 것은 화면의 동작이다. 더하면 전부 비어 있는 값 한 벌이 생긴다 — subject 마다 값 한 벌이 정확히 하나 있고, 아직 분석하지 않았다는 것도 빈 값과 주석이 말한다."
     ]
   }
 ];
@@ -1512,9 +1381,8 @@ const state = {
   page: PAGES[0].id,
   sample: null,
   templateText: "", // 템플릿 하나. 모든 값이 여기 매인다
-  values: {}, // subjectId → 값 한 벌의 글. 없는 자리는 키가 없다
-  subjects: [], // 명단. weave-render-args 의 subjects 다
-  active: "template", // "template" 또는 subject 의 id. 탭은 subject 단위다
+  values: [], // 값 한 벌들의 글. **subject 마다 정확히 하나이고 이것이 곧 명단이다**
+  active: 0, // 0 은 템플릿, 1 부터는 values 의 자리
   focus: null,
   seq: 0,
   showElements: false, // primitive element 이름. 분석뷰의 것이 아니라 설명서의 것이라 기본은 끔
@@ -1559,12 +1427,7 @@ function guidePage(page) {
 }
 
 function elementPage(page) {
-  const { html } = renderView({
-    template: page.demo.template,
-    values: page.demo.values,
-    subjects: page.demo.subjects,
-    focus: null,
-  });
+  const { html } = renderView({ template: page.demo.template, values: page.demo.values, focus: null });
   const types = page.everyType
     ? `${page.types.length} 가지 전부`
     : page.types.map((t) => `<code>${esc(t)}</code>`).join(" · ");
@@ -1585,21 +1448,18 @@ function elementPage(page) {
 
 // ---------------------------------------------------------------- 플레이그라운드
 //
-// **탭은 subject 단위다.** 명단에 있는 subject 는 값 한 벌이 있든 없든 전부 탭을 갖는다.
-// 탭 하나가 곧 subject 이므로 「값 한 벌」이라고 또 적지 않는다.
-//
-// 계약은 그대로다 — subject 는 비교 대상 자체이고 값 한 벌은 그것에 대해 분석이 알아낸 것이다.
-// 둘이 같다면 「subject 는 있는데 값이 아직 없다」를 말할 수 없다. 합친 것은 화면의 탭뿐이다.
+// **탭은 값 한 벌마다 하나다.** subject 마다 값 한 벌이 정확히 하나 있으므로 탭이 곧 subject 다.
+// 값 한 벌이 없는 subject 라는 것이 없으니 자리와 값을 가르던 상태도 없다.
+// 아직 분석하지 않았다는 것은 **전부 비어 있는 값 한 벌과 주석**이 말한다.
 
 function loadSample(key) {
   const sample = SAMPLES[key];
   state.sample = key;
   state.templateText = sample.template;
-  state.values = Object.fromEntries(sample.values.map((v) => [v.id, v.text]));
-  state.subjects = sample.args.subjects.map((s) => ({ ...s }));
+  state.values = sample.values.map((v) => v.text);
   state.focus = sample.args.focus ?? null;
-  state.active = "template";
-  state.seq = state.subjects.length;
+  state.active = 0;
+  state.seq = state.values.length;
   // 플레이그라운드의 DOM 은 쪽을 보고 있지 않아도 채워 둔다 — 옮겨 가도 편집 중인 글이 산다.
   drawTabs();
   drawEditor();
@@ -1614,12 +1474,11 @@ function parse(text) {
   }
 }
 
-const seatOf = (id) => state.subjects.find((s) => s.id === id);
-const hasValues = (id) => Object.prototype.hasOwnProperty.call(state.values, id);
-/** 탭 이름. 명단의 이름을 쓰고, 없으면 값 한 벌의 것을, 그것도 없으면 id 를 쓴다. */
-const seatName = (seat) => seat.label || parse(state.values[seat.id] ?? "").doc?.subjectLabel || seat.id;
-/** 지금 보고 있는 subject. 템플릿 탭이면 마지막 자리. */
-const aimedSeat = () => seatOf(state.active) ?? state.subjects[state.subjects.length - 1];
+/** 탭 이름. 값 한 벌이 스스로 말한다 — 명단을 따로 두지 않는다. */
+function nameOf(text, index) {
+  const { doc } = parse(text);
+  return doc?.subjectLabel || doc?.subjectId || `값 한 벌 ${index + 1}`;
+}
 
 function read() {
   const problems = [];
@@ -1631,11 +1490,10 @@ function read() {
   };
   const template = take("템플릿", state.templateText);
   const values = [];
-  for (const seat of state.subjects) {
-    if (!hasValues(seat.id)) continue;
-    const doc = take(seatName(seat), state.values[seat.id]);
+  state.values.forEach((text, index) => {
+    const doc = take(nameOf(text, index), text);
     if (doc) values.push(doc);
-  }
+  });
   return { template, values, problems };
 }
 
@@ -1646,57 +1504,38 @@ function escapeText(text) {
 }
 
 function stash() {
-  if (state.active === "template") state.templateText = $("editor").value;
-  else if (hasValues(state.active)) state.values[state.active] = $("editor").value;
+  if (state.active === 0) state.templateText = $("editor").value;
+  else state.values[state.active - 1] = $("editor").value;
 }
 
 function drawTabs() {
   const bar = $("tabs");
   bar.innerHTML = "";
   const tabs = [
-    { id: "template", name: "템플릿", blank: false, text: state.templateText },
-    ...state.subjects.map((seat) => ({
-      id: seat.id,
-      name: seatName(seat),
-      blank: !hasValues(seat.id),
-      text: state.values[seat.id],
-    })),
+    { name: "템플릿", text: state.templateText, template: true },
+    ...state.values.map((text, index) => ({ name: nameOf(text, index), text, template: false })),
   ];
-  for (const tab of tabs) {
+  tabs.forEach((tab, index) => {
     const button = document.createElement("button");
-    button.className = tab.id === "template" ? "tab tab-template" : "tab tab-subject";
+    button.className = tab.template ? "tab tab-template" : "tab tab-subject";
     button.type = "button";
-    button.setAttribute("aria-pressed", String(tab.id === state.active));
-    const broken = !tab.blank && tab.text && tab.text.trim() !== "" && parse(tab.text).error;
-    // 아직 분석 전임을 장식이 아니라 글로 말한다.
-    const state_mark = tab.blank ? ' <small class="tab-state">분석 전</small>' : "";
-    button.innerHTML = `${escapeText(tab.name)}${state_mark}${broken ? ' <span class="bad">!</span>' : ""}`;
+    button.setAttribute("aria-pressed", String(index === state.active));
+    const broken = tab.text && tab.text.trim() !== "" && parse(tab.text).error;
+    button.innerHTML = `${escapeText(tab.name)}${broken ? ' <span class="bad">!</span>' : ""}`;
     button.addEventListener("click", () => {
       stash();
-      state.active = tab.id;
+      state.active = index;
       drawTabs();
       drawEditor();
-      refresh();
     });
     bar.appendChild(button);
-  }
+  });
 }
 
 function drawEditor() {
-  const blank = state.active !== "template" && !hasValues(state.active);
-  $("editor").hidden = blank;
-  $("no-values").hidden = !blank;
-  $("drop-values").hidden = blank || state.active === "template";
-  if (blank) {
-    const seat = seatOf(state.active);
-    // 「에」는 받침을 타지 않아 어느 이름 뒤에도 붙는다.
-    $("no-values-said").textContent =
-      `아직 분석 전입니다. 「${seat ? seatName(seat) : state.active}」에 값 한 벌이 없어 분석뷰에서 「아직 분석 중」으로 섭니다.`;
-    return;
-  }
   const editor = $("editor");
-  editor.value = state.active === "template" ? state.templateText : state.values[state.active];
-  editor.setAttribute("aria-label", state.active === "template" ? "템플릿" : state.active);
+  editor.value = state.active === 0 ? state.templateText : state.values[state.active - 1];
+  editor.setAttribute("aria-label", state.active === 0 ? "템플릿" : nameOf(editor.value, state.active - 1));
 }
 
 /** focus 를 짧게 나열한다. 항목은 none 과 각 subject 의 이름이다. */
@@ -1722,16 +1561,11 @@ function drawFocus(seats) {
 
 function refresh() {
   const { template, values, problems } = read();
-  const { html, report, view } = renderView({
-    template,
-    values,
-    subjects: state.subjects,
-    focus: state.focus,
-  });
+  const { html, report, view } = renderView({ template, values, focus: state.focus });
   // 오른쪽 판은 분석뷰뿐이다. 이름표는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
-  drawFocus(view?.seats ?? state.subjects.map((s) => ({ id: s.id, name: seatName(s) })));
+  drawFocus(view?.seats ?? []);
 
   const all = [...problems, ...report];
   const strip = $("strip");
@@ -1743,59 +1577,34 @@ function refresh() {
 
 // ------------------------------------------------ subject 를 더하고 빼는 것은 화면의 동작이다
 
-function skeleton(seat) {
-  const { doc } = parse(state.templateText);
-  const out = { weave: "1", templateId: doc?.id ?? "", subjectId: seat.id, subjectLabel: seatName(seat), facets: {} };
-  for (const facet of doc?.facets ?? []) {
-    out.facets[facet.id] = { fields: {} };
-    for (const field of facet.fields ?? []) out.facets[facet.id].fields[field.key] = { state: "empty" };
-  }
-  return pretty(out);
-}
-
-/** 더하는 동작은 하나다 — 자리와 값 한 벌이 함께 생긴다. */
+/** 더하는 것도 지우는 것도 subject 하나뿐이다. 더할 때 값 한 벌은 **전부 비어** 있다. */
 function addSubject() {
   stash();
+  const { doc } = parse(state.templateText);
   state.seq += 1;
-  const seat = { id: `subject-${state.seq}`, label: `subject-${state.seq}` };
-  state.subjects.push(seat);
-  state.values[seat.id] = skeleton(seat);
-  state.active = seat.id;
+  const id = `subject-${state.seq}`;
+  const blank = { weave: "1", templateId: doc?.id ?? "", subjectId: id, subjectLabel: id, facets: {} };
+  for (const facet of doc?.facets ?? []) {
+    blank.facets[facet.id] = {
+      fields: Object.fromEntries((facet.fields ?? []).map((f) => [f.key, { state: "empty" }])),
+      notes: [{ kind: "caution", text: "아직 분석하지 않았습니다." }],
+    };
+  }
+  state.values.push(pretty(blank));
+  state.active = state.values.length;
   drawTabs();
   drawEditor();
   refresh();
 }
 
-/** 자리까지 지운다. */
 function dropSubject() {
   stash();
-  const seat = aimedSeat();
-  if (!seat) return;
-  state.subjects = state.subjects.filter((s) => s.id !== seat.id);
-  delete state.values[seat.id];
-  if (state.focus === seat.id) state.focus = null;
-  if (state.active === seat.id) state.active = "template";
-  drawTabs();
-  drawEditor();
-  refresh();
-}
-
-/** 값 한 벌만 지운다. **자리가 남아 아직 분석 중이 된다** — 그 상태를 만들어 보는 길이다. */
-function dropValues() {
-  stash();
-  const seat = seatOf(state.active);
-  if (!seat || !hasValues(seat.id)) return;
-  delete state.values[seat.id];
-  drawTabs();
-  drawEditor();
-  refresh();
-}
-
-/** 그 자리에서 값 한 벌을 만든다. 위의 되돌리기이지 두 번째 더하기가 아니다. */
-function makeValues() {
-  const seat = seatOf(state.active);
-  if (!seat || hasValues(seat.id)) return;
-  state.values[seat.id] = skeleton(seat);
+  const index = state.active === 0 ? state.values.length - 1 : state.active - 1;
+  if (index < 0) return;
+  const { doc } = parse(state.values[index]);
+  if (doc?.subjectId && state.focus === doc.subjectId) state.focus = null;
+  state.values.splice(index, 1);
+  if (state.active > state.values.length) state.active = state.values.length;
   drawTabs();
   drawEditor();
   refresh();
@@ -1839,8 +1648,6 @@ function start() {
   $("editor").addEventListener("input", scheduleRefresh);
   $("add-subject").addEventListener("click", addSubject);
   $("drop-subject").addEventListener("click", dropSubject);
-  $("drop-values").addEventListener("click", dropValues);
-  $("make-values").addEventListener("click", makeValues);
   $("show-elements").addEventListener("change", (event) => {
     state.showElements = Boolean(event.target.checked);
     refresh();

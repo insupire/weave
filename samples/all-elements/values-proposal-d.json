@@ -1,0 +1,101 @@
+{
+  "weave": "1",
+  "templateId": "proposal-compare-1",
+  "subjectId": "proposal-d",
+  "subjectLabel": "라 제안서",
+  "facets": {
+    "first-premium": {
+      "fields": {
+        "first-premium": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다."
+        }
+      ]
+    },
+    "contract-terms": {
+      "fields": {
+        "payment-period": {
+          "state": "empty"
+        },
+        "maturity-age": {
+          "state": "empty"
+        },
+        "entry-age": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다."
+        }
+      ]
+    },
+    "renewal": {
+      "fields": {
+        "renews": {
+          "state": "empty"
+        },
+        "renewal-cycle": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다."
+        }
+      ]
+    },
+    "coverage-amounts": {
+      "fields": {
+        "death": {
+          "state": "empty"
+        },
+        "cancer": {
+          "state": "empty"
+        },
+        "brain": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다."
+        }
+      ]
+    },
+    "renewal-premium": {
+      "fields": {
+        "premium-curve": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다."
+        }
+      ]
+    },
+    "riders": {
+      "fields": {
+        "rider-list": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "weave": "1",
+  "templateId": "one-table-1",
+  "subjectId": "plan-d",
+  "subjectLabel": "라 설계",
+  "facets": {
+    "terms": {
+      "fields": {
+        "first-premium": {
+          "state": "empty"
+        },
+        "pay-cycle": {
+          "state": "empty"
+        },
+        "payment-period": {
+          "state": "empty"
+        },
+        "insured-age": {
+          "state": "empty"
+        },
+        "entry-age": {
+          "state": "empty"
+        },
+        "maturity-age": {
+          "state": "empty"
+        },
+        "renews": {
+          "state": "empty"
+        },
+        "renewal-cycle": {
+          "state": "empty"
+        },
+        "main-amount": {
+          "state": "empty"
+        },
+        "start-date": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "아직 분석하지 않았습니다. 설계안이 도착했지만 읽어 내지 못했습니다."
+        }
+      ]
+    }
+  }
+}

@@ -2,20 +2,6 @@
   "order": 4,
   "name": "갱신 하나만 깊게",
   "args": {
-    "subjects": [
-      {
-        "id": "plan-keep",
-        "label": "비갱신 설계"
-      },
-      {
-        "id": "plan-ten",
-        "label": "10년 갱신 설계"
-      },
-      {
-        "id": "plan-five",
-        "label": "5년 갱신 설계"
-      }
-    ],
     "focus": "plan-five"
   }
 }

@@ -60,6 +60,7 @@ class SamplesAreWhole(unittest.TestCase):
                 meta = load(folder / "sample.json")
                 self.assertEqual(set(meta), {"order", "name", "args"})
                 self.assertTrue(meta["name"])
+                self.assertEqual(set(meta["args"]) - {"focus"}, set(), "렌더 인자는 focus 하나뿐이다")
                 result = check_render_args(meta["args"])
                 self.assertTrue(result.ok, [str(p) for p in result.problems])
 
@@ -79,19 +80,21 @@ class CheckerPassesEverySample(unittest.TestCase):
                     result = check_valueset(load(path), template)
                     self.assertTrue(result.ok, [str(p) for p in result.problems])
 
-    def test_every_focus_sits_in_the_roster(self) -> None:
+    def test_every_focus_names_a_subject_that_has_a_valueset(self) -> None:
+        """값 한 벌들이 곧 명단이다. focus 는 그 가운데 하나를 가리킨다."""
         for folder in sample_dirs():
             with self.subTest(folder.name):
-                args = load(folder / "sample.json")["args"]
-                if args.get("focus") is not None:
-                    self.assertIn(args["focus"], [s["id"] for s in args["subjects"]])
+                focus = load(folder / "sample.json")["args"].get("focus")
+                if focus is None:
+                    continue
+                ids = {load(p)["subjectId"] for p in sorted(folder.glob("values-*.json"))}
+                self.assertIn(focus, ids)
 
-    def test_the_roster_covers_every_analysed_subject(self) -> None:
+    def test_each_subject_has_exactly_one_valueset(self) -> None:
         for folder in sample_dirs():
             with self.subTest(folder.name):
-                seats = {s["id"] for s in load(folder / "sample.json")["args"]["subjects"]}
-                analysed = {load(p)["subjectId"] for p in sorted(folder.glob("values-*.json"))}
-                self.assertEqual(analysed - seats, set(), "값 한 벌이 있는데 명단에 없다")
+                ids = [load(p)["subjectId"] for p in sorted(folder.glob("values-*.json"))]
+                self.assertEqual(len(ids), len(set(ids)), f"같은 subject 의 값 한 벌이 둘: {ids}")
 
 
 class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
@@ -105,23 +108,24 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
         orders = [load(f / "sample.json")["order"] for f in sample_dirs()]
         self.assertEqual(orders, sorted(set(orders)), f"order 가 겹치거나 비었다: {orders}")
 
-    def test_empty_values_and_an_unanalysed_subject_survive_in_the_samples(self) -> None:
-        """샘플을 가르는 축은 아니지만 그 상태들은 여전히 보여야 한다."""
-        gaps, empties = [], []
+    def test_empty_values_and_an_all_blank_valueset_survive_in_the_samples(self) -> None:
+        """샘플을 가르는 축은 아니지만 그 상태들은 여전히 보여야 한다.
+
+        「아직 분석하지 않았다」의 자리를 **전부 빈 값 한 벌 + 주석**이 이어받았다.
+        """
+        empties, blanks = [], []
         for folder in sample_dirs():
-            seats = {s["id"] for s in load(folder / "sample.json")["args"]["subjects"]}
-            docs = [load(p) for p in sorted(folder.glob("values-*.json"))]
-            gaps.append(len(seats - {d["subjectId"] for d in docs}))
-            empties.append(
-                any(
-                    entry["state"] == "empty"
-                    for doc in docs
-                    for facet in doc["facets"].values()
-                    for entry in facet["fields"].values()
-                )
-            )
-        self.assertTrue(any(g > 0 for g in gaps), "값 한 벌이 없는 subject 가 어느 샘플에도 없다")
+            for doc in (load(p) for p in sorted(folder.glob("values-*.json"))):
+                entries = [e for f in doc["facets"].values() for e in f["fields"].values()]
+                empties.append(any(e["state"] == "empty" for e in entries))
+                if entries and all(e["state"] == "empty" for e in entries):
+                    said = [n for f in doc["facets"].values() for n in f.get("notes", [])]
+                    blanks.append((f"{folder.name}/{doc['subjectId']}", said))
         self.assertTrue(any(empties), "빈 값이 어느 샘플에도 없다")
+        self.assertTrue(blanks, "전부 빈 값 한 벌이 어느 샘플에도 없다")
+        for where, said in blanks:
+            with self.subTest(where):
+                self.assertTrue(said, "왜 비었는지 주석이 말해야 한다")
 
     def test_every_facet_carries_template_author_notes(self) -> None:
         # 깨알 지식이 값이 아니라 템플릿에 사는지. 샘플이 그 자리를 실제로 쓴다.

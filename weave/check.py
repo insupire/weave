@@ -93,16 +93,12 @@ def check_template(doc: object) -> Result:
 
 
 def check_render_args(doc: object) -> Result:
-    """렌더 인자를 판정한다. 그릴 subject 와 강조할 subject 뿐이고 구조만 본다.
+    """렌더 인자를 판정한다. ``focus`` 하나뿐이고 구조만 본다.
 
-    명단에 없는 focus 는 결함이 아니다 — 그 경우 focus 만 사라지는 것이 규약이다.
+    값 한 벌에 없는 focus 는 결함이 아니다 — 그 경우 focus 만 사라지는 것이 규약이다.
     """
     result = Result()
-    if not _structural(result, schemas.RENDER_ARGS, doc):
-        return result
-    assert isinstance(doc, dict)
-    for name in _duplicates([s["id"] for s in doc.get("subjects", [])]):
-        result.add("$['subjects']", f"subject id 가 겹친다: {name}")
+    _structural(result, schemas.RENDER_ARGS, doc)
     return result
 
 

@@ -2,40 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "weave-render-args.schema.json",
   "title": "렌더 인자",
-  "description": "렌더가 템플릿·값 말고 더 받는 것. 누가 자리에 서는지(subjects)와 무엇을 강조하는지(focus)다. 값이 아니라 부르는 쪽이 갖는다.",
+  "description": "값이 아니라 화면 상태다. 앱이 갖고 사용자가 누를 때마다 바뀐다. index 가 아니라 subject 의 id 로 가리킨다. 누가 자리에 서는지는 값 한 벌들이 이미 말하므로 여기 없다 — subject 마다 값 한 벌이 정확히 하나 있고, 비어 있을 수 있다.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "subjects": {
-      "description": "그릴 subject 와 그 차례. **값 한 벌이 없는 subject 는 여기에만 있고 「아직 분석 중」으로 선다** — 아직 분석되지 않은 subject 는 값 한 벌 자체가 없으므로 부르는 쪽이 말해 주지 않으면 그릴 수가 없다. 주지 않으면 값 한 벌에서 뽑는다. 차례는 배치일 뿐 우열이 아니다.",
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 20,
-      "items": { "$ref": "#/$defs/Seat" }
-    },
     "focus": {
       "description": "강조할 subject. null 이 release 다. 없는 id 면 focus 만 사라진다.",
       "anyOf": [
         { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
         { "type": "null" }
       ]
-    }
-  },
-  "$defs": {
-    "Seat": {
-      "description": "자리 하나. 값 한 벌이 있든 없든 자리는 있다.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id"],
-      "properties": {
-        "id": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
-        "label": {
-          "description": "화면에 쓸 이름. 없으면 값 한 벌의 subjectLabel 을, 그것도 없으면 id 를 쓴다.",
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 120
-        }
-      }
     }
   }
 }

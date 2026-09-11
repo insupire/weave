@@ -33,7 +33,7 @@
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
 | `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플은 `test_samples.py`, 그리는 쪽은 `viewer.test.mjs` |
 
-`schema/` 넷 — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(그릴 subject 와 focus).
+`schema/` 넷 — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(focus).
 파일 사이 참조는 상대 `$ref` 라 그대로 복사해 가도 풀린다.
 
 ## 시작
@@ -88,6 +88,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `viewer/` | `make viewer viewer-test test` — **`viewer.html` 을 같이 커밋한다** |
 | `samples/` · `catalog/` | `make viewer check test viewer-test` — 마찬가지로 산출물을 같이 커밋한다 |
 | `schema/weave-render-args` | `make all` — 소비자 둘에게 알린다 |
+| `samples/*/values-*.json` | 파일 이름 차례가 **화면 차례**다. 값 한 벌들이 곧 명단이기 때문이다 |
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다 |
@@ -144,11 +145,12 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 - **그리지 못하는 입력에서 멈추지 않는다.** 그 자리를 표시하고 왼쪽 아래에 까닭을 적고 나머지는 그대로 그린다.
 - **primitive element 다섯을 전부 그린다.** `ELEMENTS` 표가 렌더의 분기 전부이고 facet 종류를 아는 분기는 없다.
 - **값이 없는 facet 도 자리를 남기고 없다고 말한다.** 숨기면 subject 마다 골격이 달라져 견줄 수 없다.
-- **값 한 벌이 없는 subject 는 「아직 분석 중」이다.** 필드가 비어 있는 「값 없음」과 눈으로 구별된다.
+- **전부 비어 있는 값 한 벌도 자리를 얻는다.** 모든 facet 이 「값 없음」이라고 말하고 왜인지는 주석이 말한다.
 - **subject 명단은 계약의 일부다.** `weave-render-args` 의 `subjects` 다. 아직 분석되지 않은 subject 는 값 한 벌이 없으므로 부르는 쪽이 말해 주지 않으면 그릴 수가 없다.
-- **탭은 subject 단위다.** 명단에 있는 subject 는 값 한 벌이 있든 없든 전부 탭을 갖는다. 탭 하나가 곧 subject 이므로 「값 한 벌」이라고 또 적지 않는다 — 묶는 말을 두면 같은 말을 두 번 하는 것이다. 값 한 벌이 없는 탭은 그 사실을 글로 말하고 거기서 만들 수 있다.
-- **더하는 동작은 하나다.** `＋ subject` 가 자리와 값 한 벌을 함께 만든다 — 흔한 경우에 같은 일이기 때문이다. 지우는 쪽이 둘로 갈린다: `－ 값 한 벌` 은 자리를 남겨 **「아직 분석 중」을 만드는 길**이고, `－ subject` 는 자리까지 지운다. 탭 안의 `값 한 벌 만들기` 는 앞의 되돌리기이지 두 번째 더하기가 아니다.
-- **subject 와 값 한 벌은 같은 것이 아니다.** subject 는 비교 대상 자체(id 와 이름)이고 값 한 벌은 분석이 그것에 대해 알아낸 것이다. 둘이 같다면 「subject 는 있는데 값이 아직 없다」를 말할 수 없고 「값 없음」과 「아직 분석 중」이 갈린다는 규칙이 무너진다. **합쳐도 되는 것은 화면의 탭뿐이다.**
+- **subject 마다 값 한 벌이 정확히 하나 있다. 비어 있을 수 있다.** 「값 한 벌이 없는 subject」라는 것은 없다. 자리와 그 차례는 값 한 벌들이 정하고 명단을 따로 받지 않는다.
+- **「아직 분석되지 않았다」는 상태가 없다.** 전부 비어 있는 값 한 벌과 주석이 그것을 말한다 — 왜 없는지를 언어가 분류하지 않는다는 규칙의 예외를 두지 않는다. 대가는 분석이 주석을 달지 않으면 화면이 「값 없음」이라고만 말하는 것이다.
+- **탭은 값 한 벌마다 하나다.** subject 마다 값 한 벌이 하나이므로 탭이 곧 subject 다. 「값 한 벌」이라고 또 적지 않는다.
+- **더하고 지우는 것은 subject 하나뿐이다.** `＋ subject` 는 **전부 비어 있는** 값 한 벌을 만든다 — 그것이 아직 분석하지 않았음을 만들어 보는 길이다.
 - **`focus` 는 subject 의 id 다.** `null` 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다 — 분석뷰가 focus 를 놓은 것과 통째로 같아지고, 그 사실은 띠가 알린다. 조작하는 자리는 **오른쪽 판 위의 띠**다. 보면서 누르는 것이라 편집기 쪽이 아니다.
 - **설명서 페이지가 같은 한 장 안에 있다.** primitive element 마다 무엇을 그리는지·어떤 필드를 받는지·최소 템플릿 조각·**그 자리에서 그린 모습**을 보인다.
 - **색이 뜻을 갖지 않는다.** 쓰는 색이 전부 무채색이고, 선은 색이 아니라 점선 무늬로 구별한다. 고정 케이스가 이것을 본다.
@@ -172,7 +174,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | 강조색 · 경고색 | 순위·등급을 스키마에서 뺀 것을 CSS 로 되살리면 그 전부가 헛일이다 |
 
 **Tailwind 를 들이지 않기로 했다.** 허가는 받았지만 이득이 아니다 — `renderView` 의 출력은
-앱이 가져다 쓰는 **계약 면**이고 지금은 의미 있는 클래스(`facet element-stat` · `miss unanalyzed`)만
+앱이 가져다 쓰는 **계약 면**이고 지금은 의미 있는 클래스(`facet element-stat` · `miss empty`)만
 낸다. Tailwind 는 시각을 마크업에 넣는 도구라 유틸리티 클래스가 렌더 출력에 실리고, 그러면
 앱이 그것을 걷어내야 한다 — 「뷰어가 시각을 소유하지 않는다」와 정면으로 부딪힌다. `@apply` 로
 의미 클래스에만 쓰면 180줄짜리 스타일시트를 위해 node_modules 를 들이는 것뿐이다.

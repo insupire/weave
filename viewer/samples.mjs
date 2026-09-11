@@ -16,27 +16,13 @@ export const SAMPLES = {
       {
         "id": "proposal-c",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-c\",\n  \"subjectLabel\": \"다 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"filled\",\n          \"value\": 29900,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 29,900원\" }]\n        }\n      }\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": { \"state\": \"filled\", \"value\": 480 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 80 },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"min\": 15, \"max\": 60 } }\n      },\n      \"notes\": [\n        { \"kind\": \"note\", \"text\": \"주계약 하나뿐이라 계약사항 표가 짧습니다.\" }\n      ]\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": {\n          \"state\": \"filled\",\n          \"value\": 60,\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }]\n        }\n      }\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"암만 보장하는 상품이라 사망보장이 없습니다.\" }]\n        },\n        \"cancer\": { \"state\": \"filled\", \"value\": 20000000 },\n        \"brain\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"뇌혈관질환은 보장하지 않습니다.\" }]\n        }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 29900 },\n            { \"at\": 45, \"value\": 38100 },\n            { \"at\": 50, \"value\": 49700 }\n          ],\n          \"notes\": [\n            { \"kind\": \"caution\", \"text\": \"예시표가 50세까지만 있습니다. 만기가 80세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [],\n          \"notes\": [\n            { \"kind\": \"tip\", \"text\": \"특약 없이 주계약 하나로만 된 설계입니다. 보장은 단순하지만 빠진 위험이 많다는 뜻이기도 합니다.\" }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "proposal-d",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"proposal-compare-1\",\n  \"subjectId\": \"proposal-d\",\n  \"subjectLabel\": \"라 제안서\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"contract-terms\": {\n      \"fields\": {\n        \"payment-period\": {\n          \"state\": \"empty\"\n        },\n        \"maturity-age\": {\n          \"state\": \"empty\"\n        },\n        \"entry-age\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": {\n          \"state\": \"empty\"\n        },\n        \"renewal-cycle\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"coverage-amounts\": {\n      \"fields\": {\n        \"death\": {\n          \"state\": \"empty\"\n        },\n        \"cancer\": {\n          \"state\": \"empty\"\n        },\n        \"brain\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "proposal-a",
-          "label": "가 제안서"
-        },
-        {
-          "id": "proposal-b",
-          "label": "나 제안서"
-        },
-        {
-          "id": "proposal-c",
-          "label": "다 제안서"
-        },
-        {
-          "id": "proposal-d",
-          "label": "라 제안서"
-        }
-      ],
       "focus": "proposal-b"
     }
   },
@@ -58,20 +44,6 @@ export const SAMPLES = {
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "plan-a",
-          "label": "가 설계"
-        },
-        {
-          "id": "plan-b",
-          "label": "나 설계"
-        },
-        {
-          "id": "plan-c",
-          "label": "다 설계"
-        }
-      ],
       "focus": null
     }
   },
@@ -90,27 +62,13 @@ export const SAMPLES = {
       {
         "id": "plan-c",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-table-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 설계\",\n  \"facets\": {\n    \"terms\": {\n      \"fields\": {\n        \"first-premium\": { \"state\": \"filled\", \"value\": 29900 },\n        \"pay-cycle\": { \"state\": \"empty\" },\n        \"payment-period\": { \"state\": \"empty\" },\n        \"insured-age\": { \"state\": \"filled\", \"value\": 45 },\n        \"entry-age\": { \"state\": \"filled\", \"value\": { \"max\": 60 } },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 80 },\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60 },\n        \"main-amount\": { \"state\": \"filled\", \"value\": 20000000 },\n        \"start-date\": { \"state\": \"empty\" }\n      },\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"계약사항표 오른쪽이 잘려 있어 납입 관련 칸을 읽지 못했습니다.\" }\n      ]\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-d",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-table-1\",\n  \"subjectId\": \"plan-d\",\n  \"subjectLabel\": \"라 설계\",\n  \"facets\": {\n    \"terms\": {\n      \"fields\": {\n        \"first-premium\": {\n          \"state\": \"empty\"\n        },\n        \"pay-cycle\": {\n          \"state\": \"empty\"\n        },\n        \"payment-period\": {\n          \"state\": \"empty\"\n        },\n        \"insured-age\": {\n          \"state\": \"empty\"\n        },\n        \"entry-age\": {\n          \"state\": \"empty\"\n        },\n        \"maturity-age\": {\n          \"state\": \"empty\"\n        },\n        \"renews\": {\n          \"state\": \"empty\"\n        },\n        \"renewal-cycle\": {\n          \"state\": \"empty\"\n        },\n        \"main-amount\": {\n          \"state\": \"empty\"\n        },\n        \"start-date\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"아직 분석하지 않았습니다. 설계안이 도착했지만 읽어 내지 못했습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "plan-a",
-          "label": "가 설계"
-        },
-        {
-          "id": "plan-b",
-          "label": "나 설계"
-        },
-        {
-          "id": "plan-c",
-          "label": "다 설계"
-        },
-        {
-          "id": "plan-d",
-          "label": "라 설계"
-        }
-      ],
       "focus": "plan-a"
     }
   },
@@ -119,33 +77,19 @@ export const SAMPLES = {
     "template": "{\n  \"weave\": \"1\",\n  \"id\": \"renewal-watch-1\",\n  \"title\": \"갱신되면 얼마가 되나\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"지금 내는 돈\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 달에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 적립보험료는 뺀다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"지금 싼 것이 계속 싼 것은 아닙니다. 아래 갱신 곡선과 함께 봅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신 조건\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 비운다.\"\n        },\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 비우고 종신이라고 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"tip\", \"text\": \"갱신주기가 짧을수록 보험료가 자주 조금씩 오르고, 길수록 드물게 많이 오릅니다.\" },\n        { \"kind\": \"tip\", \"text\": \"비갱신형은 납입기간이 끝나면 더 내지 않습니다. 갱신형 전기납은 보장받는 내내 냅니다.\" }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"나이에 따른 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 비운다.\"\n        }\n      ],\n      \"notes\": [\n        { \"kind\": \"caution\", \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\" },\n        { \"kind\": \"note\", \"text\": \"선이 없는 설계는 갱신 예시표가 없다는 뜻이지 보험료가 오르지 않는다는 증거는 아닙니다.\" }\n      ]\n    }\n  ]\n}\n",
     "values": [
       {
-        "id": "plan-five",
-        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-five\",\n  \"subjectLabel\": \"5년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 33500 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60, \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 33500 },\n            { \"at\": 45, \"value\": 42700 },\n            { \"at\": 50, \"value\": 55900 },\n            { \"at\": 55, \"value\": 74300 },\n            { \"at\": 60, \"value\": 99800 }\n          ],\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"예시표가 60세까지만 있습니다. 만기가 90세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
-      },
-      {
         "id": "plan-keep",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-keep\",\n  \"subjectLabel\": \"비갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 96800, \"notes\": [{ \"kind\": \"quote\", \"text\": \"합계보험료 96,800원\" }] } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": false },\n        \"renewal-cycle\": { \"state\": \"empty\", \"notes\": [{ \"kind\": \"note\", \"text\": \"비갱신형이라 갱신주기가 없습니다.\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 240 },\n        \"maturity-age\": { \"state\": \"empty\", \"notes\": [{ \"kind\": \"note\", \"text\": \"종신 보장입니다.\" }] }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"empty\",\n          \"notes\": [{ \"kind\": \"note\", \"text\": \"비갱신형이라 갱신 예시표가 설계안에 없습니다. 20년 뒤까지 96,800원 그대로입니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
       },
       {
         "id": "plan-ten",
         "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-ten\",\n  \"subjectLabel\": \"10년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 41200 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 120, \"notes\": [{ \"kind\": \"quote\", \"text\": \"10년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600, \"notes\": [{ \"kind\": \"note\", \"text\": \"전기납이라 40세 가입 기준 90세 만기까지 600개월로 환산했습니다.\" }] },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 41200 },\n            { \"at\": 50, \"value\": 62800 },\n            { \"at\": 60, \"value\": 104500 },\n            { \"at\": 70, \"value\": 188300 },\n            { \"at\": 80, \"value\": 331000 }\n          ],\n          \"notes\": [{ \"kind\": \"quote\", \"text\": \"설계안 4쪽 「갱신 시 예상보험료」 표\" }]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-five",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"renewal-watch-1\",\n  \"subjectId\": \"plan-five\",\n  \"subjectLabel\": \"5년 갱신 설계\",\n  \"facets\": {\n    \"first-premium\": {\n      \"fields\": { \"first-premium\": { \"state\": \"filled\", \"value\": 33500 } }\n    },\n    \"renewal\": {\n      \"fields\": {\n        \"renews\": { \"state\": \"filled\", \"value\": true },\n        \"renewal-cycle\": { \"state\": \"filled\", \"value\": 60, \"notes\": [{ \"kind\": \"quote\", \"text\": \"5년 갱신형\" }] },\n        \"payment-period\": { \"state\": \"filled\", \"value\": 600 },\n        \"maturity-age\": { \"state\": \"filled\", \"value\": 90 }\n      }\n    },\n    \"renewal-premium\": {\n      \"fields\": {\n        \"premium-curve\": {\n          \"state\": \"filled\",\n          \"value\": [\n            { \"at\": 40, \"value\": 33500 },\n            { \"at\": 45, \"value\": 42700 },\n            { \"at\": 50, \"value\": 55900 },\n            { \"at\": 55, \"value\": 74300 },\n            { \"at\": 60, \"value\": 99800 }\n          ],\n          \"notes\": [{ \"kind\": \"caution\", \"text\": \"예시표가 60세까지만 있습니다. 만기가 90세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다.\" }]\n        }\n      }\n    }\n  }\n}\n"
       }
     ],
     "args": {
-      "subjects": [
-        {
-          "id": "plan-keep",
-          "label": "비갱신 설계"
-        },
-        {
-          "id": "plan-ten",
-          "label": "10년 갱신 설계"
-        },
-        {
-          "id": "plan-five",
-          "label": "5년 갱신 설계"
-        }
-      ],
       "focus": "plan-five"
     }
   }
