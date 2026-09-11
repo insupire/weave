@@ -16,9 +16,27 @@ import { ICON } from "./icons.mjs";
 // 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
 export const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
 
-export const NO_VALUE = "값 없음";
-export const NO_ITEMS = "항목 없음";
-export const UNDRAWABLE = "그리지 못한다";
+// **없다는 말 넷.** 뜻이 다르면 표기도 달라야 한다 — 뭉개면 「모른다」와 「없다」가 같아진다.
+export const NO_VALUE = "값 없음"; // 그 필드에 값이 없다
+export const NO_ITEM = "없음"; // 목록은 읽었는데 그 항목이 여기 없다
+export const NO_ITEMS = "항목 없음"; // 목록 자체가 비었다 — 아무 subject 도 항목이 없다
+export const UNDRAWABLE = "그리지 못한다"; // 값의 문제가 아니라 템플릿과 값이 어긋났다
+
+/**
+ * **값이 설 자리에는 글 대신 표기가 선다.** 「값 없음」이라는 글은 값보다 길어 자리를 먹고,
+ * 표처럼 여러 개가 모이는 자리에서는 화면이 그 말로 덮인다.
+ *
+ * 규칙은 하나다 — **값이 설 자리면 표기, 값이 설 리 없는 자리면 글.**
+ * 그래서 칸과 값 자리는 표기가 서고, 목록 전체가 비었다는 말이나 축 아래 줄 머리처럼
+ * 값 대신이 아닌 자리는 글로 남는다.
+ *
+ * **빈 칸으로 두지 않는다.** 아무것도 없으면 렌더가 깨진 것과 구별되지 않는다.
+ * **읽어 주는 기계에는 말이 남는다** — 표기는 이름표로 제 뜻을 말한다.
+ */
+export const MARK = {
+  value: "—", // 표에서 빈 자리를 가리키는 통용 표기
+  item: "·", // 「읽었고 여기 없다」. 모른다는 것과 눈으로 갈려야 한다
+};
 
 /**
  * **선이 갈리는 세 갈래.** subject 가 아니라 **상태**다 — 같은 subject 라도 focus 가
@@ -155,15 +173,21 @@ function notesHtml(notes, where = "") {
   return `<ul class="notes">${rows.join("")}</ul>`;
 }
 
-/** 값이 없다는 말. 갈래가 하나뿐이다 — 왜 없는지는 주석이 글로 말한다. */
-function stateSpan() {
-  return `<span class="miss empty">${NO_VALUE}</span>`;
+/** 값이 없다는 **표기**. 왜 없는지는 주석이 글로 말한다. */
+function missMark(kind) {
+  const said = kind === "item" ? NO_ITEM : NO_VALUE;
+  return (
+    `<span class="miss ${esc(kind)}" role="img" aria-label="${esc(said)}" title="${esc(said)}">` +
+    `${MARK[kind]}</span>`
+  );
 }
 
 // 그리지 못한 자리. 렌더는 멈추지 않고 자리를 표시하고 까닭을 적는다.
 function undrawable(report, where, why, shown) {
   report.push(`${where}: ${why}`);
-  return `<span class="undrawable" title="${esc(why)}">${UNDRAWABLE} — ${esc(shown ?? why)}</span>`;
+  // **조용해지지 않는다.** 값이 없는 것이 아니라 템플릿과 값이 어긋난 것이라 표기로 줄이지
+  // 않는다 — 글이 서고 무엇이 어긋났는지 적는다. 가름표는 표기(—)와 섞이지 않게 쌍점이다.
+  return `<span class="undrawable" title="${esc(why)}">${UNDRAWABLE}: ${esc(shown ?? why)}</span>`;
 }
 
 function drawCell(report, where, decl, value) {
@@ -235,10 +259,10 @@ function oneRead(ctx, facet, decl, subject) {
 function stat(ctx, facet) {
   const decl = facet.fields[0];
   const subject = shownOf(ctx);
-  if (!subject) return `<div class="blank">${stateSpan()}</div>`;
+  if (!subject) return `<div class="blank">${missMark("value")}</div>`;
   const where = `${facet.id}/${decl.key}/${subject.id}`;
   const { state, entry } = oneRead(ctx, facet, decl, subject);
-  const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
+  const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark("value");
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
     `<div class="big">${value}${notePop(entry?.notes)}</div>`
@@ -248,11 +272,11 @@ function stat(ctx, facet) {
 /** 라벨과 값 여럿. 한 facet 안에 타입이 섞여도 읽는 규칙은 하나다 — 고른 subject 의 것. */
 function facts(ctx, facet) {
   const subject = shownOf(ctx);
-  if (!subject) return `<div class="blank">${stateSpan()}</div>`;
+  if (!subject) return `<div class="blank">${missMark("value")}</div>`;
   const rows = facet.fields.map((decl) => {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     const { state, entry } = oneRead(ctx, facet, decl, subject);
-    const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
+    const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark("value");
     return (
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
       `<dd>${value}${notePop(entry?.notes)}</dd></div>`
@@ -264,7 +288,7 @@ function facts(ctx, facet) {
 /** 크기 비교. **자는 subject 전체의 최대값으로 고정한다** — focus 를 옮겨도 길이를 견줄 수 있어야 한다. */
 function bars(ctx, facet) {
   const subject = shownOf(ctx);
-  if (!subject) return `<div class="blank">${stateSpan()}</div>`;
+  if (!subject) return `<div class="blank">${missMark("value")}</div>`;
   const rows = facet.fields.map((decl) => {
     const all = readsOf(ctx, facet, decl)
       .filter((r) => r.state === "filled" && typeof r.entry.value === "number" && Number.isFinite(r.entry.value))
@@ -276,7 +300,7 @@ function bars(ctx, facet) {
     let mark = '<span class="track"></span>';
     let text;
     if (state !== "filled") {
-      text = stateSpan();
+      text = missMark("value");
     } else if (typeof entry.value === "number" && Number.isFinite(entry.value)) {
       const width = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
       mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
@@ -334,7 +358,7 @@ function line(ctx, facet) {
   }
   const body = series.length
     ? lineSvg(series, axis, decl.type, ctx.focus, ctx.prior)
-    : `<div class="blank">${stateSpan("empty")}</div>`;
+    : `<div class="blank">${missMark("value")}</div>`;
   // 아래에 서는 말은 **고른 subject 것뿐이다** — 겹쳐 그려도 말의 규칙은 하나다.
   const notes = series
     .filter(({ subject }) => subject.id === ctx.shown)
@@ -401,7 +425,7 @@ function lineSvg(series, axis, type, focus, prior) {
 function list(ctx, facet) {
   const decl = facet.fields[0];
   const columns = Array.isArray(decl.columns) ? decl.columns : [];
-  if (columns.length === 0) return `<div class="blank">${stateSpan()}</div>`;
+  if (columns.length === 0) return `<div class="blank">${missMark("value")}</div>`;
   const [key, ...rest] = columns;
 
   const reads = readsOf(ctx, facet, decl);
@@ -426,7 +450,8 @@ function list(ctx, facet) {
     .map(({ subject }) => ({ ...subject }));
   if (rows.size === 0) {
     return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-      `<div class="blank"><span class="miss empty">${NO_ITEMS}</span></div>${blankRow(blanks)}` +
+      // 목록 **전체**가 비었다는 말은 값 하나의 자리가 아니라 표가 설 자리다. 글로 선다.
+      `<div class="blank"><span class="miss">${NO_ITEMS}</span></div>${blankRow(blanks)}` +
       fieldNotes(ctx, reads);
   }
 
@@ -437,9 +462,9 @@ function list(ctx, facet) {
   for (const { subject } of reads) head.push(`<th>${esc(subject.name)}</th>`);
   const body = [...rows.entries()].map(([name, held]) => {
     const cells = reads.map(({ subject }) => {
-      if (unread.has(subject.id)) return `<td>${stateSpan()}</td>`;
+      if (unread.has(subject.id)) return `<td>${missMark("value")}</td>`;
       const item = held.get(subject.id);
-      if (!item) return '<td><span class="miss">없음</span></td>';
+      if (!item) return `<td>${missMark("item")}</td>`;
       const pairs = rest.map((column) =>
         column.key in item
           ? `<span class="cell-pair"><b class="who">${esc(column.label ?? column.key)}</b> ${esc(formatScalar(column.type, item[column.key]))}</span>`
@@ -447,7 +472,8 @@ function list(ctx, facet) {
       );
       const extra = Object.keys(item).filter((k) => !columns.some((c) => c.key === k));
       if (extra.length) ctx.report.push(`${facet.id}/${name}: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
-      return `<td>${pairs.join("") || "<span class=\"miss\">있음</span>"}</td>`;
+      // **있다는 것은 없다는 것이 아니다.** 표기는 빈 자리를 가리키는 것이라 여기엔 글이 선다.
+      return `<td>${pairs.join("") || '<span class="miss">있음</span>'}</td>`;
     });
     return `<tr><th class="row-label" scope="row">${esc(name)}</th>${cells.join("")}</tr>`;
   });

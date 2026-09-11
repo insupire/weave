@@ -15,8 +15,8 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, TRACE, UNDRAWABLE, formatScalar, renderView,
-  traceOf,
+  COMPARE, ELEMENTS, KIND_LABEL, MARK, NO_ITEM, NO_ITEMS, NO_VALUE, TRACE, UNDRAWABLE,
+  formatScalar, renderView, traceOf,
 } from "../viewer/render.mjs";
 import { ICON } from "../viewer/icons.mjs";
 
@@ -66,6 +66,10 @@ const drawSample = (s, overrides = {}) =>
 
 /** 태그를 걷어낸 글. 사람이 화면에서 읽을 것에 가깝다. */
 const textOf = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+// **읽어 주는 기계가 듣는 것.** 없다는 자리는 화면에 표기 하나로 서고 뜻은 이름표가 갖는다 —
+// 그 말이 사라지지 않았는지 보려면 판정도 이름표를 함께 들어야 한다.
+const spokenOf = (html) =>
+  textOf(html.replace(/<[^>]*role="img"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<\/[a-z]+>/g, " $1 "));
 
 // ---------------------------------------------------------------- primitive element
 
@@ -241,7 +245,9 @@ test("값이 없는 facet 도 자리를 남기고 없다고 말한다", () => {
     assert.ok(shown.includes(facet.title), facet.id);
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
-  assert.ok(shown.includes(NO_VALUE));
+  // 화면에는 **표기**가 서고 뜻은 이름표가 갖는다 — 빈 칸으로 두면 깨진 것과 구별되지 않는다.
+  assert.ok(shown.includes(MARK.value), `값이 설 자리에 표기가 없다: ${shown.slice(0, 120)}`);
+  assert.ok(spokenOf(html).includes(NO_VALUE), "읽어 주는 기계에 말이 남지 않았다");
 });
 
 test("못 그린 사실은 남고 범례는 서지 않는다", () => {
@@ -265,7 +271,55 @@ test("못 그린 사실은 남고 범례는 서지 않는다", () => {
   // list 는 축 아래 줄을 두지 않는다. 칸이 「값 없음」이라고 말한다.
   const listPart = sectionOf(html, "list");
   assert.ok(!listPart.includes('class="offs"'), "list 에 문장 줄이 남아 있다");
-  assert.ok(textOf(listPart).includes(NO_VALUE), "칸이 말해야 한다");
+  assert.ok(spokenOf(listPart).includes(NO_VALUE), "칸이 말해야 한다");
+});
+
+test("없다는 말이 뜻마다 다르게 선다", () => {
+  // **뜻이 다르면 표기도 다르다.** 뭉개면 「모른다」와 「읽었고 없다」가 같아지고,
+  // 「그리지 못한다」가 조용해진다 — 그건 값의 문제가 아니라 템플릿과 값이 어긋난 신호다.
+  const words = [NO_VALUE, NO_ITEM, NO_ITEMS, UNDRAWABLE];
+  assert.equal(new Set(words).size, words.length, `없다는 말이 겹친다: ${words}`);
+  assert.notEqual(MARK.value, MARK.item, "두 표기가 같다");
+  for (const mark of Object.values(MARK)) assert.match(mark, /^\S$/, `표기가 글자 하나가 아니다: ${mark}`);
+
+  // 한 화면에 「모른다」와 「읽었고 없다」가 같이 서는 자리를 만든다 —
+  // 나 제안서는 목록을 못 읽었고, 다 제안서는 읽었는데 그 항목이 없다.
+  const list = sectionOf(fix({ focus: "proposal-a" }).html, "list");
+  const cells = [...list.matchAll(/<span class="miss ([a-z]+)"[^>]*aria-label="([^"]*)"[^>]*>([^<]*)<\/span>/g)];
+  const kinds = new Map(cells.map((m) => [m[1], { said: m[2], mark: m[3] }]));
+  assert.deepEqual([...kinds.keys()].sort(), ["item", "value"], "두 뜻이 한 표에 서야 가를 수 있다");
+  assert.equal(kinds.get("value").mark, MARK.value);
+  assert.equal(kinds.get("item").mark, MARK.item);
+  assert.equal(kinds.get("value").said, NO_VALUE);
+  assert.equal(kinds.get("item").said, NO_ITEM);
+
+  // **빈 칸으로 두지 않는다.** 아무것도 없으면 렌더가 깨진 것과 구별되지 않는다.
+  // **읽어 주는 기계에는 말이 남는다** — 표기마다 이름표가 제 뜻을 글로 갖는다.
+  for (const element of Object.keys(ELEMENTS)) {
+    const part = sectionOf(fix({ focus: "proposal-b" }).html, element);
+    for (const [, attrs, glyph] of part.matchAll(/<span class="miss[^"]*"([^>]*)>([^<]*)<\/span>/g)) {
+      assert.ok(glyph.trim(), `${element}: 표기가 비어 있다`);
+      if (!/role="img"/.test(attrs)) continue; // 글로 서는 자리(항목 없음·있음)
+      const said = attrs.match(/aria-label="([^"]*)"/)?.[1];
+      assert.ok(words.includes(said), `${element}: 표기에 뜻이 없다 — ${attrs}`);
+      assert.match(attrs, /title="/, `${element}: 가리켜도 뜻이 안 나온다`);
+    }
+  }
+
+  // **「그리지 못한다」는 표기로 줄지 않는다.** 조용해지면 안 되는 자리다.
+  const broken = structuredClone(FIX.values);
+  broken[0].facets["contract-terms"].fields["entry-age"] = { state: "filled", value: 30 }; // range 인데 수
+  const part = sectionOf(fix({ values: broken, focus: "proposal-a" }).html, "facts");
+  const at = part.indexOf('class="undrawable"');
+  assert.ok(at > 0 && textOf(part).includes(UNDRAWABLE), "어긋남이 조용해졌다");
+  // 글이 서고 **무엇이 어긋났는지 적는다.** 여는 태그가 아니라 눈에 보이는 글을 잰다 —
+  // 태그를 재면 title 속성만으로 길이가 차서 까닭이 사라져도 통과한다.
+  const said = part.slice(part.indexOf(">", at) + 1, part.indexOf("</span>", at));
+  assert.ok(!Object.values(MARK).some((m) => said.includes(m)), `어긋남을 표기로 뭉갠다: ${said}`);
+  // 글 뒤에 **무엇이** 어긋났는지가 붙고, 가리키면 **왜**가 나온다. 둘 다 있어야 한다.
+  assert.match(said, new RegExp(`^${UNDRAWABLE}: \\S`), `무엇이 어긋났는지 적지 않는다: ${said}`);
+  const why = part.slice(at, part.indexOf(">", at)).match(/title="([^"]*)"/)?.[1] ?? "";
+  assert.ok(why && why !== said, `왜 어긋났는지 적지 않는다: ${why}`);
 });
 
 test("빈 목록은 값이 없는 것과 다르다", () => {
@@ -359,7 +413,7 @@ test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
   const mine = renderView({ template: FIX.template, values: [FIX.filled, blank], focus: blank.subjectId });
   for (const facet of FIX.template.facets) {
     const part = sectionOf(mine.html, facet.element);
-    const said = textOf(part).includes(NO_VALUE);
+    const said = spokenOf(part).includes(NO_VALUE);
     const stood = part.includes('class="off ') && textOf(part).includes(blank.subjectLabel);
     assert.ok(said || stood, `${facet.id}: 못 선 사실이 사라졌다`);
   }
