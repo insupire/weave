@@ -348,13 +348,40 @@ export function start() {
   picker.addEventListener("change", () => loadSample(picker.value));
   $("editor").addEventListener("input", scheduleRefresh);
 
-  // 붙은 말은 초점을 받으면 열린다(CSS). 닫는 길 둘 — 닫기 단추와 Esc.
-  $("view").addEventListener("click", (event) => {
-    const close = event.target.closest?.(".pop-close");
-    if (close) close.closest(".note-mark")?.blur();
+  // **붙은 말을 여는 길 셋.** 가리키기와 초점은 CSS 가 맡고, **누르기는 여기서 맡는다** —
+  // 손가락에는 가리키기가 없고, 글자 위의 초점은 기기마다 달리 돈다. 눌러서 켜는 표시를
+  // 따로 두면 어느 기기에서나 같은 길이 된다.
+  const shut = (mark) => {
+    mark?.classList.remove("is-open");
+    mark?.blur();
+  };
+  const shutAll = () => document.querySelectorAll(".note-mark.is-open").forEach(shut);
+  document.addEventListener("click", (event) => {
+    if (event.target.closest?.(".pop-close")) {
+      shut(event.target.closest(".note-mark"));
+      return;
+    }
+    // 열린 판 안을 누르는 것은 읽는 일이다. 닫지 않는다.
+    if (event.target.closest?.(".note-pop")) return;
+    const mark = event.target.closest?.(".note-mark");
+    const open = mark?.classList.contains("is-open");
+    shutAll(); // 한 번에 하나만 열린다 — 판이 겹치면 어느 값의 말인지 알 수 없다
+    if (mark && !open) mark.classList.add("is-open");
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") document.activeElement?.closest?.(".note-mark")?.blur();
+    if (event.key !== "Escape") return;
+    shut(document.activeElement?.closest?.(".note-mark"));
+    shutAll();
+  });
+  // 전화기에서 어느 판을 세울지. 넓은 화면에서는 이 줄이 CSS 로 감춰져 뜻이 없다.
+  $("pane-pick").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-pane]");
+    if (!button) return;
+    const editing = button.dataset.pane === "edit";
+    $("playground").classList.toggle("editing", editing);
+    for (const one of $("pane-pick").querySelectorAll("button[data-pane]")) {
+      one.setAttribute("aria-pressed", String((one.dataset.pane === "edit") === editing));
+    }
   });
   $("add-subject").addEventListener("click", addSubject);
   $("drop-subject").addEventListener("click", dropSubject);

@@ -30,6 +30,12 @@
         <h1 id="pg-title"></h1>
         <p class="lead" id="pg-lead"></p>
       </header>
+      <!-- 전화기에서는 판 하나만 선다. **분석뷰가 먼저다** — 손가락으로 JSON 을 고치는
+           사람은 없다. 넓은 화면에서는 이 줄이 서지 않고 둘이 나란히 선다. -->
+      <div class="pane-pick" id="pane-pick">
+        <button type="button" class="tab" data-pane="view" aria-pressed="true">분석뷰</button>
+        <button type="button" class="tab" data-pane="edit" aria-pressed="false">템플릿·값</button>
+      </div>
       <div class="panes">
         <div class="pane edit">
           <div class="bar">

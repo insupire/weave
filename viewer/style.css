@@ -12,6 +12,10 @@
  */
 
 :root {
+  /* 이 한 장은 밝은 바탕으로 짜였다. 기기가 어두운 쪽으로 기울여 읽지 않게 못 박는다 —
+     밖에서 덧대던 줄을 여기로 들였다. */
+  color-scheme: light;
+
   --ink:#1a1a1a;       /* 본문 */
   --mute:#6b6b6b;      /* 딸린 말 */
   --line:#d9d9d9;      /* 구조선 */
@@ -206,8 +210,11 @@ th, td { border:1px solid var(--line); padding:8px 11px; text-align:left; vertic
 thead th { font-weight:600; font-size:13px; width:180px; }
 th.corner, th.row-label { font-weight:600; width:140px; color:var(--mute); }
 
-/* 축이 이미 틀이다. 테두리를 두르지 않는다. */
-svg.line { width:100%; height:auto; background:#ffffff; }
+/* 축이 이미 틀이다. 테두리를 두르지 않는다.
+   **좁아지면 상자가 굴러간다** — 그림을 통째로 줄이면 축 라벨과 선 끝 이름이 읽을 수
+   없게 작아진다. `list` 표와 같은 규칙이다: 페이지가 아니라 그 상자가 굴러간다. */
+.chart-scroll { overflow-x:auto; }
+svg.line { display:block; width:100%; min-width:560px; height:auto; background:#ffffff; }
 svg .axis { stroke:var(--line); stroke-width:1; }
 svg .tick { font-size:11px; fill:var(--mute); }
 svg .ty { text-anchor:end; }
@@ -252,7 +259,10 @@ svg .series-label.is-focus { font-weight:700; }
 .note-pop { position:absolute; left:0; top:calc(100% + 6px); z-index:5; display:none;
   min-width:260px; max-width:min(380px, 60vw); padding:10px 12px;
   background:#ffffff; border:1px solid var(--line); border-radius:var(--r); text-align:left; }
-.note-mark:hover .note-pop, .note-mark:focus-within .note-pop, .note-mark:focus .note-pop { display:block; }
+/* 여는 길 셋 — 가리키기 · 초점 · **누르기.** 누르기는 앱이 표시를 켜서 연다:
+   손가락에는 가리키기가 없고 글자 위의 초점은 기기마다 달리 돈다. */
+.note-mark:hover .note-pop, .note-mark:focus-within .note-pop, .note-mark:focus .note-pop,
+.note-mark.is-open .note-pop { display:block; }
 .note-pop .notes { margin-top:0; }
 .note-pop .note { cursor:auto; }
 .pop-close { display:none; }
@@ -282,6 +292,35 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
    줄 사이가 `--row` 로 균일한 흐름을 깨지 않는다: 자기 자리를 갖되 앞뒤 간격은 같은 자다. */
 .said-cut { width:2.8em; height:0; margin:0; border:none; border-top:1px solid var(--line); }
 
+/* 판을 고르는 줄. 넓은 화면에는 없다 — 둘이 나란히 서므로 고를 것이 없다. */
+.pane-pick { display:none; }
+
+/* ---------------------------------------------------------------- 손에 잡히는 화면 */
+
+/* **누를 것은 손가락만 해야 한다.** 통용되는 자가 44px 이고, 서로 붙어 있지 않아야
+   옆것을 누르지 않는다. 좁은 화면이라고 다른 규칙으로 갈아타지 않는다 —
+   자리가 없으면 접거나 미룰 뿐이고, 굵기·여백으로 말하는 방식은 그대로다. */
+@media (max-width: 900px), (pointer: coarse) {
+  button, select, .toc-link { min-height:44px; }
+  /* 기본 네모는 13px 이라 손가락이 못 맞춘다. 상자를 키우고 줄도 손가락만 하게 한다. */
+  label:has(input) { min-height:44px; }
+  input[type="checkbox"] { width:20px; height:20px; }
+  button.pick { padding:0 14px; font-size:13.5px; }
+  #focus-buttons, #variant-buttons { gap:8px; }
+  .tabs { gap:6px; }
+  .tab { min-height:44px; padding:0 12px; }
+  .toc-link { display:flex; align-items:center; padding:0 18px; }
+  .toc-link.has-icon { padding:0 18px; }
+  .bar { gap:10px; padding:8px 14px; }
+  /* 닫는 길도 손가락으로 되어야 한다. */
+  .pop-close { min-height:44px; padding:0 16px; }
+}
+
+@media (max-width: 420px) {
+  /* 전화기에서 편집기가 서면 글을 넣을 만큼은 되어야 한다 — 밖에서 덧대던 줄을 들였다. */
+  textarea { min-height:44vh; }
+}
+
 @media (max-width: 900px) {
   /* 좁은 화면엔 가리키기가 없다. 아래에서 올라오는 판으로 연다. */
   .note-pop { position:fixed; inset:auto 0 0 0; max-width:none; min-width:0;
@@ -291,13 +330,24 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
   /* 좁아도 판이 스스로 스크롤한다 — 문서 전체가 밀리면 띠가 또 사라진다. */
   .site { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
   /* 목차가 판을 스스로 스크롤하게 됐으므로 위쪽을 다 먹지 않게 묶는다. */
-  .nav { border-right:none; border-bottom:1px solid var(--line); max-height:34vh; }
-  .nav nav { display:flex; flex-wrap:wrap; gap:2px; padding:0 12px 12px; }
-  .nav .group { width:100%; padding:10px 6px 2px; }
-  .toc-link { width:auto; padding:4px 10px; }
-  .page { padding:24px 20px 64px; }
-  .panes { grid-template-columns:1fr; grid-template-rows:minmax(280px, 45%) 1fr; }
-  .pane.edit { border-right:none; border-bottom:1px solid var(--line); }
+  /* 목차가 위쪽을 다 먹지 않게 묶는다 — 붙박이라 먹은 만큼 본문이 줄어든다.
+     좁을수록 촘촘히 눕히고, 그래도 넘치면 목차가 스스로 굴러간다. */
+  .nav { border-right:none; border-bottom:1px solid var(--line); max-height:26vh; }
+  .nav nav { display:flex; flex-wrap:wrap; gap:2px 4px; padding:0 10px 10px; }
+  .brand { padding:10px 12px 6px; }
+  .nav .group { width:100%; padding:6px 6px 0; }
+  .toc-link { width:auto; padding:0 10px; }
+  .page { padding:20px 16px 56px; }
+  /* **분석뷰가 주인공이다.** 손가락으로 JSON 을 고치는 사람은 없다 — 판 하나만 세우고
+     편집기는 고를 때만 나온다. 위아래로 쌓으면 분석뷰를 보려고 JSON 을 지나가야 한다. */
+  .pane-pick { display:flex; gap:6px; padding:0 10px; border-bottom:1px solid var(--line); }
+  .panes { grid-template-columns:1fr; grid-template-rows:1fr; border-top:none; }
+  .pane.edit { display:none; border-right:none; }
+  .playground.editing .pane.edit { display:flex; }
+  .playground.editing .pane.view { display:none; }
+  .playground .page-head { padding:16px 16px 10px; }
+  /* 좁아도 표와 그림은 자기 상자에서 굴러간다 — 페이지는 밀리지 않는다. */
+  .viewport { padding:20px 16px 56px; }
   /* 좁아도 표는 자기 상자에서 굴러간다 — 열은 그대로 균일하다. */
   /* **막대는 좁아도 눕는다.** 라벨을 줄이고 값을 제 폭만 쓰게 해서 한 줄을 지킨다 —
      접어 올리면 막대가 라벨 아래로 내려가 가로 막대로 읽히지 않는다. */

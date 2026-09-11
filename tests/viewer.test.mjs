@@ -1050,6 +1050,59 @@ test("list 의 열은 균일하고 표만 옆으로 굴린다", () => {
     "페이지가 옆으로 밀린다");
 });
 
+test("손에 잡히는 화면이 있다", () => {
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const app = fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8");
+  const page = fs.readFileSync(path.join(ROOT, "viewer.html"), "utf-8");
+  // 머리말이 다른 머리말의 앞토막일 수 있다 — `{` 가 바로 뒤에 오는 것만 그 블록이다.
+  const block = (head) => {
+    const at = css.search(new RegExp(head.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{"));
+    assert.ok(at > 0, `${head} 가 없다`);
+    let depth = 0;
+    for (let i = css.indexOf("{", at); i < css.length; i += 1) {
+      if (css[i] === "{") depth += 1;
+      else if (css[i] === "}" && (depth -= 1) === 0) return css.slice(at, i);
+    }
+    return "";
+  };
+
+  // **누를 것은 손가락만 해야 한다.** 통용되는 자가 44px 이다.
+  const touch = block("@media (max-width: 900px), (pointer: coarse)");
+  assert.match(touch, /button, select, \.toc-link \{[^}]*min-height:44px/, "누를 것이 작다");
+  assert.match(touch, /label:has\(input\) \{[^}]*min-height:44px/, "네모 줄이 작다");
+  assert.match(touch, /\.pop-close \{[^}]*min-height:44px/, "닫는 길이 손가락에 안 맞는다");
+
+  // **분석뷰가 주인공이다.** 전화기에서는 판 하나만 서고 편집기는 고를 때만 나온다.
+  const narrow = block("@media (max-width: 900px)");
+  assert.match(page, /class="pane-pick"/, "판을 고르는 줄이 없다");
+  assert.match(narrow, /\.pane\.edit \{[^}]*display:none/, "좁은 화면에서 편집기가 먼저 선다");
+  assert.match(narrow, /\.playground\.editing \.pane\.edit \{[^}]*display:flex/);
+  assert.match(narrow, /\.playground\.editing \.pane\.view \{[^}]*display:none/);
+  assert.match(app, /data-pane/, "판을 고르는 길이 앱에 없다");
+
+  // **손가락에는 가리키기가 없다.** 눌러서 켜는 길이 따로 있어야 한다 —
+  // 글자 위의 초점은 기기마다 달리 돌아서 :focus 하나로는 열린다고 말할 수 없다.
+  assert.match(css, /\.note-mark\.is-open \.note-pop[^{]*\{[^}]*display:block/, "눌러서 여는 길이 없다");
+  assert.match(app, /classList\.add\("is-open"\)/, "앱이 표시를 켜지 않는다");
+  assert.match(app, /classList\.remove\("is-open"\)/, "앱이 표시를 끄지 않는다");
+  // 닫는 길 셋 — 닫기 단추 · 바깥 누르기 · Esc.
+  assert.match(app, /pop-close/, "닫기 단추를 듣지 않는다");
+  assert.match(app, /Escape/, "Esc 로 닫히지 않는다");
+  assert.match(block("@media (max-width: 900px)"), /\.pop-close \{[^}]*display:block/, "좁은 화면에 닫기가 없다");
+
+  // **가로로 밀리지 않는다.** 넘치는 것은 자기 상자에서 굴러간다 — 페이지가 아니다.
+  for (const one of [".table-scroll", ".chart-scroll"]) {
+    assert.match(css, new RegExp(`\\${one} \\{[^}]*overflow-x:auto`), `${one} 이 굴러가지 않는다`);
+  }
+  assert.match(sectionOf(fix().html, "line"), /<div class="chart-scroll"><svg class="line"/);
+  assert.ok(!/\.(site|content|page|viewport|scroll|panes) \{[^}]*overflow-x:(auto|scroll)/.test(css),
+    "페이지가 옆으로 밀린다");
+
+  // 아티팩트로 올릴 때 밖에서 덧대던 것을 저장소 안으로 들였다 — 밖에서 기우면 그 자리가 미대응이다.
+  assert.match(css, /:root \{[^}]*color-scheme: ?light/, "밝은 바탕을 못 박지 않았다");
+  assert.match(block("@media (max-width: 420px)"), /textarea \{[^}]*min-height:44vh/, "전화기 편집기가 납작하다");
+});
+
 test("오른쪽 판의 띠는 스크롤 영역 밖에 있다", () => {
   // 분석뷰는 길다. 아래를 보다가 focus 를 바꾸려고 위로 되올라오면 안 된다.
   const page = fs.readFileSync(path.join(ROOT, "viewer.html"), "utf-8");

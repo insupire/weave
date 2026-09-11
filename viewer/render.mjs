@@ -373,8 +373,10 @@ function line(ctx, facet) {
     }
     series.push({ subject, points, notes: entry.notes });
   }
+  // **그림도 표처럼 자기 상자에서 굴러간다.** 좁은 화면에서 통째로 줄이면 축 라벨과 선 끝
+  // 이름이 읽을 수 없게 작아진다 — 그림은 제 크기를 지키고 상자가 굴러간다.
   const body = series.length
-    ? lineSvg(series, axis, decl.type, ctx.focus, ctx.prior)
+    ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior)}</div>`
     : `<div class="blank">${missMark()}</div>`;
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.

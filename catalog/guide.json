@@ -16,7 +16,7 @@
   },
   "playground": {
     "title": "플레이그라운드",
-    "lead": "왼쪽에서 템플릿과 값을 고치면 오른쪽 분석뷰가 그 자리에서 바뀐다.",
+    "lead": "템플릿과 값을 고치면 분석뷰가 그 자리에서 바뀐다.",
     "paragraphs": [
       "여기는 JSON 으로 읽히는지만 본다. 스키마 판정은 검사기가 한다 — python -m weave template tpl.json · python -m weave values --template tpl.json values-a.json · python -m weave args args.json",
       "subject 를 더하고 빼는 것은 화면의 동작이다. 더하면 전부 비어 있는 값 한 벌이 생긴다 — subject 마다 값 한 벌이 정확히 하나 있고, 아직 분석하지 않았다는 것도 빈 값과 주석이 말한다."
