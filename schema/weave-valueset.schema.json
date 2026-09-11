@@ -33,10 +33,39 @@
         "fields": {
           "type": "object",
           "propertyNames": { "$ref": "weave-common.schema.json#/$defs/Key" },
-          "additionalProperties": { "$ref": "#/$defs/FieldValue" }
+          "additionalProperties": { "$ref": "#/$defs/FieldSlot" }
         },
         "notes": { "$ref": "weave-common.schema.json#/$defs/Annotations" }
       }
+    },
+    "FieldSlot": {
+      "description": "필드 한 자리. 축이 없는 필드면 값 하나이고, 템플릿이 varies 를 단 필드면 byVariant 로 갈래마다 하나다. **어느 쪽이어야 하는지는 템플릿이 정한다** — 여기서는 둘 다 받고, 대조는 검사기가 한다. 갈래 값에 또 갈래를 둘 수는 없다.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": { "enum": ["filled", "empty"] },
+        "value": { "$ref": "#/$defs/Value" },
+        "notes": { "$ref": "weave-common.schema.json#/$defs/Annotations" },
+        "byVariant": {
+          "description": "축의 갈래마다 따로 있는 값. 키는 템플릿 variants 의 id 이고 빠짐도 덤도 없이 전부 덮는다.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "weave-common.schema.json#/$defs/Key" },
+          "additionalProperties": { "$ref": "#/$defs/FieldValue" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["byVariant"] },
+          "then": {
+            "not": { "anyOf": [{ "required": ["state"] }, { "required": ["value"] }, { "required": ["notes"] }] }
+          }
+        },
+        {
+          "if": { "not": { "required": ["byVariant"] } },
+          "then": { "$ref": "#/$defs/FieldValue" }
+        }
+      ]
     },
     "FieldValue": {
       "description": "상태는 filled 와 empty 둘뿐이다. 왜 비었는지는 주석이 글로 말한다.",

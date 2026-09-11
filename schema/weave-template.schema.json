@@ -10,6 +10,13 @@
     "weave": { "$ref": "weave-common.schema.json#/$defs/Version" },
     "id": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
     "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "variants": {
+      "description": "같은 분석을 여러 갈래로 나눠 보는 축. 한 템플릿에 하나뿐이고, 없으면 축이 없다. 갈래가 바뀌어도 **어떤 facet 이 서는지는 달라지지 않는다** — 달라지는 것은 varies 를 단 필드의 값뿐이다. 무엇을 뜻하는지는 라벨이 말하고 언어는 그 뜻을 모른다. 골격이므로 값 한 벌이 아니라 여기 선다: subject 마다 갈래가 다르면 견줄 수가 없다.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/Variant" }
+    },
     "facets": {
       "description": "그리는 순서대로. 순서는 배치일 뿐 우열이 아니다.",
       "type": "array",
@@ -19,6 +26,16 @@
     }
   },
   "$defs": {
+    "Variant": {
+      "description": "축의 한 갈래. 하나뿐인 갈래는 축이 아니므로 둘부터 선다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
     "Facet": {
       "description": "분석뷰의 한 조각. primitive element 하나와 그것이 요구하는 필드들.",
       "type": "object",
@@ -118,6 +135,10 @@
         "shape": { "$ref": "weave-common.schema.json#/$defs/Shape" },
         "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
         "axis": { "$ref": "weave-common.schema.json#/$defs/AxisType" },
+        "varies": {
+          "description": "축의 갈래마다 값이 따로 있다. 있으면 그렇다는 뜻이고 false 를 적지 않는다. 템플릿에 variants 가 없으면 쓸 수 없다.",
+          "const": true
+        },
         "columns": {
           "type": "array",
           "minItems": 1,

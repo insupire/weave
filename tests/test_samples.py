@@ -37,7 +37,7 @@ def load(path: pathlib.Path) -> dict:
 class SamplesAreWhole(unittest.TestCase):
     def test_there_are_four_samples(self) -> None:
         # 사람이 빈 화면에서 시작하지 않는다. 성격이 다른 것으로 넷.
-        self.assertEqual(len(sample_dirs()), 4, [p.name for p in sample_dirs()])
+        self.assertEqual(len(sample_dirs()), 5, [p.name for p in sample_dirs()])
 
     def test_each_sample_has_its_three_parts(self) -> None:
         for folder in sample_dirs():
@@ -52,6 +52,34 @@ class SamplesAreWhole(unittest.TestCase):
             tuple(f["element"] for f in load(d / "template.json")["facets"]) for d in sample_dirs()
         ]
         self.assertEqual(len(set(shapes)), len(shapes), f"짜임이 겹친다: {shapes}")
+
+    def test_one_sample_shows_the_axis(self) -> None:
+        """축은 있어도 되고 없어도 되는 것이라 **둘 다** 샘플에 서야 한다.
+
+        축이 없는 것이 기본이고 대다수가 그것이다. 축을 보여 주는 샘플이 하나도 없으면
+        설명서가 말로만 설명하게 되고, 축이 실제로 도는지 아무도 안 본다.
+        """
+        axed = [d for d in sample_dirs() if load(d / "template.json").get("variants")]
+        plain = [d for d in sample_dirs() if not load(d / "template.json").get("variants")]
+        self.assertTrue(axed, "축을 보여 주는 샘플이 없다")
+        self.assertTrue(plain, "축 없는 샘플이 없다 — 그쪽이 기본이다")
+        for folder in axed:
+            template = load(folder / "template.json")
+            self.assertGreaterEqual(len(template["variants"]), 2, "갈래 하나는 축이 아니다")
+            varies = [
+                d["key"]
+                for f in template["facets"]
+                for d in f["fields"]
+                if d.get("varies")
+            ]
+            self.assertTrue(varies, f"{folder.name}: 갈리는 필드가 없으면 축이 하는 일이 없다")
+            steady = [
+                d["key"]
+                for f in template["facets"]
+                for d in f["fields"]
+                if not d.get("varies")
+            ]
+            self.assertTrue(steady, f"{folder.name}: 갈리지 않는 필드도 있어야 축이 무엇인지 보인다")
 
     def test_sample_metadata_carries_a_render_args_document(self) -> None:
         """화면 상태는 뷰어가 지어낸 모양이 아니라 발행한 계약이다.
@@ -122,7 +150,7 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
         empties, blanks = [], []
         for folder in sample_dirs():
             for doc in (load(p) for p in sorted(folder.glob("values-*.json"))):
-                entries = [e for f in doc["facets"].values() for e in f["fields"].values()]
+                entries = _entries(doc)
                 empties.append(any(e["state"] == "empty" for e in entries))
                 if entries and all(e["state"] == "empty" for e in entries):
                     said = [n for f in doc["facets"].values() for n in f.get("notes", [])]
@@ -133,12 +161,25 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
             with self.subTest(where):
                 self.assertTrue(said, "왜 비었는지 주석이 말해야 한다")
 
-    def test_every_facet_carries_template_author_notes(self) -> None:
+    def test_every_facet_carries_template_author_notes(self) -> None:  # noqa: D102
         # 깨알 지식이 값이 아니라 템플릿에 사는지. 샘플이 그 자리를 실제로 쓴다.
         for folder in sample_dirs():
             for facet in load(folder / "template.json")["facets"]:
                 with self.subTest(f"{folder.name}/{facet['id']}"):
                     self.assertTrue(facet.get("notes"), "템플릿 주석이 없다")
+
+
+def _entries(doc: dict) -> list[dict]:
+    """값 한 벌의 모든 값 자리. **갈래로 쪼갠 자리도 펴서 센다.**
+
+    축이 들어오면서 한 필드가 값 하나일 수도 갈래마다 하나일 수도 있게 됐다. 펴지 않으면
+    「빈 값이 샘플에 있는가」 같은 물음이 갈래 쪽을 못 보고 지나간다.
+    """
+    out = []
+    for facet in doc["facets"].values():
+        for slot in facet["fields"].values():
+            out.extend(slot["byVariant"].values() if "byVariant" in slot else [slot])
+    return out
 
 
 class CatalogCannotDiverge(unittest.TestCase):

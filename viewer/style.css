@@ -100,7 +100,11 @@ button { cursor:pointer; }
 button:hover { background:var(--surface); }
 button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
 /* focus 나열. 항목에 none 이 있어 무엇을 고르는 줄인지 스스로 읽힌다 — 라벨을 두지 않는다. */
-#focus-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+#focus-buttons, #variant-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+/* 축이 없으면 자리도 먹지 않는다 — 없는 템플릿이 기본이다. */
+#variant-buttons:empty { display:none; }
+/* 고르는 줄 둘 사이는 자리가 가른다. 이름을 붙이지 않는다 — 무엇을 고르는 줄인지 항목이 말한다. */
+#variant-buttons:not(:empty) { margin-left:10px; }
 button.pick { padding:3px 10px; font-size:12.5px; }
 label { font-size:12px; color:var(--mute); }
 label:has(input) { display:inline-flex; align-items:center; gap:5px; }

@@ -80,6 +80,10 @@ def check_template(doc: object) -> Result:
     for name in _duplicates([f["id"] for f in doc["facets"]]):
         result.add("$['facets']", f"facet id 가 겹친다: {name}")
 
+    variants = [v["id"] for v in doc.get("variants", [])]
+    for name in _duplicates(variants):
+        result.add("$['variants']", f"갈래 id 가 겹친다: {name}")
+
     for index, facet in enumerate(doc["facets"]):
         base = f"$['facets'][{index}]"
         for name in _duplicates([f["key"] for f in facet["fields"]]):
@@ -89,6 +93,9 @@ def check_template(doc: object) -> Result:
                 columns = [c["key"] for c in decl["columns"]]
                 for name in _duplicates(columns):
                     result.add(f"{base}['fields'][{findex}]", f"열 key 가 겹친다: {name}")
+            # 축이 없는데 갈리는 필드는 가리킬 갈래가 없다.
+            if decl.get("varies") and not variants:
+                result.add(f"{base}['fields'][{findex}]", "축(variants)이 없는데 varies 를 달았다")
     return result
 
 
@@ -127,6 +134,7 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
 
     facets = {f["id"]: f for f in template["facets"]}
     _compare_keys(result, "$['facets']", "facet", set(facets), set(doc["facets"]))
+    variants = {v["id"] for v in template.get("variants", [])}
 
     for facet_id, declared in facets.items():
         given = doc["facets"].get(facet_id)
@@ -136,11 +144,39 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
         decls = {d["key"]: d for d in declared["fields"]}
         _compare_keys(result, f"{base}['fields']", "필드", set(decls), set(given["fields"]))
         for key, decl in decls.items():
-            entry = given["fields"].get(key)
-            if entry is None or entry["state"] != "filled":
+            slot = given["fields"].get(key)
+            if slot is None:
                 continue
-            _check_value(result, f"{base}['fields'][{key!r}]['value']", decl, entry["value"])
+            where = f"{base}['fields'][{key!r}]"
+            for label, entry in _entries(result, where, decl, variants, slot):
+                if entry["state"] != "filled":
+                    continue
+                _check_value(result, f"{label}['value']", decl, entry["value"])
     return result
+
+
+def _entries(result: Result, where: str, decl: dict, variants: set, slot: dict):
+    """필드 한 자리에서 판정할 값들. 축이 있으면 갈래마다 하나다.
+
+    **어느 모양이어야 하는지는 템플릿이 정한다.** 스키마는 둘 다 받으므로 여기서 가른다 —
+    갈리는 필드에 값 하나만 주거나, 안 갈리는 필드를 갈래로 쪼개면 그것이 결함이다.
+    """
+    varies = bool(decl.get("varies"))
+    given = "byVariant" in slot
+    if varies and not given:
+        result.add(where, "갈래마다 값을 두는 필드인데 값이 하나다")
+        return []
+    if not varies and given:
+        result.add(where, "갈래가 없는 필드인데 갈래마다 값을 뒀다")
+        return []
+    if not varies:
+        return [(where, slot)]
+    _compare_keys(result, f"{where}['byVariant']", "갈래", variants, set(slot["byVariant"]))
+    return [
+        (f"{where}['byVariant'][{name!r}]", entry)
+        for name, entry in slot["byVariant"].items()
+        if name in variants
+    ]
 
 
 def _compare_keys(result: Result, where: str, what: str, declared: set[str], given: set[str]) -> None:

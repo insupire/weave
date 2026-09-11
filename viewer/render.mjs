@@ -72,11 +72,18 @@ export function esc(text) {
 
 // ---------------------------------------------------------------- 값 읽기
 
-function cell(valueset, facetId, key) {
+/**
+ * 값 한 자리를 읽는다.
+ *
+ * **축이 있으면 고른 갈래의 것을 읽는다.** 갈래가 바뀌어도 읽는 자리는 그대로이고 값만
+ * 달라진다 — 이 한 줄이 「축은 facet 구성을 바꾸지 않는다」를 구조로 지킨다.
+ */
+function cell(valueset, facetId, key, variant) {
   if (!valueset) return { state: "empty", entry: null };
   const facet = valueset.facets?.[facetId];
   if (!facet) return { state: "empty", entry: null };
-  const entry = facet.fields?.[key];
+  const slot = facet.fields?.[key];
+  const entry = slot?.byVariant ? (variant === null ? null : slot.byVariant[variant]) : slot;
   if (!entry || entry.state !== "filled") return { state: "empty", entry: entry ?? null };
   return { state: "filled", entry };
 }
@@ -238,7 +245,7 @@ function blankRow(missing, ctx) {
 function readsOf(ctx, facet, decl) {
   return ctx.subjects.map((subject) => ({
     subject: { ...subject, focused: subject.id === ctx.focus },
-    ...cell(ctx.byId.get(subject.id), facet.id, decl.key),
+    ...cell(ctx.byId.get(subject.id), facet.id, decl.key, ctx.variant),
   }));
 }
 
@@ -251,7 +258,7 @@ function readsOf(ctx, facet, decl) {
  * 고른 subject 것만 낸다 — 말의 규칙도 하나다.
  */
 function fieldMark(ctx, facet, decl) {
-  const { entry } = cell(ctx.byId.get(ctx.shown), facet.id, decl.key);
+  const { entry } = cell(ctx.byId.get(ctx.shown), facet.id, decl.key, ctx.variant);
   return notePop(entry?.notes);
 }
 
@@ -261,7 +268,7 @@ function shownOf(ctx) {
 }
 
 function oneRead(ctx, facet, decl, subject) {
-  return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl.key) };
+  return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl.key, ctx.variant) };
 }
 
 // ---------------------------------------------------------------- primitive element 다섯
@@ -336,7 +343,7 @@ function line(ctx, facet) {
   const missing = []; // 값이 없어 못 그린 subject — 줄 머리가 한 번 말한다
   const broken = []; // 값은 있으나 그리지 못한 것 — 저마다 까닭을 적는다
   for (const subject of ctx.subjects) {
-    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key);
+    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key, ctx.variant);
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     if (state !== "filled") {
       missing.push({ ...subject, mark: notePop(entry?.notes) });
@@ -501,9 +508,11 @@ export const ELEMENTS = { stat, facts, bars, line, list };
 // ---------------------------------------------------------------- 페이지
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
-function viewState(seats, focus, prior, shown, wanted) {
+function viewState(seats, focus, prior, shown, wanted, axis) {
   return {
     seats,
+    // 고를 수 있는 갈래와 고른 갈래. 앱이 축을 그릴 자리 — 분석뷰에는 들어가지 않는다.
+    ...axis,
     shown, // focus 를 따라 바뀌는 element 가 지금 그리는 subject
 
     focus,
@@ -522,11 +531,19 @@ function viewState(seats, focus, prior, shown, wanted) {
  *     focus 를 따라 바뀌는 element 는 **첫 subject** 를 그린다.
  *   - previousFocus 는 바로 전에 보고 있던 subject. **값에서 유도할 수 없어** 인자로 받는다.
  *     같은 규칙이다 — 없는 id 면 그 상태만 사라지고, focus 와 같으면 직전이 없는 것으로 본다.
+ *   - variant 는 고른 축의 갈래. 없거나 없는 id 면 **첫 갈래**를 그린다.
+ *     축이 바뀌면 값이 바뀔 뿐 **어떤 facet 이 서는지는 달라지지 않는다.**
  * @returns {{html: string, report: string[], view: object|null}}
  *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
  *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
  */
-export function renderView({ template, values = [], focus = null, previousFocus = null } = {}) {
+export function renderView({
+  template,
+  values = [],
+  focus = null,
+  previousFocus = null,
+  variant = null,
+} = {}) {
   const report = [];
   if (!template || typeof template !== "object" || Array.isArray(template)) {
     // 그릴 분석뷰가 없다. 빈 판을 내고 무슨 일인지는 왼쪽이 말한다.
@@ -545,6 +562,11 @@ export function renderView({ template, values = [], focus = null, previousFocus 
   // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 무늬다.
   const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
 
+  // **축.** 고를 수 있는 갈래는 템플릿이 말한다 — 골격이라 subject 마다 달라서는 안 된다.
+  // 고른 갈래만 사람이 누른 것이라 인자로 온다. 없거나 없는 id 면 첫 갈래다.
+  const variants = Array.isArray(template.variants) ? template.variants : [];
+  const picked = variants.find((v) => v?.id === variant)?.id ?? variants[0]?.id ?? null;
+
   const wanted = focus;
   const seated = seats.some((s) => s.id === wanted) ? wanted : null;
   // focus 를 따라 바뀌는 element 가 그릴 subject. 고른 것이 없으면 첫째다 —
@@ -554,7 +576,7 @@ export function renderView({ template, values = [], focus = null, previousFocus 
   const prior = seats.some((s) => s.id === previousFocus) && previousFocus !== seated
     ? previousFocus
     : null;
-  const ctx = { subjects: seats, byId, focus: seated, prior, shown, report };
+  const ctx = { subjects: seats, byId, focus: seated, prior, shown, variant: picked, report };
 
   for (const [id, doc] of byId) {
     const known = new Set((template.facets ?? []).map((f) => f?.id));
@@ -566,7 +588,37 @@ export function renderView({ template, values = [], focus = null, previousFocus 
   const facets = Array.isArray(template.facets) ? template.facets : [];
   if (facets.length === 0) report.push("템플릿에 facet 이 하나도 없다");
 
-  const sections = facets.map((facet, index) => {
+  /**
+   * **아무에게도 값이 없고 할 말도 없는 facet 은 서지 않는다.**
+   *
+   * 선이 어디인지가 중요하다. subject **하나**가 비는 것은 그대로 표기가 말한다 — 숨기면
+   * subject 마다 골격이 달라져 견줄 수 없다. **전원이 비었을 때만** 빠진다: 견줄 것이
+   * 없으니 골격이 달라질 일도 없고, 남는 것은 빈 카드뿐이다.
+   *
+   * 다만 **말이 붙어 있으면 선다.** 「이 제안서엔 이 항목이 없습니다」라고 적힌 카드는
+   * 빈 카드가 아니다 — 전부 비어 있는 값 한 벌이 「아직 분석하지 않았다」를 말하는 길이
+   * 그것이라, 말까지 지우면 그 자리가 사라진다.
+   *
+   * subject 가 하나도 없으면 이 규칙을 쓰지 않는다. 견줄 대상이 없는 것과 전원이 빈 것은
+   * 다르다 — 템플릿만으로 골격을 보는 자리가 남아야 한다.
+   */
+  const stands = (facet) => {
+    if (seats.length === 0 || !facet || typeof facet !== "object") return true;
+    if ((facet.notes ?? []).length > 0) return true;
+    for (const seat of seats) {
+      const doc = byId.get(seat.id);
+      if (facetNotes(doc, facet.id).length > 0) return true;
+      for (const decl of facet.fields ?? []) {
+        if (!decl || typeof decl.key !== "string") return true; // 그리지 못하는 것은 말해야 한다
+        const { state, entry } = cell(doc, facet.id, decl.key, picked);
+        if (state === "filled" || (entry?.notes ?? []).length > 0) return true;
+      }
+    }
+    return false;
+  };
+  const dropped = facets.filter((facet) => !stands(facet)).map((facet, i) => facet?.id ?? `facets[${i}]`);
+
+  const sections = facets.filter(stands).map((facet, index) => {
     const at = `facets[${index}]`;
     if (!facet || typeof facet !== "object") {
       return `<section class="facet broken">${undrawable(report, at, "facet 이 객체가 아니다")}</section>`;
@@ -616,5 +668,9 @@ export function renderView({ template, values = [], focus = null, previousFocus 
   // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
   const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html, report, view: viewState(seats, seated, prior, shown, wanted) };
+  return {
+    html,
+    report,
+    view: viewState(seats, seated, prior, shown, wanted, { variants, variant: picked, dropped }),
+  };
 }

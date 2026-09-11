@@ -19,6 +19,13 @@
         { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
         { "type": "null" }
       ]
+    },
+    "variant": {
+      "description": "고른 축의 갈래. 사람이 누른 것이라 값에서 유도할 수 없다. 무엇을 고를 수 있는지는 템플릿의 variants 가 이미 말하므로 여기 서지 않는다. null 이거나 없는 id 면 렌더가 첫 갈래를 그린다 — 늘어놓기로 돌아가지도, 빈 화면을 내지도 않는다.",
+      "anyOf": [
+        { "$ref": "weave-common.schema.json#/$defs/Key" },
+        { "type": "null" }
+      ]
     }
   }
 }

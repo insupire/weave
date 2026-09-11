@@ -1,0 +1,8 @@
+{
+  "order": 5,
+  "name": "갈래를 바꿔 가며 보기",
+  "args": {
+    "focus": "plan-a",
+    "variant": "cancer"
+  }
+}

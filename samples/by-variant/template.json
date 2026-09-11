@@ -1,0 +1,82 @@
+{
+  "weave": "1",
+  "id": "by-variant-1",
+  "title": "무엇에 걸렸을 때를 골라 본다",
+  "variants": [
+    {
+      "id": "cancer",
+      "label": "암"
+    },
+    {
+      "id": "brain",
+      "label": "뇌혈관"
+    },
+    {
+      "id": "heart",
+      "label": "허혈성심장"
+    }
+  ],
+  "facets": [
+    {
+      "id": "payout",
+      "title": "진단받으면 얼마가 나오나",
+      "element": "stat",
+      "fields": [
+        {
+          "key": "diagnosis-benefit",
+          "label": "진단금",
+          "shape": "single",
+          "type": "money",
+          "varies": true,
+          "description": "고른 갈래의 진단을 처음 받았을 때 나오는 금액을 원 단위 정수로. 여러 특약에 나눠 있으면 합산한다."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "갈래를 바꾸면 이 금액이 바뀝니다. 어떤 항목이 보이는지는 그대로입니다."
+        },
+        {
+          "kind": "caution",
+          "text": "진단금은 진단 확정일 기준이고 지급 조건은 약관이 정합니다."
+        }
+      ]
+    },
+    {
+      "id": "coverage",
+      "title": "무엇이 얼마나 붙어 있나",
+      "element": "bars",
+      "fields": [
+        {
+          "key": "diagnosis",
+          "label": "진단",
+          "shape": "single",
+          "type": "money",
+          "varies": true,
+          "description": "고른 갈래의 진단 특약 가입금액을 원 단위 정수로."
+        },
+        {
+          "key": "hospital",
+          "label": "입원",
+          "shape": "single",
+          "type": "money",
+          "varies": true,
+          "description": "고른 갈래로 입원했을 때 하루당 나오는 금액을 원 단위 정수로."
+        },
+        {
+          "key": "premium",
+          "label": "월 보험료",
+          "shape": "single",
+          "type": "money",
+          "description": "이 설계 전체의 월 보험료를 원 단위 정수로. 갈래와 무관하게 하나다."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "tip",
+          "text": "월 보험료는 갈래를 바꿔도 그대로입니다 — 설계 하나에 하나뿐이라 갈리지 않습니다."
+        }
+      ]
+    }
+  ]
+}

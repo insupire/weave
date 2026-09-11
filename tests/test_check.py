@@ -255,15 +255,80 @@ class RenderArgs(unittest.TestCase):
         없다. 명단처럼 값이 이미 갖고 있는 것은 여기 서지 않는다.
         """
         args = documents()["weave-render-args.schema.json"]
-        self.assertEqual(list(args["properties"]), ["focus", "previousFocus"])
+        self.assertEqual(list(args["properties"]), ["focus", "previousFocus", "variant"])
         self.assertNotIn("$defs", args, "자리(Seat) 정의가 남아 있다")
-        # 둘이 같은 규칙을 따른다 — id 이거나 null 이고, 없는 id 는 결함이 아니다.
-        for name in ("focus", "previousFocus"):
+        # 셋이 같은 규칙을 따른다 — id 이거나 null 이고, 없는 id 는 결함이 아니다.
+        for name in ("focus", "previousFocus", "variant"):
             self.assertEqual(
                 [list(one)[0] for one in args["properties"][name]["anyOf"]],
                 ["$ref", "type"],
                 f"{name} 이 focus 와 다른 규칙을 쓴다",
             )
+
+    def test_the_axis_binds_template_and_values(self) -> None:
+        """축이 들어오면 **값 쪽도 바뀐다.** 인자만 늘리고 끝나지 않는다.
+
+        갈리는 필드는 갈래마다 값을 갖고, 그 갈래는 템플릿이 선언한 것과 **빠짐도 덤도
+        없이** 같아야 한다. 어느 모양이어야 하는지는 템플릿이 정하므로 검사기가 가른다.
+        """
+        template = {
+            "weave": "1", "id": "t", "title": "t",
+            "variants": [{"id": "a", "label": "가"}, {"id": "b", "label": "나"}],
+            "facets": [{
+                "id": "f", "title": "f", "element": "facts",
+                "fields": [
+                    {"key": "moves", "label": "갈린다", "shape": "single", "type": "money",
+                     "varies": True, "description": "갈래마다 다른 금액을 원 단위로."},
+                    {"key": "stays", "label": "안 갈린다", "shape": "single", "type": "money",
+                     "description": "갈래와 무관한 금액을 원 단위로."},
+                ],
+            }],
+        }
+        self.assertTrue(check_template(template).ok, [str(p) for p in check_template(template).problems])
+
+        def values(moves, stays):
+            return {"weave": "1", "templateId": "t", "subjectId": "s",
+                    "facets": {"f": {"fields": {"moves": moves, "stays": stays}}}}
+
+        full = {"byVariant": {"a": {"state": "filled", "value": 1}, "b": {"state": "empty"}}}
+        one = {"state": "filled", "value": 2}
+        self.assertTrue(check_valueset(values(full, one), template).ok)
+
+        for why, moves, stays, expected in [
+            ("갈리는 필드에 값 하나만 준다", one, one, "값이 하나다"),
+            ("안 갈리는 필드를 갈래로 쪼갠다", full, full, "갈래가 없는 필드인데"),
+            ("갈래를 빠뜨린다", {"byVariant": {"a": {"state": "empty"}}}, one, "선언한 갈래 이 빠졌다"),
+            ("없는 갈래를 덤으로 준다",
+             {"byVariant": {"a": {"state": "empty"}, "b": {"state": "empty"}, "c": {"state": "empty"}}},
+             one, "템플릿에 없는 갈래"),
+            ("갈래 값의 타입이 어긋난다",
+             {"byVariant": {"a": {"state": "filled", "value": "많이"}, "b": {"state": "empty"}}},
+             one, "money 타입이 아니다"),
+        ]:
+            with self.subTest(why):
+                result = check_valueset(values(moves, stays), template)
+                self.assertFalse(result.ok, f"막히지 않았다: {why}")
+                self.assertIn(expected, " | ".join(str(p) for p in result.problems))
+
+        # 축이 없는데 갈리는 필드를 두면 가리킬 갈래가 없다.
+        no_axis = {k: v for k, v in template.items() if k != "variants"}
+        result = check_template(no_axis)
+        self.assertFalse(result.ok)
+        self.assertIn("varies", " | ".join(str(p) for p in result.problems))
+
+    def test_the_axis_choice_is_an_arg_and_the_axis_itself_is_not(self) -> None:
+        """**고른 것은 인자, 고를 수 있는 것은 골격이다.**
+
+        갈래 목록은 템플릿이 갖는다 — subject 마다 갈래가 다르면 견줄 수가 없어서,
+        facet 을 템플릿이 갖는 것과 같은 까닭이다. 인자에는 **고른 하나**만 온다.
+        """
+        args = documents()["weave-render-args.schema.json"]
+        self.assertNotIn("variants", args["properties"], "갈래 목록이 인자로 섰다")
+        self.assertIn("variants", documents()["weave-template.schema.json"]["properties"])
+        self.assertTrue(check_render_args({"variant": "cancer"}).ok)
+        self.assertTrue(check_render_args({"variant": None}).ok)
+        self.assertFalse(check_render_args({"variant": ["cancer"]}).ok)
+        self.assertFalse(check_render_args({"variants": ["cancer"]}).ok)
 
     def test_previous_focus_is_a_render_arg(self) -> None:
         """직전 focus 는 **값에서 유도할 수 없다.** 앱만 아는 상호작용 이력이다."""

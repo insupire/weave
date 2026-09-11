@@ -247,14 +247,54 @@ test("채워진 값이 표시 단위로 그려진다", () => {
   }
 });
 
-test("값이 없는 facet 도 자리를 남기고 없다고 말한다", () => {
-  // 숨기면 subject 마다 골격이 달라져 견줄 수 없다.
+test("subject 하나가 비면 자리가 남고 아무도 없으면 facet 이 빠진다", () => {
+  // **선이 어디인지가 핵심이다.** 하나가 비는 것은 숨기지 않는다 — 숨기면 subject 마다
+  // 골격이 달라져 견줄 수 없다. **전원이 비었을 때만** 빠진다: 견줄 것이 없으니 골격이
+  // 달라질 일도 없고 남는 것은 빈 카드뿐이다.
   const { html } = renderView({ template: FIX.template, values: [FIX.empty] });
   const shown = textOf(html);
   for (const facet of FIX.template.facets) {
     assert.ok(shown.includes(facet.title), facet.id);
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
+
+  // 한쪽만 비었다 → 자리가 남고 표기가 말한다.
+  const half = renderView({ template: FIX.template, values: [FIX.filled, FIX.empty] });
+  for (const facet of FIX.template.facets) {
+    assert.ok(half.html.includes(`element-${facet.element}`), `${facet.id}: 한쪽만 비었는데 빠졌다`);
+  }
+  assert.deepEqual(half.view.dropped, []);
+
+  // **아무에게도 값이 없고 할 말도 없다 → 빠진다.** 말을 전부 걷어야 빈 카드가 된다.
+  const bare = structuredClone(FIX.template);
+  bare.facets = bare.facets.map((f) => ({ ...f, notes: [] }));
+  const mute = [FIX.filled, FIX.empty].map((doc) => {
+    const copy = structuredClone(doc);
+    for (const facet of Object.values(copy.facets)) {
+      delete facet.notes;
+      for (const slot of Object.values(facet.fields)) {
+        slot.state = "empty";
+        delete slot.value;
+        delete slot.notes;
+      }
+    }
+    return copy;
+  });
+  const gone = renderView({ template: bare, values: mute });
+  assert.equal(gone.html.match(/<section/g), null, `빈 카드가 남았다: ${gone.html.slice(0, 200)}`);
+  assert.deepEqual(gone.view.dropped, bare.facets.map((f) => f.id));
+
+  // **말이 붙어 있으면 선다.** 「이 제안서엔 이 항목이 없습니다」가 적힌 카드는 빈 카드가 아니다 —
+  // 전부 빈 값 한 벌이 「아직 분석하지 않았다」를 말하는 길이 그것이다.
+  const said = structuredClone(mute);
+  said[0].facets[bare.facets[0].id].notes = [{ kind: "caution", text: "아직 분석하지 않았습니다." }];
+  const kept = renderView({ template: bare, values: said });
+  assert.ok(kept.html.includes(`element-${bare.facets[0].element}`), "말이 붙었는데 빠졌다");
+  assert.deepEqual(kept.view.dropped, bare.facets.slice(1).map((f) => f.id));
+
+  // subject 가 하나도 없으면 이 규칙을 쓰지 않는다 — 템플릿만으로 골격을 보는 자리다.
+  const skeleton = renderView({ template: bare, values: [] });
+  for (const facet of bare.facets) assert.ok(skeleton.html.includes(`element-${facet.element}`), facet.id);
   // 화면에는 **표기**가 서고 뜻은 이름표가 갖는다 — 빈 칸으로 두면 깨진 것과 구별되지 않는다.
   assert.ok(shown.includes(NO_VALUE_MARK), `값이 설 자리에 표기가 없다: ${shown.slice(0, 120)}`);
   assert.ok(spokenOf(html).includes(NO_VALUE), "읽어 주는 기계에 말이 남지 않았다");
@@ -387,16 +427,66 @@ test("렌더 결과에 아직 분석 중이라는 상태가 없다", () => {
   }
 });
 
+test("축은 값을 바꾸고 골격은 바꾸지 않는다", () => {
+  // 축이 있는 샘플로 본다 — 말로만 설명하면 실제로 도는지 아무도 안 본다.
+  const name = sampleNames.find((one) => sample(one).template.variants?.length);
+  assert.ok(name, "축을 보여 주는 샘플이 없다");
+  const { template, values } = sample(name);
+  const variants = template.variants.map((one) => one.id);
+  assert.ok(variants.length >= 2, "갈래 하나는 축이 아니다");
+
+  const draw = (variant) => renderView({ template, values, focus: values[0].subjectId, variant });
+  const shots = variants.map(draw);
+
+  // **골격은 그대로다.** 어떤 facet 이 어떤 element 로 어떤 차례에 서는지가 달라지지 않는다.
+  const bones = (html) => [...html.matchAll(/class="facet element-([a-z]+)"/g)].map((m) => m[1]).join(",");
+  const titles = (html) => [...html.matchAll(/<h2 data-element="[^"]*">([^<]*)<\/h2>/g)].map((m) => m[1]).join(",");
+  for (const shot of shots) {
+    assert.equal(bones(shot.html), bones(shots[0].html), "축이 facet 구성을 바꾼다");
+    assert.equal(titles(shot.html), titles(shots[0].html), "축이 facet 차례를 바꾼다");
+  }
+  // **값은 바뀐다.** 안 바뀌면 축이 하는 일이 없다.
+  assert.ok(new Set(shots.map((one) => one.html)).size > 1, "축을 옮겨도 그림이 그대로다");
+  // 갈리지 않는 필드는 어느 갈래에서나 같은 값이다.
+  const steady = template.facets
+    .flatMap((f) => f.fields.filter((d) => !d.varies).map((d) => ({ facet: f, decl: d })))
+    .find(Boolean);
+  assert.ok(steady, "갈리지 않는 필드도 있어야 축이 무엇인지 보인다");
+  const slot = values[0].facets[steady.facet.id].fields[steady.decl.key];
+  assert.ok(!("byVariant" in slot), "갈리지 않는 필드가 갈래로 쪼개져 있다");
+  const said = formatScalar(steady.decl.type, slot.value);
+  for (const shot of shots) assert.ok(textOf(shot.html).includes(said), "안 갈리는 값이 갈래를 탄다");
+
+  // **없는 갈래거나 안 주면 첫 갈래다.** 빈 화면을 내지 않는다 — focus 와 같은 규칙이다.
+  assert.equal(draw("아무개").view.variant, variants[0]);
+  assert.equal(draw(null).view.variant, variants[0]);
+  assert.equal(draw("아무개").html, shots[0].html);
+  assert.deepEqual(draw(null).view.variants, template.variants);
+
+  // **축이 없는 템플릿이 기본이다.** 지금 있는 샘플과 소비자가 그대로 돈다.
+  for (const other of sampleNames.filter((one) => !sample(one).template.variants)) {
+    const plain = drawSample(sample(other));
+    assert.equal(plain.view.variant, null, `${other}: 축이 없는데 갈래가 생겼다`);
+    assert.deepEqual(plain.view.variants, [], other);
+    assert.equal(plain.html, renderView({ ...sample(other), variant: "아무개" }).html,
+      `${other}: 축이 없는데 인자가 그림을 바꾼다`);
+  }
+});
+
 test("렌더 인자는 값이 말할 수 없는 것뿐이다", () => {
   // 지키려던 것은 「하나」가 아니라 **「값 한 벌이 이미 아는 것은 인자가 아니다」**다.
   // 명단은 값 한 벌들이 갖고 있어 뺐고, focus 와 직전 focus 는 **앱만 아는 상호작용
   // 이력**이라 값에서 유도할 수가 없다. 그것이 여기 설 수 있는 유일한 자격이다.
   const args = read("schema/weave-render-args.schema.json");
-  assert.deepEqual(Object.keys(args.properties), ["focus", "previousFocus"]);
+  assert.deepEqual(Object.keys(args.properties), ["focus", "previousFocus", "variant"]);
   assert.equal(args.additionalProperties, false);
   assert.ok(!("$defs" in args), "자리(Seat) 정의가 남아 있다");
-  // 둘이 같은 규칙이다 — subject 의 id 이거나 null 이다.
-  for (const name of ["focus", "previousFocus"]) {
+  // **고를 수 있는 것은 여기 서지 않는다.** 명단도 갈래 목록도 이미 다른 곳이 안다.
+  assert.ok(!("subjects" in args.properties) && !("variants" in args.properties));
+  assert.ok("variants" in read("schema/weave-template.schema.json").properties,
+    "갈래 목록이 템플릿에 없다 — 그러면 subject 마다 골격이 달라진다");
+  // 셋이 같은 규칙이다 — id 이거나 null 이다.
+  for (const name of ["focus", "previousFocus", "variant"]) {
     assert.deepEqual(args.properties[name].anyOf.map((one) => Object.keys(one)[0]), ["$ref", "type"]);
     assert.equal(args.properties[name].anyOf[1].type, "null");
   }
@@ -1139,8 +1229,9 @@ test("값에서 온 글은 escape 된다", () => {
 
 // ---------------------------------------------------------------- 샘플은 템플릿 샘플이다
 
-test("샘플 넷은 서로 다른 템플릿 짜임이다", () => {
-  assert.equal(sampleNames.length, 4);
+test("샘플은 서로 다른 템플릿 짜임으로 갈린다", () => {
+  // 수는 python 쪽이 센다 — 두 군데서 세면 샘플을 늘릴 때마다 두 군데를 고쳐야 한다.
+  assert.ok(sampleNames.length >= 4, `샘플이 너무 적다: ${sampleNames.length}`);
   const shapes = sampleNames.map((name) => {
     const t = sample(name).template;
     return JSON.stringify(t.facets.map((f) => f.element));
