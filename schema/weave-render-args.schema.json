@@ -2,12 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "weave-render-args.schema.json",
   "title": "렌더 인자",
-  "description": "값이 아니라 화면 상태다. 앱이 갖고 사용자가 누를 때마다 바뀐다. index 가 아니라 subject 의 id 로 가리킨다. 누가 자리에 서는지는 값 한 벌들이 이미 말하므로 여기 없다 — subject 마다 값 한 벌이 정확히 하나 있고, 비어 있을 수 있다.",
+  "description": "값이 아니라 화면 상태다. 앱이 갖고 사용자가 누를 때마다 바뀐다. index 가 아니라 subject 의 id 로 가리킨다. 누가 자리에 서는지는 값 한 벌들이 이미 말하므로 여기 없다 — subject 마다 값 한 벌이 정확히 하나 있고, 비어 있을 수 있다. 여기 서는 것은 값에서 유도할 수 없는 것뿐이다: 무엇을 보고 있고 바로 전에 무엇을 보고 있었는지는 앱만 안다.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "focus": {
       "description": "강조할 subject. null 이 release 다. 없는 id 면 focus 만 사라진다.",
+      "anyOf": [
+        { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
+        { "type": "null" }
+      ]
+    },
+    "previousFocus": {
+      "description": "바로 전에 보고 있던 subject. 값에서 유도할 수 없는 상호작용 이력이라 여기 선다. focus 와 같은 규칙이다 — null 이 없음이고, 없는 id 면 그 상태만 사라진다. focus 와 같은 id 면 직전이 없는 것으로 본다: 직전이 현재와 같을 수는 없다.",
       "anyOf": [
         { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
         { "type": "null" }

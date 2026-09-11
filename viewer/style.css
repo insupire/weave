@@ -205,14 +205,22 @@ svg .tick { font-size:11px; fill:var(--mute); }
 svg .ty { text-anchor:end; }
 svg .tx { text-anchor:start; }
 svg .tx.end { text-anchor:end; }
-/* **선을 가르는 것은 무늬와 이름뿐이다.** 색을 쓰지 않으므로 무늬가 뚜렷해야 하고,
-   선 끝의 이름이 무늬를 글로 받아 준다 — 겹쳐도 어느 선인지 이름으로 읽힌다. */
-svg .series { fill:none; stroke:var(--ink); stroke-width:1.6; opacity:.55; }
-svg .series.is-focus { stroke-width:2.6; opacity:1; }
-svg circle.series, svg circle.dot { fill:var(--ink); stroke:none; }
-svg .series-label { font-size:11px; fill:var(--mute); font-weight:600;
+/* **선은 세 갈래로 갈린다 — 지금 보는 것 · 직전에 보던 것 · 나머지.**
+   이 색은 **subject 의 것이 아니라 상태의 것이다.** 같은 subject 라도 focus 가 옮겨 가면
+   색이 바뀐다 — 걷어낸 subject 팔레트를 되살리는 것이 아니다.
+   **색에만 기대지 않는다**: 굵기와 진하기가 같은 순서를 함께 말해 색 없이도 갈린다.
+   평가가 아니다 — 뚜렷한 것이 「더 좋은 것」이 아니라 **보고 있는 것**이라, 경고색·성공색을 피한다. */
+.trace-now { --trace:#1a1a1a; }    /* 무채색. 지금 보는 것이 가장 뚜렷하다 */
+.trace-prior { --trace:#3f6fb5; }  /* 좋고 나쁨을 뜻하지 않는 파랑 */
+.trace-rest { --trace:#9a9a9a; }   /* 무채색. 가장 옅다 */
+svg .series { fill:none; stroke:var(--trace, var(--ink)); }
+svg .series.trace-now { stroke-width:2.6; opacity:1; }
+svg .series.trace-prior { stroke-width:1.8; opacity:.8; }
+svg .series.trace-rest { stroke-width:1.1; opacity:.45; }
+svg circle.series, svg circle.dot { fill:var(--trace, var(--ink)); stroke:none; }
+svg .series-label { font-size:11px; fill:var(--trace, var(--mute)); font-weight:600;
   paint-order:stroke; stroke:#ffffff; stroke-width:3px; stroke-linejoin:round; }
-svg .series-label.is-focus { fill:var(--ink); font-weight:700; }
+svg .series-label.is-focus { font-weight:700; }
 
 /* 주석은 띠가 아니라 **글**로 읽힌다.
    **줄 사이가 전부 같다** — 한 묶음 안이든 묶음과 묶음 사이든 `--row` 하나다.

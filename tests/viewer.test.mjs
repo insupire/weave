@@ -15,7 +15,8 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  COMPARE, DASHES, ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNDRAWABLE, formatScalar, renderView,
+  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, TRACE, UNDRAWABLE, formatScalar, renderView,
+  traceOf,
 } from "../viewer/render.mjs";
 import { ICON } from "../viewer/icons.mjs";
 
@@ -315,11 +316,30 @@ test("렌더 결과에 아직 분석 중이라는 상태가 없다", () => {
   }
 });
 
-test("렌더 인자는 focus 하나뿐이다", () => {
+test("렌더 인자는 값이 말할 수 없는 것뿐이다", () => {
+  // 지키려던 것은 「하나」가 아니라 **「값 한 벌이 이미 아는 것은 인자가 아니다」**다.
+  // 명단은 값 한 벌들이 갖고 있어 뺐고, focus 와 직전 focus 는 **앱만 아는 상호작용
+  // 이력**이라 값에서 유도할 수가 없다. 그것이 여기 설 수 있는 유일한 자격이다.
   const args = read("schema/weave-render-args.schema.json");
-  assert.deepEqual(Object.keys(args.properties), ["focus"]);
+  assert.deepEqual(Object.keys(args.properties), ["focus", "previousFocus"]);
   assert.equal(args.additionalProperties, false);
   assert.ok(!("$defs" in args), "자리(Seat) 정의가 남아 있다");
+  // 둘이 같은 규칙이다 — subject 의 id 이거나 null 이다.
+  for (const name of ["focus", "previousFocus"]) {
+    assert.deepEqual(args.properties[name].anyOf.map((one) => Object.keys(one)[0]), ["$ref", "type"]);
+    assert.equal(args.properties[name].anyOf[1].type, "null");
+  }
+
+  const view = (extra) => renderView({ template: FIX.template, values: FIX.values, ...extra }).view;
+  assert.equal(view({ focus: "proposal-a", previousFocus: "proposal-b" }).prior, "proposal-b");
+  // **없는 id 면 그 상태만 사라진다** — focus 와 같은 규칙이다.
+  assert.equal(view({ focus: "proposal-a", previousFocus: "아무개" }).prior, null);
+  assert.equal(view({ focus: "proposal-a", previousFocus: "아무개" }).focus, "proposal-a");
+  // **현재와 같으면 직전이 없는 것으로 본다.** 직전이 현재와 같을 수는 없다.
+  assert.equal(view({ focus: "proposal-a", previousFocus: "proposal-a" }).prior, null);
+  assert.equal(view({ focus: null, previousFocus: null }).prior, null);
+  // 주지 않아도 그려진다 — 기존 부르는 쪽이 그대로 돈다.
+  assert.equal(view({ focus: "proposal-a" }).prior, null);
 });
 
 test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
@@ -649,14 +669,16 @@ test("평가를 시각으로 말하지 않는다", () => {
   // 기계가 볼 수 있는 것만 여기 있다 — 「이 빨강이 나쁨을 뜻하는가」는 사람이 본다(AGENTS.md).
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
 
-  // **색이 나오는 자리는 하나뿐이다** — 주석 갈래(통용 시맨틱). subject 팔레트는 걷었다.
+  // **색이 나오는 자리는 둘뿐이다** — 주석 갈래(통용 시맨틱)와 선의 **상태**(지금·직전·나머지).
+  // subject 팔레트는 걷었고 되살아나지 않는다: 상태 색은 id 도 차례도 보지 않는다.
   const byKind = [...css.matchAll(/\.note-([a-z]+)\s*\{\s*--kind:([^;]+);\s*\}/g)];
   const kindColors = new Set(
     byKind.map((m) => m[2].trim()).filter((v) => v.startsWith("#")).map((v) => v.toLowerCase()),
   );
 
-  // 0. **색 있는 값이 설 수 있는 자리는 갈래 선언뿐이다.** 다른 규칙은 무채색이거나
-  //    var(--kind) 를 거쳐야 한다 — 값·subject·facet 에 색을 칠하는 길을 전부 막는다.
+  // 0. **색 있는 값이 설 수 있는 자리는 갈래·상태 선언뿐이다.** 다른 규칙은 무채색이거나
+  //    var(--kind)·var(--trace) 를 거쳐야 한다 — 값·subject·facet 에 칠하는 길을 전부 막는다.
+  //    상태 선언은 **닫힌 세 갈래**에만 선다. `.trace-<id>` 같은 것이 끼어들 수 없다.
   const isChromatic = (hex) => {
     const parts = hex.length <= 4
       ? [...hex].slice(0, 3).map((c) => c + c)
@@ -668,12 +690,23 @@ test("평가를 시각으로 말하지 않는다", () => {
     if (hues.length === 0) continue;
     assert.match(
       body.trim(),
-      /^--kind:\s*#[0-9a-fA-F]{3,8};$/,
+      /^--(kind|trace):\s*#[0-9a-fA-F]{3,8};$/,
       `색을 직접 칠한다: ${selector.trim()} { ${body.trim()} }`,
     );
+    if (!body.includes("--trace")) continue;
+    const sel = selector.replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    assert.ok(TRACE.map((name) => `.trace-${name}`).includes(sel),
+      `상태가 아닌 것에 선 색을 준다: ${sel}`);
   }
+  // 상태 선언은 셋뿐이고 이름이 렌더의 갈래와 같다 — 하나 더 끼워 넣을 자리가 없다.
+  const traces = [...css.matchAll(/\.trace-([a-z]+)\s*\{\s*--trace:/g)].map((m) => m[1]);
+  assert.deepEqual(traces, TRACE, "선 갈래 선언이 렌더의 갈래와 다르다");
 
-  // 1. 갈래 말고는 색이 없다. 뼈대도 subject 도 무채색으로 남는다.
+  // 1. 갈래와 상태 말고는 색이 없다. 뼈대도 subject 도 무채색으로 남는다.
+  const traceColors = new Set(
+    [...css.matchAll(/\.trace-[a-z]+\s*\{\s*--trace:\s*(#[0-9a-fA-F]{3,8});\s*\}/g)]
+      .map((m) => m[1].toLowerCase()),
+  );
   const chromatic = [];
   for (const [, hex] of css.matchAll(/#([0-9a-fA-F]{3,8})\b/g)) {
     const pairs = hex.length <= 4
@@ -681,13 +714,14 @@ test("평가를 시각으로 말하지 않는다", () => {
       : [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)];
     if (new Set(pairs.map((p) => parseInt(p, 16))).size === 1) continue; // 무채색
     if (kindColors.has(`#${hex.toLowerCase()}`)) continue; // 주석 갈래의 통용색
+    if (traceColors.has(`#${hex.toLowerCase()}`)) continue; // 선의 상태색
     chromatic.push(`#${hex}`);
   }
   for (const [, body] of css.matchAll(/rgba?\(([^)]+)\)/g)) {
     const channels = body.split(",").slice(0, 3).map((p) => Number(p.trim()));
     if (new Set(channels).size !== 1) chromatic.push(`rgb(${body})`);
   }
-  assert.deepEqual(chromatic, [], `갈래 밖의 색: ${chromatic.join(", ")}`);
+  assert.deepEqual(chromatic, [], `갈래·상태 밖의 색: ${chromatic.join(", ")}`);
 
   // 2. 값에 따라 달라지는 색이 없다. 렌더가 넣는 inline style 은 **길이뿐**이다.
   for (const html of [fix({ focus: "proposal-a" }).html, ...sampleNames.map((n) => drawSample(sample(n)).html)]) {
@@ -847,25 +881,65 @@ test("장식으로 위계를 만들지 않는다", () => {
   assert.ok(!/text-align:\s*center/.test(css), "가운데 정렬");
 });
 
-test("선은 색이 아니라 점선 무늬로 갈린다", () => {
-  // 선이 둘 이상일 때만 갈릴 일이 생긴다. 둘째 선을 여기서 만든다.
+test("선은 보는 상태로 갈린다 — 색을 빼도 갈린다", () => {
+  // 지키려는 것은 「무늬」가 아니라 **「선이 서로 갈린다」**다. 가르는 자가 무늬에서
+  // 상태(지금 보는 것 · 직전에 보던 것 · 나머지)로 바뀌었을 뿐이다.
   const values = structuredClone(FIX.values);
-  values[2].facets["premium-by-age"].fields["premium-curve"] = {
-    state: "filled",
-    value: [{ at: 40, value: 60000 }, { at: 50, value: 90000 }, { at: 60, value: 140000 }],
-  };
-  const svg = sectionOf(fix({ values }).html, "line");
+  for (const [i, at] of [[1, 42], [2, 44]]) {
+    values[i].facets["premium-by-age"].fields["premium-curve"] = {
+      state: "filled",
+      value: [{ at, value: 60000 + i * 9000 }, { at: at + 18, value: 140000 + i * 9000 }],
+    };
+  }
+  const drawSvg = (args) => sectionOf(renderView({ template: FIX.template, values, ...args }).html, "line");
+  const svg = drawSvg({ focus: "proposal-a", previousFocus: "proposal-b" });
   const drawn = [...svg.matchAll(/<polyline[^>]*>/g)].map((m) => m[0]);
-  assert.equal(drawn.length, 2);
-  // 색으로 가르지 않는다 — 선에 stroke 색을 따로 주지 않는다.
-  assert.ok(!drawn.some((tag) => /stroke="/.test(tag)));
-  // **색을 걷은 뒤로 무늬가 유일한 가름이다.** 두 선이 같은 무늬로 서면 안 된다.
-  const patterns = drawn.map((tag) => (tag.match(/stroke-dasharray="([^"]+)"/) ?? [, "solid"])[1]);
-  assert.equal(new Set(patterns).size, 2, `두 선이 같은 무늬다: ${patterns.join(" / ")}`);
-  assert.equal(new Set(DASHES).size, DASHES.length, "무늬 자체가 겹친다");
-  // **이름이 무늬를 글로 받는다.** 무늬만으로 가르지 않는다 — 겹친 자리는 이름으로 읽는다.
+  assert.equal(drawn.length, 3, "세 갈래를 보려면 선이 셋이어야 한다");
+  // **점선을 쓰지 않는다.** 무늬로 가르던 자리를 걷었다.
+  assert.ok(!svg.includes("stroke-dasharray"), "점선이 남아 있다");
+  assert.ok(!drawn.some((tag) => /stroke="/.test(tag)), "선에 색을 직접 칠한다");
+
+  // 세 갈래가 저마다 하나씩 선다.
+  const traceOfTag = (tag) => (tag.match(/trace-([a-z]+)/) ?? [])[1];
+  assert.deepEqual(drawn.map(traceOfTag).sort(), [...TRACE].sort());
+
+  // **색을 빼도 갈린다** — 굵기와 진하기가 같은 순서를 함께 말한다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const seen = { width: new Map(), opacity: new Map() };
+  for (const name of TRACE) {
+    const body = css.match(new RegExp(`svg \\.series\\.trace-${name} \\{([^}]*)\\}`))?.[1] ?? "";
+    for (const key of ["stroke-width", "opacity"]) {
+      const value = Number(body.match(new RegExp(`${key}:([\\d.]+)`))?.[1]);
+      assert.ok(Number.isFinite(value), `${name}: ${key} 가 없다`);
+      seen[key === "opacity" ? "opacity" : "width"].set(name, value);
+    }
+  }
+  for (const [key, got] of Object.entries(seen)) {
+    assert.equal(new Set(got.values()).size, TRACE.length, `${key} 가 갈래를 가르지 못한다`);
+    // 순서까지 같다 — 지금 보는 것이 가장 뚜렷하고 나머지가 가장 옅다.
+    assert.deepEqual([...got.values()], [...got.values()].sort((a, b) => b - a), `${key} 의 순서`);
+  }
+
+  // **색은 상태에서만 나온다.** 같은 subject 라도 보는 것이 바뀌면 갈래가 바뀐다.
+  const moved = drawSvg({ focus: "proposal-b", previousFocus: "proposal-a" });
+  const traceFor = (part, name) =>
+    traceOfTag(part.match(new RegExp(`<polyline[^>]*>(?=[\\s\\S]*?${name})`))?.[0] ?? "");
+  assert.equal(traceOf("proposal-a", "proposal-a", "proposal-b"), "now");
+  assert.equal(traceOf("proposal-a", "proposal-b", "proposal-a"), "prior");
+  assert.equal(traceOf("proposal-a", "proposal-c", "proposal-b"), "rest");
+  assert.notEqual(svg, moved, "focus 를 옮겨도 그림이 그대로다");
+  // 차례를 바꿔도 갈래는 그대로다 — id 나 자리에서 나오지 않는다.
+  const swapped = renderView({
+    template: FIX.template, values: [...values].reverse(),
+    focus: "proposal-a", previousFocus: "proposal-b",
+  });
+  const bySeat = [...sectionOf(swapped.html, "line").matchAll(/<polyline[^>]*>/g)]
+    .map((m) => traceOfTag(m[0]));
+  assert.deepEqual(bySeat.sort(), [...TRACE].sort(), "차례가 갈래를 정한다");
+
+  // **이름은 그대로다** — 누가 누구인지는 이름이, 무엇을 보는 중인지는 색과 굵기가 말한다.
   const labelled = [...svg.matchAll(/<text class="series-label[^"]*"[^>]*>([^<]+)</g)].map((m) => m[1]);
-  assert.equal(labelled.length, 2, "이름 없는 선이 있다");
+  assert.equal(labelled.length, 3, "이름 없는 선이 있다");
   assert.ok(labelled.every((name) => Object.values(NAMES).includes(name)), labelled.join(" / "));
 });
 

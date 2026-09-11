@@ -28,6 +28,9 @@ const state = {
   values: [], // 값 한 벌들의 글. **subject 마다 정확히 하나이고 이것이 곧 명단이다**
   active: 0, // 0 은 템플릿, 1 부터는 values 의 자리
   focus: null,
+  // **바로 전에 보던 subject.** 값에서 유도할 수 없는 상호작용 이력이라 앱이 갖는다 —
+  // 겹치는 선은 이것으로 「지금 보는 것 · 직전에 보던 것 · 나머지」를 가른다.
+  previousFocus: null,
   seq: 0,
   showElements: false, // primitive element 이름. 분석뷰의 것이 아니라 설명서의 것이라 기본은 끔
 };
@@ -116,6 +119,7 @@ function loadSample(key) {
   state.templateText = sample.template;
   state.values = sample.values.map((v) => v.text);
   state.focus = sample.args.focus ?? null;
+  state.previousFocus = sample.args.previousFocus ?? null;
   state.active = 0;
   state.seq = state.values.length;
   // 플레이그라운드의 DOM 은 쪽을 보고 있지 않아도 채워 둔다 — 옮겨 가도 편집 중인 글이 산다.
@@ -209,6 +213,9 @@ function drawFocus(seats) {
     if (title) button.setAttribute("title", title);
     button.setAttribute("aria-pressed", String(state.focus === value));
     button.addEventListener("click", () => {
+      // 누르는 순간 지금 보던 것이 직전이 된다. 같은 것을 다시 누르면 아무 일도 없다.
+      if (value === state.focus) return;
+      state.previousFocus = state.focus;
       state.focus = value;
       refresh();
     });
@@ -220,7 +227,8 @@ function drawFocus(seats) {
 
 function refresh() {
   const { template, values, problems } = read();
-  const { html, report, view } = renderView({ template, values, focus: state.focus });
+  const { html, report, view } =
+    renderView({ template, values, focus: state.focus, previousFocus: state.previousFocus });
   // 오른쪽 판은 분석뷰뿐이다. 이름표는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
@@ -267,6 +275,7 @@ function dropSubject() {
   if (index < 0) return;
   const { doc } = parse(state.values[index]);
   if (doc?.subjectId && state.focus === doc.subjectId) state.focus = null;
+  if (doc?.subjectId && state.previousFocus === doc.subjectId) state.previousFocus = null;
   state.values.splice(index, 1);
   if (state.active > state.values.length) state.active = state.values.length;
   drawTabs();

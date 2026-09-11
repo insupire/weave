@@ -282,7 +282,7 @@
   "line": {
     "compare": "overlay",
     "draws": "축 위의 변화. subject 마다 선 하나가 한 좌표에 겹친다",
-    "note": "축이 둘이라 선끼리 갈린다. 색이 아니라 점선 무늬와 선 끝의 이름으로 구별하므로 아래에 범례를 두지 않고, 가로축은 age·date·duration·number 만 된다",
+    "note": "축이 둘이라 선끼리 갈린다. 누가 누구인지는 선 끝의 이름이 말해 아래에 범례를 두지 않고, 무엇을 보는 중인지는 지금·직전·나머지 세 갈래의 색과 굵기가 말한다. 가로축은 age·date·duration·number 만 된다",
     "demo": {
       "template": {
         "weave": "1",

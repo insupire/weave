@@ -23,7 +23,8 @@ export const SAMPLES = {
       }
     ],
     "args": {
-      "focus": "proposal-b"
+      "focus": "proposal-b",
+      "previousFocus": "proposal-a"
     }
   },
   "stat-row": {

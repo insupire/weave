@@ -20,10 +20,26 @@ export const NO_VALUE = "값 없음";
 export const NO_ITEMS = "항목 없음";
 export const UNDRAWABLE = "그리지 못한다";
 
-// **선을 subject 별로 가르는 유일한 방법.** 색을 쓰지 않는다 — 무늬는 우열을 말하지 않고,
-// 인쇄와 색각 이상에서도 그대로 갈린다. 자리 차례로 돌려 쓰며 값의 크기와 무관하다.
-// 이름은 늘 선 끝에 글로 함께 선다 — 무늬만으로 가르지 않는다.
-export const DASHES = ["", "7 4", "2 3", "11 4 2 4", "1 3", "6 3 1 3 1 3"];
+/**
+ * **선이 갈리는 세 갈래.** subject 가 아니라 **상태**다 — 같은 subject 라도 focus 가
+ * 옮겨 가면 갈래가 바뀐다. 걷어낸 subject 팔레트를 되살리는 것이 아니다.
+ *
+ * 색으로 가르되 **색에만 기대지 않는다** — 굵기와 진하기가 같은 순서를 함께 말한다.
+ * 색을 못 보는 사람에게도 지금 무엇을 보고 있는지가 갈려야 한다.
+ * 누가 누구인지는 여전히 **선 끝의 이름**이 말한다.
+ *
+ * 평가가 아니다. 뚜렷한 것이 「더 좋은 것」이 아니라 **보고 있는 것**이다 —
+ * 그래서 경고색·성공색 계열을 쓰지 않는다.
+ */
+export const TRACE = ["now", "prior", "rest"];
+
+/** 선 하나가 어느 갈래인지. **오직 화면 상태에서만 나온다** — id 도 차례도 보지 않는다. */
+export function traceOf(id, focus, prior) {
+  if (focus !== null && id === focus) return "now";
+  // 직전이 현재와 같을 수는 없다. 같은 id 가 들어오면 직전이 없는 것으로 본다.
+  if (prior !== null && prior !== focus && id === prior) return "prior";
+  return "rest";
+}
 
 export function esc(text) {
   return String(text)
@@ -317,7 +333,7 @@ function line(ctx, facet) {
     series.push({ subject, points, notes: entry.notes });
   }
   const body = series.length
-    ? lineSvg(series, axis, decl.type, ctx.focus)
+    ? lineSvg(series, axis, decl.type, ctx.focus, ctx.prior)
     : `<div class="blank">${stateSpan("empty")}</div>`;
   // 아래에 서는 말은 **고른 subject 것뿐이다** — 겹쳐 그려도 말의 규칙은 하나다.
   const notes = series
@@ -333,7 +349,7 @@ function line(ctx, facet) {
   );
 }
 
-function lineSvg(series, axis, type, focus) {
+function lineSvg(series, axis, type, focus, prior) {
   const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
   const xs = series.flatMap((s) => s.points.map((p) => p.x));
   const ys = series.flatMap((s) => s.points.map((p) => p.y));
@@ -355,23 +371,23 @@ function lineSvg(series, axis, type, focus) {
     `<text class="tick tx" x="${L}" y="${H - B + 18}">${esc(formatScalar(axis, firstAt))}</text>`,
     `<text class="tick tx end" x="${W - R}" y="${H - B + 18}">${esc(formatScalar(axis, lastAt))}</text>`,
   ];
-  series.forEach(({ subject, points }, index) => {
+  series.forEach(({ subject, points }) => {
     const focused = subject.id === focus;
-    const klass = `series${focused ? " is-focus" : ""}`;
+    // 무늬를 쓰지 않는다. 갈래는 상태에서 나오고 CSS 가 색·굵기·진하기로 함께 말한다.
+    const klass = `series trace-${traceOf(subject.id, focus, prior)}${focused ? " is-focus" : ""}`;
     if (points.length === 1) {
       parts.push(`<circle class="${klass}" cx="${px(points[0].x).toFixed(1)}" cy="${py(points[0].y).toFixed(1)}" r="3.5"/>`);
     } else {
-      const dash = DASHES[index % DASHES.length];
       const coords = points.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
-      parts.push(`<polyline class="${klass}" points="${coords}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`);
+      parts.push(`<polyline class="${klass}" points="${coords}"/>`);
     }
     for (const p of points) {
       parts.push(`<circle class="dot ${klass}" cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="2.5"/>`);
     }
     const last = points[points.length - 1];
     parts.push(
-      `<text class="series-label${focused ? " is-focus" : ""}" x="${(px(last.x) + 8).toFixed(1)}" ` +
-        `y="${(py(last.y) + 4).toFixed(1)}">${esc(subject.name)}</text>`,
+      `<text class="series-label trace-${traceOf(subject.id, focus, prior)}${focused ? " is-focus" : ""}" ` +
+        `x="${(px(last.x) + 8).toFixed(1)}" y="${(py(last.y) + 4).toFixed(1)}">${esc(subject.name)}</text>`,
     );
   });
   return `<svg class="line" viewBox="0 0 ${W} ${H}" role="img">${parts.join("")}</svg>`;
@@ -453,12 +469,13 @@ export const ELEMENTS = { stat, facts, bars, line, list };
 // ---------------------------------------------------------------- 페이지
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
-function viewState(seats, focus, shown, wanted) {
+function viewState(seats, focus, prior, shown, wanted) {
   return {
     seats,
     shown, // focus 를 따라 바뀌는 element 가 지금 그리는 subject
 
     focus,
+    prior, // 직전에 보고 있던 subject. 겹치는 선이 갈래를 여기서 받는다
     // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
     focusMissing: wanted && !focus ? wanted : null,
   };
@@ -467,15 +484,17 @@ function viewState(seats, focus, shown, wanted) {
 /**
  * 분석뷰 하나를 HTML 로 그린다.
  *
- * @param {object} input  { template, values, focus }
+ * @param {object} input  { template, values, focus, previousFocus }
  *   - 자리와 그 차례는 **값 한 벌들이 정한다.** 명단을 따로 받지 않는다.
  *   - focus 는 subject 의 id. null 이거나 없는 id 면 겹치는 element 는 강조를 풀고,
  *     focus 를 따라 바뀌는 element 는 **첫 subject** 를 그린다.
+ *   - previousFocus 는 바로 전에 보고 있던 subject. **값에서 유도할 수 없어** 인자로 받는다.
+ *     같은 규칙이다 — 없는 id 면 그 상태만 사라지고, focus 와 같으면 직전이 없는 것으로 본다.
  * @returns {{html: string, report: string[], view: object|null}}
  *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
  *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
  */
-export function renderView({ template, values = [], focus = null } = {}) {
+export function renderView({ template, values = [], focus = null, previousFocus = null } = {}) {
   const report = [];
   if (!template || typeof template !== "object" || Array.isArray(template)) {
     // 그릴 분석뷰가 없다. 빈 판을 내고 무슨 일인지는 왼쪽이 말한다.
@@ -499,7 +518,11 @@ export function renderView({ template, values = [], focus = null } = {}) {
   // focus 를 따라 바뀌는 element 가 그릴 subject. 고른 것이 없으면 첫째다 —
   // 늘어놓기로 돌아가지 않고 빈 화면도 내지 않는다.
   const shown = seated ?? seats[0]?.id ?? null;
-  const ctx = { subjects: seats, byId, focus: seated, shown, report };
+  // 직전도 같은 규칙이다 — 없는 id 면 사라지고, 현재와 같으면 직전이 없는 것으로 본다.
+  const prior = seats.some((s) => s.id === previousFocus) && previousFocus !== seated
+    ? previousFocus
+    : null;
+  const ctx = { subjects: seats, byId, focus: seated, prior, shown, report };
 
   for (const [id, doc] of byId) {
     const known = new Set((template.facets ?? []).map((f) => f?.id));
@@ -558,5 +581,5 @@ export function renderView({ template, values = [], focus = null } = {}) {
   // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
   const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html, report, view: viewState(seats, seated, shown, wanted) };
+  return { html, report, view: viewState(seats, seated, prior, shown, wanted) };
 }

@@ -248,10 +248,30 @@ class RenderArgs(unittest.TestCase):
         self.assertFalse(result.ok, "명단은 렌더 인자가 아니다")
         self.assertIn("Additional properties", " | ".join(str(p) for p in result.problems))
 
-    def test_the_schema_declares_focus_and_nothing_else(self) -> None:
+    def test_the_schema_declares_only_what_values_cannot_say(self) -> None:
+        """렌더 인자는 **값에서 유도할 수 없는 것**만 담는다.
+
+        ``focus`` 와 ``previousFocus`` 는 앱의 상호작용 이력이라 값 한 벌에도 템플릿에도
+        없다. 명단처럼 값이 이미 갖고 있는 것은 여기 서지 않는다.
+        """
         args = documents()["weave-render-args.schema.json"]
-        self.assertEqual(list(args["properties"]), ["focus"])
+        self.assertEqual(list(args["properties"]), ["focus", "previousFocus"])
         self.assertNotIn("$defs", args, "자리(Seat) 정의가 남아 있다")
+        # 둘이 같은 규칙을 따른다 — id 이거나 null 이고, 없는 id 는 결함이 아니다.
+        for name in ("focus", "previousFocus"):
+            self.assertEqual(
+                [list(one)[0] for one in args["properties"][name]["anyOf"]],
+                ["$ref", "type"],
+                f"{name} 이 focus 와 다른 규칙을 쓴다",
+            )
+
+    def test_previous_focus_is_a_render_arg(self) -> None:
+        """직전 focus 는 **값에서 유도할 수 없다.** 앱만 아는 상호작용 이력이다."""
+        self.assertTrue(check_render_args({"focus": "a", "previousFocus": "b"}).ok)
+        self.assertTrue(check_render_args({"previousFocus": None}).ok)
+        # 직전이 현재와 같은 것은 결함이 아니다. 렌더가 직전이 없는 것으로 정리한다.
+        self.assertTrue(check_render_args({"focus": "a", "previousFocus": "a"}).ok)
+        self.assertFalse(check_render_args({"previousFocus": 3}).ok)
 
 
 if __name__ == "__main__":

@@ -54,13 +54,19 @@ class SamplesAreWhole(unittest.TestCase):
         self.assertEqual(len(set(shapes)), len(shapes), f"짜임이 겹친다: {shapes}")
 
     def test_sample_metadata_carries_a_render_args_document(self) -> None:
-        """명단과 focus 는 뷰어가 지어낸 모양이 아니라 발행한 계약이다."""
+        """화면 상태는 뷰어가 지어낸 모양이 아니라 발행한 계약이다.
+
+        무엇이 설 수 있는지는 **스키마가 정한다.** 여기에 이름을 또 적으면 계약이 두 벌이
+        되어 갈릴 수 있다 — 스키마의 ``properties`` 로 재고, 검사기로 판정한다.
+        """
+        allowed = set(documents()["weave-render-args.schema.json"]["properties"])
+        self.assertTrue(allowed, "렌더 인자 스키마에 properties 가 없다")
         for folder in sample_dirs():
             with self.subTest(folder.name):
                 meta = load(folder / "sample.json")
                 self.assertEqual(set(meta), {"order", "name", "args"})
                 self.assertTrue(meta["name"])
-                self.assertEqual(set(meta["args"]) - {"focus"}, set(), "렌더 인자는 focus 하나뿐이다")
+                self.assertEqual(set(meta["args"]) - allowed, set(), "스키마에 없는 렌더 인자")
                 result = check_render_args(meta["args"])
                 self.assertTrue(result.ok, [str(p) for p in result.problems])
 
