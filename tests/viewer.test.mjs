@@ -318,6 +318,24 @@ test("쓰는 색이 전부 무채색이다", () => {
   assert.deepEqual(chromatic, [], `무채색이 아닌 색: ${chromatic.join(", ")}`);
 });
 
+test("오른쪽 판의 띠는 스크롤 영역 밖에 있다", () => {
+  // 분석뷰는 길다. 아래를 보다가 focus 를 바꾸려고 위로 되올라오면 안 된다.
+  const page = fs.readFileSync(path.join(ROOT, "viewer.html"), "utf-8");
+  const markup = page.split('<script type="module">')[0];
+  const pane = markup.slice(markup.indexOf('<div class="pane view">'));
+  const bar = pane.indexOf('<div class="bar">');
+  const scroll = pane.indexOf('<div class="scroll">');
+  const body = pane.indexOf('id="view"');
+  assert.ok(bar >= 0 && scroll > bar, "띠가 스크롤 영역보다 앞에 서야 한다");
+  assert.ok(body > scroll, "본문이 스크롤 영역 안에 있어야 한다");
+
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  assert.match(css, /\.pane\.view \{ overflow:hidden; \}/, "판이 스크롤 상자면 띠가 밀린다");
+  assert.match(css, /\.scroll \{[^}]*overflow:auto/, "스크롤하는 것은 본문뿐이다");
+  // 붙박이를 만들려고 시각을 새로 들이지 않는다. 구조로 푼 자리다.
+  assert.ok(!/position:\s*sticky/.test(css), "sticky 로 띄우지 않는다");
+});
+
 test("장식으로 위계를 만들지 않는다", () => {
   // 띠와 상자로 말하던 것을 글자로 말하게 한다. 되살아나면 여기서 걸린다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
