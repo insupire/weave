@@ -42,8 +42,6 @@ const HALF = sample("half-read");
 
 /** 태그를 걷어낸 글. 사람이 화면에서 읽을 것에 가깝다. */
 const textOf = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-/** 머리말을 뺀 본문. 머리말은 범례라서 화면에 없는 말도 담는다. */
-const bodyOf = (html) => html.split("</header>")[1] ?? "";
 
 const draw = (s, overrides = {}) =>
   renderView({ template: s.template, values: s.values, subjects: s.subjects, focus: s.focus ?? null, ...overrides });
@@ -80,6 +78,62 @@ test("샘플 넷이 전부 그려지고 아무것도 던지지 않는다", () =>
   }
 });
 
+// ------------------------------------------------ 렌더가 내는 것은 분석뷰뿐이다
+
+test("렌더 결과에 도구가 덧붙인 것이 없다", () => {
+  // 오른쪽 판은 앱이 그대로 가져다 쓸 분석뷰다. 뷰어의 표시가 따라가면 안 된다.
+  for (const name of sampleNames) {
+    const { html } = draw(sample(name));
+    for (const gone of [
+      "<header", // 머리말 통째로
+      'class="meta"', // 템플릿 id · subject 수 · focus 상태
+      'class="roster"', // 명단 chip 줄 (왼쪽 focus 버튼과 겹쳤다)
+      'class="chip', "no-values", "focus-badge",
+      'class="legend"', // 값 없음 / 아직 분석 중 범례
+      '<span class="element"', // 제목 옆 원시 요소 배지
+    ]) {
+      assert.ok(!html.includes(gone), `${name}: ${gone}`);
+    }
+    const shown = textOf(html);
+    for (const word of ["분석됨", "명단에 없다", "분석했지만 값이 없다", "값 한 벌이 아직 없다"]) {
+      assert.ok(!shown.includes(word), `${name}: ${word}`);
+    }
+    // 원시 요소 이름이 글로 찍히지 않는다. 구조(class·data 속성)로만 남는다.
+    for (const element of Object.keys(ELEMENTS)) {
+      assert.ok(!html.includes(`>${element}<`), `${name}: ${element} 배지`);
+    }
+    assert.ok(html.startsWith("<h1>"), name); // 남는 것은 템플릿 제목과 facet 들뿐
+  }
+});
+
+test("걷어낸 것들은 화면 상태로 나가 뷰어가 왼쪽에 적는다", () => {
+  // 없애는 게 아니라 자리를 옮기는 것이다.
+  const { view } = draw(COMPARE, { focus: "proposal-b" });
+  assert.equal(view.templateId, COMPARE.template.id);
+  assert.equal(view.focus, "proposal-b");
+  assert.equal(view.focusMissing, null);
+  assert.deepEqual(
+    view.seats.map((s) => [s.id, s.name, s.analysed]),
+    [
+      ["proposal-a", "가 제안서", true],
+      ["proposal-b", "나 제안서", true],
+      ["proposal-c", "다 제안서", true],
+      ["proposal-d", "라 제안서", false], // 값 한 벌이 없다
+    ],
+  );
+});
+
+test("원시 요소는 배지가 아니라 구조로 남는다", () => {
+  // 뷰어가 켜면 CSS 가 data-element 를 읽어 배지를 그린다. 렌더가 낸 글은 그대로다.
+  const { html } = draw(COMPARE);
+  for (const facet of COMPARE.template.facets) {
+    assert.ok(html.includes(`<h2 data-element="${facet.element}">`), facet.id);
+    assert.ok(html.includes(`element-${facet.element}`), facet.id);
+  }
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  assert.match(css, /\.show-elements h2\[data-element\]::after \{ content:attr\(data-element\)/);
+});
+
 // ---------------------------------------------------------------- 값
 
 test("채워진 값이 표시 단위로 그려진다", () => {
@@ -101,7 +155,7 @@ test("값이 없는 facet 도 자리를 남기고 없다고 말한다", () => {
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
   assert.ok(shown.includes(NO_VALUE));
-  assert.ok(!textOf(bodyOf(html)).includes(UNANALYZED));
+  assert.ok(!textOf(html).includes(UNANALYZED));
 });
 
 test("빈 목록은 값이 없는 것과 다르다", () => {
@@ -141,7 +195,9 @@ test("값 한 벌이 없는 subject 는 아직 분석 중으로 보인다", () =
   assert.ok(shown.includes("셋째 스캔"));
   assert.ok(html.includes('class="miss unanalyzed"'));
   assert.ok(html.includes('class="miss empty"'));
-  assert.ok(html.includes("no-values"));
+  // 명단 chip 이 아니라 facet 이 직접 말한다 — chip 은 뷰어의 것이라 렌더에서 걷었다.
+  assert.ok(!html.includes("no-values"));
+  assert.ok(html.includes(`<span class="badge">${UNANALYZED}</span>`), "표 머리가 말해야 한다");
 });
 
 test("아무것도 분석되지 않아도 명단과 골격이 남는다", () => {
@@ -152,7 +208,7 @@ test("아무것도 분석되지 않아도 명단과 골격이 남는다", () => 
 });
 
 test("명단을 주지 않으면 분석된 subject 만 선다", () => {
-  const body = textOf(bodyOf(renderView({ template: HALF.template, values: HALF.values }).html));
+  const body = textOf(renderView({ template: HALF.template, values: HALF.values }).html);
   assert.ok(!body.includes("셋째 스캔"));
   assert.ok(!body.includes(UNANALYZED));
 });
@@ -162,12 +218,12 @@ test("명단을 주지 않으면 분석된 subject 만 선다", () => {
 const focusedNames = (html) => new Set([...html.matchAll(/is-focus[^>]*>\s*<div class="who">([^<]+)<\/div>/g)].map((m) => m[1]));
 
 test("focus 가 null 이면 아무것도 강조하지 않는다", () => {
-  assert.ok(!bodyOf(draw(COMPARE, { focus: null }).html).includes("is-focus"));
+  assert.ok(!draw(COMPARE, { focus: null }).html.includes("is-focus"));
 });
 
 test("focus 는 그 subject 하나만 잡는다", () => {
   const { html } = draw(COMPARE, { focus: "proposal-b" });
-  assert.ok(bodyOf(html).includes("is-focus"));
+  assert.ok(html.includes("is-focus"));
   assert.deepEqual(focusedNames(html), new Set(["나 제안서"]));
 });
 
@@ -177,11 +233,16 @@ test("아직 분석되지 않은 subject 도 focus 가 된다", () => {
 });
 
 test("없는 id 면 focus 만 사라진다", () => {
-  const missing = draw(COMPARE, { focus: "proposal-zzz" }).html;
-  const released = draw(COMPARE, { focus: null }).html;
-  assert.ok(!bodyOf(missing).includes("is-focus"));
-  assert.equal(bodyOf(missing), bodyOf(released)); // 본문이 같다. 오류도 엉뚱한 subject 도 없다
-  assert.ok(missing.includes("proposal-zzz")); // 머리말이 못 찾았다고 적는다
+  const missing = draw(COMPARE, { focus: "proposal-zzz" });
+  const released = draw(COMPARE, { focus: null });
+  assert.ok(!missing.html.includes("is-focus"));
+  // 분석뷰가 focus 를 놓은 것과 **통째로 같다**. 안내 문구도 렌더에 섞이지 않는다.
+  assert.equal(missing.html, released.html);
+  assert.ok(!missing.html.includes("proposal-zzz"));
+  // 그 사실은 화면 상태로 나가고 뷰어가 왼쪽에 적는다. 결함이 아니므로 report 에 넣지 않는다.
+  assert.equal(missing.view.focusMissing, "proposal-zzz");
+  assert.equal(released.view.focusMissing, null);
+  assert.deepEqual(missing.report, released.report);
 });
 
 // ---------------------------------------------------------------- 주석
@@ -236,7 +297,7 @@ test("선은 색이 아니라 점선 무늬로 갈린다", () => {
 });
 
 test("순위·등급 어휘가 화면으로 새지 않는다", () => {
-  const body = bodyOf(draw(COMPARE, { focus: "proposal-a" }).html);
+  const body = draw(COMPARE, { focus: "proposal-a" }).html;
   for (const word of ["rank", "grade", "score", "1위", "추천", "best"]) {
     assert.ok(!body.includes(word), word);
   }
@@ -281,9 +342,11 @@ test("템플릿에 없는 facet 과 열은 그리지 않고 적어 둔다", () =
   assert.ok(!html.includes(">A<"));
 });
 
-test("템플릿이 없으면 그렇다고 말하고 던지지 않는다", () => {
-  const { html, report } = renderView({ template: null, values: COMPARE.values });
-  assert.match(html, /템플릿이 없다/);
+test("템플릿이 없으면 빈 판을 내고 던지지 않는다", () => {
+  const { html, report, view } = renderView({ template: null, values: COMPARE.values });
+  // 그릴 분석뷰가 없다. 안내는 렌더가 아니라 뷰어가 한다.
+  assert.equal(html, "");
+  assert.equal(view, null);
   assert.equal(report.length, 1);
 });
 
@@ -357,6 +420,12 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
 
   assert.ok(nodes.get("view").innerHTML.includes("element-stat"), "첫 샘플이 그려져야 한다");
   assert.ok(nodes.get("about").textContent.length > 10, "샘플 설명이 붙어야 한다");
+  // 분석뷰에서 걷어낸 표시가 왼쪽 상태 줄에 있어야 한다 — 없애는 게 아니라 옮기는 것이다.
+  const status = nodes.get("status").textContent;
+  for (const piece of ["템플릿 proposal-compare-1", "분석됨", "focus"]) {
+    assert.ok(status.includes(piece), `상태 줄: ${piece}`);
+  }
+  assert.equal(nodes.get("view").className, "viewport", "원시 요소 배지는 기본이 꺼짐이다");
   assert.ok(nodes.get("tabs").children.length >= 3, "템플릿·명단·값 탭이 서야 한다");
   assert.equal(nodes.get("strip").innerHTML, "", "첫 샘플에는 그리지 못한 자리가 없어야 한다");
   fs.rmSync(path.dirname(file), { recursive: true, force: true });

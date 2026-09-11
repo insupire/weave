@@ -18,6 +18,7 @@ const state = {
   active: 0,
   focus: null,
   seq: 0, // 더한 값 한 벌의 탭 id 가 겹치지 않게 센다
+  showElements: false, // 원시 요소 배지. 분석뷰의 것이 아니라 뷰어의 것이라 기본은 끔
 };
 
 function loadSample(key) {
@@ -122,10 +123,31 @@ function drawFocusControls(seats) {
   for (const seat of seats) add(seat.name, seat.id);
 }
 
+/** 분석뷰에서 걷어낸 도구의 표시들. 없애는 게 아니라 자리를 옮긴 것이다. */
+function drawStatus(view) {
+  const node = $("status");
+  if (!view) {
+    node.textContent = "템플릿을 읽지 못해 분석뷰를 그리지 못했다.";
+    return;
+  }
+  const analysed = view.seats.filter((s) => s.analysed).length;
+  const parts = [
+    `템플릿 ${view.templateId ?? "?"}`,
+    `subject ${view.seats.length} 중 ${analysed} 분석됨`,
+    `focus ${view.focus ?? "없음"}`,
+  ];
+  // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고 그 사실만 여기서 알린다.
+  if (view.focusMissing) parts.push(`${view.focusMissing} 은 명단에 없어 focus 가 사라졌다`);
+  node.textContent = parts.join(" · ");
+}
+
 function refresh() {
   const { template, values, subjects, problems } = read();
-  const { html, report } = renderView({ template, values, subjects, focus: state.focus });
+  const { html, report, view } = renderView({ template, values, subjects, focus: state.focus });
+  // 오른쪽 판은 분석뷰뿐이다. 배지는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
+  $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
+  drawStatus(view);
 
   const seats =
     subjects?.filter((s) => s && typeof s.id === "string").map((s) => ({ id: s.id, name: s.label || s.id })) ??
@@ -163,6 +185,11 @@ export function start() {
   picker.addEventListener("change", () => loadSample(picker.value));
 
   $("editor").addEventListener("input", scheduleRefresh);
+
+  $("show-elements").addEventListener("change", (event) => {
+    state.showElements = Boolean(event.target.checked);
+    refresh();
+  });
 
   $("focus-free").addEventListener("input", (event) => {
     const raw = event.target.value.trim();
