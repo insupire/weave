@@ -84,7 +84,7 @@ def catalog() -> list[dict]:
         entry = prose.get(element)
         if entry is None:
             raise SystemExit(f"catalog/elements.json 에 {element} 의 산문이 없다")
-        rows.append({"element": element, **limit, **{k: entry[k] for k in ("draws", "note", "demo")}})
+        rows.append({"element": element, **limit, **{k: entry[k] for k in ("compare", "draws", "note", "demo")}})
     return rows
 
 
@@ -103,14 +103,17 @@ def shapes_text(row: dict) -> str:
     return "·".join(f"`{s}`" for s in row["shapes"])
 
 
+COMPARE_SAID = {"overlay": "겹친다", "focus": "focus 를 따라 바뀐다"}
+
+
 def docs_table() -> str:
     lines = [
-        "| element | 그리는 것 | 필드 수 | shape | type | 비고 |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| element | 비교 | 그리는 것 | 필드 수 | shape | type | 비고 |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in catalog():
         lines.append(
-            f"| `{row['element']}` | {row['draws']} | {fields_text(row)} | "
+            f"| `{row['element']}` | {COMPARE_SAID[row['compare']]} | {row['draws']} | {fields_text(row)} | "
             f"{shapes_text(row)} | {types_text(row)} | {row['note']} |"
         )
     return "\n".join(lines)
@@ -145,6 +148,8 @@ def pages() -> list[dict]:
                 "kind": "element",
                 "group": "primitive element",
                 "title": row["element"],
+                "compare": row["compare"],
+                "compareSaid": COMPARE_SAID[row["compare"]],
                 "draws": row["draws"],
                 "note": row["note"],
                 "fields": fields_text(row),

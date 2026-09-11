@@ -126,146 +126,26 @@ function drawCell(report, where, decl, value) {
 
 // ---------------------------------------------------------------- primitive element 다섯
 
+// ---------------------------------------------------------------- 비교하는 법 둘
 //
-// **subject 를 한 좌표에 겹친다.** 순위 문법을 스키마에서 뺀 대신 비교를 시각이 맡기로 했으므로
-// (glossary §3.14 원칙 7), 나란히 늘어놓아 사람이 머릿속에서 견주게 하면 안 된다.
-// 한 좌표란 **값이 같은 자로 재어지는 자리**다 — 한 필드, 한 열, 한 항목.
-// 잴 자가 없는 것(참거짓·글)만 나란히 가른다 (원칙 9).
+// 순위 문법을 스키마에서 뺀 대신 **비교를 시각이 맡는다**(glossary §3.14 원칙 7).
+// 다만 방법이 하나가 아니다 — **primitive element 마다 다르게 비교한다.**
+//
+// - **겹친다** (`line` · `list`) — 축이나 항목이라는 공유하는 자리가 있어 겹칠수록 읽을 것이 많아진다.
+// - **focus 를 따라 바뀐다** (`stat` · `facts` · `bars`) — 겹칠 자리가 없어 억지로 늘어놓는 대신
+//   **무엇을 그릴지 focus 가 고른다.** focus 가 강조 장치에서 고르는 자리로 커진다.
+//
+// **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
+// 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
+export const COMPARE = { stat: "focus", facts: "focus", bars: "focus", line: "overlay", list: "overlay" };
 
-/** 한 자로 잴 수 있는 타입. 이것들만 겹칠 수 있다. */
-const MEASURABLE = new Set(["number", "money", "ratio", "duration", "age", "date"]);
-
-function axisNumberOf(type, raw) {
-  if (type === "date") {
-    const ms = Date.parse(`${raw}T00:00:00Z`);
-    return Number.isNaN(ms) ? null : ms / 86400000;
-  }
-  return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
-}
-
-/** 글의 너비를 어림잡는다. 한글은 글자 크기만큼, 나머지는 그 절반쯤. */
-function textWidth(text, size) {
-  let w = 0;
-  for (const ch of String(text)) w += /[ᄀ-ᇿ㄰-㆏가-힯一-鿿]/.test(ch) ? size : size * 0.56;
-  return w;
-}
-
-/** 이름표가 겹치지 않게 줄을 나눠 준다. 자리는 값이 정하고 줄만 비켜 준다. */
-function intoLanes(marks, width) {
-  const ends = [];
-  return marks
-    .slice()
-    .sort((a, b) => a.x - b.x)
-    .map((mark) => {
-      const w = mark.w ?? textWidth(mark.text, 11);
-      const left = Math.max(2, Math.min(width - w - 2, mark.x - w / 2));
-      let lane = 0;
-      while (ends[lane] !== undefined && ends[lane] + 8 > left) lane += 1;
-      ends[lane] = left + w;
-      return { ...mark, left, lane };
-    });
-}
-
-/** 좌표에 못 얹은 subject. **겹친 자리에서도 사라지면 안 된다** — 없다는 것 자체가 정보다. */
+/** 값이 없어 자리에 못 선 subject. 겹치는 쪽에서 축 아래에 적는다. */
 function blankRow(blanks) {
   if (blanks.length === 0) return "";
   const said = blanks
     .map((b) => `<span class="off ${b.focused ? "is-focus" : ""}"><b class="who">${esc(b.name)}</b> ${b.said}</span>`)
     .join("");
   return `<div class="offs">${said}</div>`;
-}
-
-/**
- * **겹치는 좌표 하나.** subject 마다 자리를 주지 않고 같은 축에 얹는다.
- * `zero` 면 0 을 왼쪽 끝으로 잡아 크기가 길이로 읽히고, 아니면 값들이 놓인 범위를 편다.
- */
-function overlayAxis(ctx, facet, reads, decl, { zero = false, big = false } = {}) {
-  // 좌표의 폭은 실제로 그려지는 폭에 가깝게 잡는다. 크게 잡으면 글자가 줄어 안 읽힌다.
-  const W = 600;
-  const pad = big ? 16 : 10;
-  const marks = [];
-  const blanks = [];
-  for (const { subject, state, entry } of reads) {
-    const where = `${facet.id}/${decl.key}/${subject.id}`;
-    if (state !== "filled") {
-      blanks.push({ ...subject, said: stateSpan() });
-      continue;
-    }
-    const raw = entry.value;
-    const lo = axisNumberOf(decl.type, decl.shape === "range" ? raw?.min ?? raw?.max : raw);
-    const hi = axisNumberOf(decl.type, decl.shape === "range" ? raw?.max ?? raw?.min : raw);
-    const shown = formatValue(decl, raw);
-    // 값은 있는데 좌표에 못 얹는다. **조용히 「값 없음」으로 삼키지 않는다** — 무엇이 이상한지 적는다.
-    if (lo === null || hi === null || shown === null) {
-      const why = `선언한 모양(${decl.shape ?? "없음"})과 값의 생김새가 다르다`;
-      blanks.push({ ...subject, said: undrawable(ctx.report, where, why, JSON.stringify(raw)) });
-      continue;
-    }
-    marks.push({ subject, lo: Math.min(lo, hi), hi: Math.max(lo, hi), shown });
-  }
-  if (marks.length === 0) {
-    return `<div class="blank">${stateSpan()}</div>${blankRow(blanks)}`;
-  }
-
-  const values = marks.flatMap((m) => [m.lo, m.hi]);
-  const useZero = zero && decl.type !== "date" && Math.min(...values) >= 0;
-  const lo = useZero ? 0 : Math.min(...values);
-  const hi = Math.max(...values);
-  const span = hi - lo || 1;
-  const inner = W - pad * 2;
-  const at = (v) => pad + ((v - lo) / span) * inner;
-
-  const axisY = big ? 46 : 18;
-  const labelTop = big ? 64 : 34;
-  // big 이면 값과 이름이 위아래로 한 자리를 쓴다. 넓은 쪽으로 자리를 잡아야 둘 다 안 겹친다.
-  const placed = intoLanes(
-    marks.map((m) => {
-      const text = big ? m.subject.name : `${m.subject.name} ${m.shown}`;
-      const w = big ? Math.max(textWidth(text, 11), textWidth(m.shown, 17)) : textWidth(text, 11);
-      return { ...m, x: at((m.lo + m.hi) / 2), text, w };
-    }),
-    W,
-  );
-  const height = labelTop + (Math.max(...placed.map((p) => p.lane)) + 1) * 15;
-
-  const parts = [`<line class="rule" x1="${pad}" y1="${axisY}" x2="${W - pad}" y2="${axisY}"/>`];
-  if (useZero) parts.push(`<text class="origin" x="${pad}" y="${axisY + 12}">0</text>`);
-  for (const mark of placed) {
-    const focused = mark.subject.focused ? " is-focus" : "";
-    if (mark.hi > mark.lo) {
-      parts.push(`<line class="span${focused}" x1="${at(mark.lo).toFixed(1)}" y1="${axisY}" x2="${at(mark.hi).toFixed(1)}" y2="${axisY}"/>`);
-      for (const end of [mark.lo, mark.hi]) {
-        parts.push(`<line class="cap${focused}" x1="${at(end).toFixed(1)}" y1="${axisY - 4}" x2="${at(end).toFixed(1)}" y2="${axisY + 4}"/>`);
-      }
-    } else {
-      parts.push(`<circle class="dot${focused}" cx="${mark.x.toFixed(1)}" cy="${axisY}" r="${mark.subject.focused ? 4.5 : 3.2}"/>`);
-    }
-    const y = labelTop + mark.lane * 15;
-    if (mark.lane > 0) {
-      parts.push(`<line class="lead" x1="${mark.x.toFixed(1)}" y1="${axisY + 6}" x2="${mark.x.toFixed(1)}" y2="${y - 9}"/>`);
-    }
-    // 값은 이름과 같은 자리에서 위로 선다. 자리를 함께 잡았으므로 겹치지 않는다.
-    if (big) {
-      parts.push(`<text class="big-value${focused}" x="${mark.left.toFixed(1)}" y="${axisY - 14}">${esc(mark.shown)}</text>`);
-    }
-    parts.push(`<text class="tag${focused}" x="${mark.left.toFixed(1)}" y="${y}">${esc(mark.text)}</text>`);
-  }
-  return (
-    `<svg class="overlay" viewBox="0 0 ${W} ${height}" role="img">${parts.join("")}</svg>` + blankRow(blanks)
-  );
-}
-
-/** 잴 자가 없어 겹칠 수 없는 값들. 나란히 두되 한 줄에 모은다 (원칙 9). */
-function sideBySide(ctx, facet, reads, decl) {
-  const said = reads.map(({ subject, state, entry }) => {
-    const where = `${facet.id}/${decl.key}/${subject.id}`;
-    const shown = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
-    return (
-      `<span class="pair ${subject.focused ? "is-focus" : ""}">` +
-      `<b class="who">${esc(subject.name)}</b> ${shown}</span>`
-    );
-  });
-  return `<div class="pairs">${said.join("")}</div>`;
 }
 
 function readsOf(ctx, facet, decl) {
@@ -279,37 +159,83 @@ function fieldNotes(reads) {
   return reads.map(({ subject, entry }) => notesHtml(entry?.notes, subject.name)).join("");
 }
 
+/** focus 를 따라 바뀌는 쪽이 지금 그리는 subject. 없으면 첫째다. */
+function shownOf(ctx) {
+  return ctx.subjects.find((s) => s.id === ctx.shown) ?? null;
+}
+
+/** 무엇을 보고 있는지 늘 읽혀야 한다 — 겹치지 않으므로 이름이 없으면 알 수가 없다. */
+function shownName(subject) {
+  return `<div class="shown">${esc(subject.name)}</div>`;
+}
+
+function oneRead(ctx, facet, decl, subject) {
+  return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl.key) };
+}
+
 // ---------------------------------------------------------------- primitive element 다섯
 
+/** 값 하나를 크게. focus 가 고른 subject 의 것을 그린다. */
 function stat(ctx, facet) {
   const decl = facet.fields[0];
-  const reads = readsOf(ctx, facet, decl);
-  const body = MEASURABLE.has(decl.type)
-    ? overlayAxis(ctx, facet, reads, decl, { zero: true, big: true })
-    : sideBySide(ctx, facet, reads, decl); // 참거짓·글은 잴 자가 없다
-  return `<div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}${fieldNotes(reads)}`;
+  const subject = shownOf(ctx);
+  if (!subject) return `<div class="blank">${stateSpan()}</div>`;
+  const where = `${facet.id}/${decl.key}/${subject.id}`;
+  const { state, entry } = oneRead(ctx, facet, decl, subject);
+  const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
+  return (
+    shownName(subject) +
+    `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
+    `<div class="big">${value}</div>` +
+    notesHtml(entry?.notes)
+  );
 }
 
+/** 라벨과 값 여럿. 한 facet 안에 타입이 섞여도 읽는 규칙은 하나다 — 고른 subject 의 것. */
 function facts(ctx, facet) {
-  return facet.fields
-    .map((decl) => {
-      const reads = readsOf(ctx, facet, decl);
-      const body = MEASURABLE.has(decl.type)
-        ? overlayAxis(ctx, facet, reads, decl)
-        : sideBySide(ctx, facet, reads, decl);
-      return `<div class="row"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${body}${fieldNotes(reads)}</div>`;
-    })
-    .join("");
+  const subject = shownOf(ctx);
+  if (!subject) return `<div class="blank">${stateSpan()}</div>`;
+  const rows = facet.fields.map((decl) => {
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    const { state, entry } = oneRead(ctx, facet, decl, subject);
+    const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : stateSpan();
+    return (
+      `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
+      `<dd>${value}${notesHtml(entry?.notes)}</dd></div>`
+    );
+  });
+  return shownName(subject) + `<dl class="facts">${rows.join("")}</dl>`;
 }
 
+/** 크기 비교. **자는 subject 전체의 최대값으로 고정한다** — focus 를 옮겨도 길이를 견줄 수 있어야 한다. */
 function bars(ctx, facet) {
-  return facet.fields
-    .map((decl) => {
-      const reads = readsOf(ctx, facet, decl);
-      // 크기 비교라 0 을 왼쪽 끝으로 잡는다. 거리가 곧 크기다.
-      return `<div class="row"><div class="field-label">${esc(decl.label ?? decl.key)}</div>${overlayAxis(ctx, facet, reads, decl, { zero: true })}${fieldNotes(reads)}</div>`;
-    })
-    .join("");
+  const subject = shownOf(ctx);
+  if (!subject) return `<div class="blank">${stateSpan()}</div>`;
+  const rows = facet.fields.map((decl) => {
+    const all = readsOf(ctx, facet, decl)
+      .filter((r) => r.state === "filled" && typeof r.entry.value === "number" && Number.isFinite(r.entry.value))
+      .map((r) => r.entry.value);
+    const top = all.length ? Math.max(...all) : 0;
+
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    const { state, entry } = oneRead(ctx, facet, decl, subject);
+    let mark = '<span class="track"></span>';
+    let text;
+    if (state !== "filled") {
+      text = stateSpan();
+    } else if (typeof entry.value === "number" && Number.isFinite(entry.value)) {
+      const width = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
+      mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
+      text = esc(formatScalar(decl.type, entry.value));
+    } else {
+      text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(entry.value));
+    }
+    return (
+      `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}</span>${mark}` +
+      `<span class="val">${text}</span>${notesHtml(entry?.notes)}</div>`
+    );
+  });
+  return shownName(subject) + rows.join("");
 }
 
 function line(ctx, facet) {
@@ -476,9 +402,11 @@ export const ELEMENTS = { stat, facts, bars, line, list };
 // ---------------------------------------------------------------- 페이지
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
-function viewState(seats, focus, wanted) {
+function viewState(seats, focus, shown, wanted) {
   return {
     seats,
+    shown, // focus 를 따라 바뀌는 element 가 지금 그리는 subject
+
     focus,
     // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
     focusMissing: wanted && !focus ? wanted : null,
@@ -490,7 +418,8 @@ function viewState(seats, focus, wanted) {
  *
  * @param {object} input  { template, values, focus }
  *   - 자리와 그 차례는 **값 한 벌들이 정한다.** 명단을 따로 받지 않는다.
- *   - focus 는 subject 의 id. null 이면 아무것도 강조하지 않고, 없는 id 면 focus 만 사라진다.
+ *   - focus 는 subject 의 id. null 이거나 없는 id 면 겹치는 element 는 강조를 풀고,
+ *     focus 를 따라 바뀌는 element 는 **첫 subject** 를 그린다.
  * @returns {{html: string, report: string[], view: object|null}}
  *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
  *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
@@ -515,7 +444,10 @@ export function renderView({ template, values = [], focus = null } = {}) {
 
   const wanted = focus;
   const seated = seats.some((s) => s.id === wanted) ? wanted : null;
-  const ctx = { subjects: seats, byId, focus: seated, report };
+  // focus 를 따라 바뀌는 element 가 그릴 subject. 고른 것이 없으면 첫째다 —
+  // 늘어놓기로 돌아가지 않고 빈 화면도 내지 않는다.
+  const shown = seated ?? seats[0]?.id ?? null;
+  const ctx = { subjects: seats, byId, focus: seated, shown, report };
 
   for (const [id, doc] of byId) {
     const known = new Set((template.facets ?? []).map((f) => f?.id));
@@ -559,5 +491,5 @@ export function renderView({ template, values = [], focus = null } = {}) {
   // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
   const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
 
-  return { html, report, view: viewState(seats, seated, wanted) };
+  return { html, report, view: viewState(seats, seated, shown, wanted) };
 }

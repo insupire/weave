@@ -149,7 +149,8 @@ class CatalogCannotDiverge(unittest.TestCase):
             if element.startswith("__"):
                 continue
             with self.subTest(element):
-                self.assertEqual(set(entry), {"draws", "note", "demo"})
+                self.assertEqual(set(entry), {"compare", "draws", "note", "demo"})
+                self.assertIn(entry["compare"], {"overlay", "focus"})
 
     def test_prose_is_plain_text(self) -> None:
         """표에서는 살고 화면에서는 글자로 새는 markdown 을 막는다. 두 자리에 같게 나와야 한다."""

@@ -62,20 +62,34 @@ function guidePage(page) {
 }
 
 function elementPage(page) {
-  const { html } = renderView({ template: page.demo.template, values: page.demo.values, focus: null });
+  const draw = (focus) => renderView({ template: page.demo.template, values: page.demo.values, focus }).html;
   const types = page.everyType
     ? `${page.types.length} 가지 전부`
     : page.types.map((t) => `<code>${esc(t)}</code>`).join(" · ");
+
+  // focus 를 따라 바뀌는 것은 정지 화면 하나로 못 보인다. 고른 것을 달리한 두 장을 나란히 둔다.
+  const shots =
+    page.compare === "focus"
+      ? page.demo.values
+          .map((doc) => {
+            const who = doc.subjectLabel || doc.subjectId;
+            return `<div class="shot"><div class="shot-said">고른 것 — ${esc(who)}</div>` +
+              `<div class="demo">${draw(doc.subjectId)}</div></div>`;
+          })
+          .join("")
+      : `<div class="demo">${draw(null)}</div>`;
+
   return (
     `<header class="page-head"><h1><code>${esc(page.title)}</code></h1>` +
     `<p class="lead">${esc(page.draws)}</p></header>` +
     `<dl class="limits">` +
+    `<dt>비교</dt><dd>${esc(page.compareSaid)}</dd>` +
     `<dt>필드 수</dt><dd>${esc(page.fields)}</dd>` +
     `<dt>shape</dt><dd>${page.shapes.map((x) => `<code>${esc(x)}</code>`).join(" · ")}</dd>` +
     `<dt>type</dt><dd>${types}</dd>` +
     `</dl>` +
     `<p class="note-line">${esc(page.note)}</p>` +
-    `<h2>그려진 모습</h2><div class="demo">${html}</div>` +
+    `<h2>그려진 모습</h2>${shots}` +
     `<h2>그것을 만든 템플릿</h2>` +
     `<pre>${esc(JSON.stringify(page.demo.template.facets[0], null, 2))}</pre>`
   );
@@ -190,7 +204,7 @@ function drawFocus(seats) {
     });
     box.appendChild(button);
   };
-  add("none", null);
+  add("none", null, "아무도 고르지 않음 — 겹치는 것은 강조를 풀고, 고르는 것은 첫 subject 로 돌아간다");
   for (const seat of seats) add(seat.name, seat.id, seat.id);
 }
 

@@ -15,7 +15,7 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNDRAWABLE, formatScalar, renderView,
+  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEMS, NO_VALUE, UNDRAWABLE, formatScalar, renderView,
 } from "../viewer/render.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -83,27 +83,80 @@ function sectionOf(html, element) {
 test("primitive element 다섯이 전부 그려진다", () => {
   const { html } = fix();
   for (const element of Object.keys(ELEMENTS)) assert.match(html, new RegExp(`element-${element}`));
-  // 겹치는 것들은 좌표 하나를 함께 쓴다. 무엇으로 겹쳤는지가 element 마다 다르다.
-  assert.match(sectionOf(html, "stat"), /class="big-value/); // 값이 크게, 한 좌표에
-  assert.match(sectionOf(html, "facts"), /svg class="overlay"/); // 필드마다 좌표 하나
-  assert.match(sectionOf(html, "bars"), /class="origin"/); // 0 을 왼쪽 끝으로 잡는다
+  assert.match(sectionOf(html, "stat"), /class="big"/); // 값 하나를 크게
+  assert.match(sectionOf(html, "facts"), /class="facts"/); // 라벨과 값 여럿
+  assert.match(sectionOf(html, "bars"), /class="track"/); // 크기 비교
   assert.match(sectionOf(html, "line"), /svg class="line"/); // 축 위의 변화
   assert.match(sectionOf(html, "list"), /table class="items"/); // 항목이 좌표다
 });
 
-test("subject 를 나란히 늘어놓지 않고 한 좌표에 겹친다", () => {
-  // 순위를 문장으로 말하지 않는 대신 비교를 시각이 맡는다 (glossary §3.14 원칙 7).
+const NAMES = { "proposal-a": "가 제안서", "proposal-b": "나 제안서", "proposal-c": "proposal-c" };
+
+test("비교하는 법이 primitive element 마다 다르다", () => {
+  // 겹칠 자리가 있는 것만 겹친다. 나머지는 focus 가 무엇을 그릴지 고른다.
+  assert.deepEqual(COMPARE, {
+    stat: "focus", facts: "focus", bars: "focus", line: "overlay", list: "overlay",
+  });
+  assert.deepEqual(Object.keys(COMPARE).sort(), Object.keys(ELEMENTS).sort());
+});
+
+test("line 과 list 는 subject 를 한 좌표에 겹친다", () => {
   const { html } = fix();
-  for (const element of ["stat", "facts", "bars"]) {
-    const part = sectionOf(html, element);
-    // subject 마다 좌표를 따로 주지 않는다 — 한 필드에 축이 하나다.
-    const axes = (part.match(/svg class="overlay"/g) ?? []).length;
-    const fields = FIX.template.facets.find((f) => f.element === element).fields.length;
-    assert.ok(axes <= fields, `${element}: 축이 필드보다 많다 (${axes} > ${fields})`);
-    assert.ok(axes > 0, `${element}: 겹치는 좌표가 없다`);
-  }
   // list 는 항목이 좌표다. subject 마다 표를 따로 두지 않는다.
   assert.equal((sectionOf(html, "list").match(/<table/g) ?? []).length, 1);
+  // 겹치는 쪽은 focus 를 옮겨도 subject 가 전부 그대로 서 있다.
+  for (const id of Object.keys(NAMES)) {
+    const part = sectionOf(fix({ focus: id }).html, "list");
+    for (const name of Object.values(NAMES)) assert.ok(part.includes(name), `list/${id}: ${name}`);
+  }
+  const lines = fix().html;
+  assert.equal((sectionOf(lines, "line").match(/<svg/g) ?? []).length, 1);
+  assert.ok((sectionOf(lines, "line").match(/class="series/g) ?? []).length >= 2, "선이 겹쳐야 한다");
+});
+
+test("stat · facts · bars 는 focus 를 따라 바뀐다", () => {
+  // 겹칠 자리가 없어 억지로 늘어놓는 대신 focus 가 무엇을 그릴지 고른다.
+  const a = fix({ focus: "proposal-a" }).html;
+  const c = fix({ focus: "proposal-c" }).html;
+  for (const element of ["stat", "facts", "bars"]) {
+    const one = sectionOf(a, element);
+    const other = sectionOf(c, element);
+    assert.notEqual(one, other, `${element}: focus 를 옮겨도 그림이 그대로다`);
+    // 고른 subject 의 이름이 서고, 고르지 않은 subject 의 이름은 본문에 없다.
+    assert.ok(one.includes('class="shown">가 제안서'), `${element}: 무엇을 보는지 안 읽힌다`);
+    assert.ok(other.includes('class="shown">proposal-c'), element);
+  }
+  // 값도 그 subject 의 것으로 바뀐다.
+  assert.ok(textOf(sectionOf(a, "stat")).includes("87,400원"));
+  assert.ok(textOf(sectionOf(c, "stat")).includes("62,000원"));
+  assert.ok(!textOf(sectionOf(c, "stat")).includes("87,400원"));
+});
+
+test("focus 가 없으면 첫 subject 를 그린다", () => {
+  // 늘어놓기로 돌아가지 않고, 빈 화면도 내지 않고, 무엇을 보는지 이름으로 말한다.
+  const none = fix({ focus: null });
+  const first = fix({ focus: FIX.values[0].subjectId });
+  assert.equal(none.view.shown, FIX.values[0].subjectId);
+  for (const element of ["stat", "facts", "bars"]) {
+    const part = sectionOf(none.html, element);
+    assert.ok(part.includes('class="shown">가 제안서'), `${element}: 이름이 없다`);
+    assert.ok(part.trim().length > 40, `${element}: 빈 자리다`);
+  }
+  // 없는 id 도 같은 자리로 떨어진다 — 사라지면 무엇을 그릴지 정해져 있어야 한다.
+  const missing = fix({ focus: "proposal-zzz" });
+  assert.equal(missing.view.shown, FIX.values[0].subjectId);
+  for (const element of ["stat", "facts", "bars"]) {
+    assert.equal(sectionOf(missing.html, element), sectionOf(none.html, element));
+  }
+  // 첫째를 고른 것과 고르지 않은 것은 **바뀌는 쪽에서 같다** — 둘 다 첫 subject 를 그린다.
+  for (const element of ["stat", "facts", "bars"]) {
+    assert.equal(sectionOf(none.html, element), sectionOf(first.html, element), element);
+  }
+  // 겹치는 쪽에서만 갈린다 — 고르면 그 선과 그 열이 강조된다.
+  for (const element of ["line", "list"]) {
+    assert.notEqual(sectionOf(none.html, element), sectionOf(first.html, element), element);
+    assert.ok(!sectionOf(none.html, element).includes("is-focus"), `${element}: 고르지 않았는데 강조가 있다`);
+  }
 });
 
 test("모르는 primitive element 는 조용히 넘어가지 않는다", () => {
@@ -162,9 +215,14 @@ test("primitive element 는 이름표가 아니라 구조로 남는다", () => {
 // ---------------------------------------------------------------- 값 상태
 
 test("채워진 값이 표시 단위로 그려진다", () => {
-  const shown = textOf(fix().html);
-  for (const piece of ["87,400원", "240개월", "100세", "15세 ~ 65세", "20세 이상", "아니오", "2026-10-01"]) {
-    assert.ok(shown.includes(piece), piece);
+  // focus 를 따라 바뀌는 쪽은 고른 subject 의 값이 나온다.
+  const a = textOf(fix({ focus: "proposal-a" }).html);
+  for (const piece of ["87,400원", "240개월", "100세", "15세 ~ 65세", "아니오", "2026-10-01"]) {
+    assert.ok(a.includes(piece), piece);
+  }
+  const c = textOf(fix({ focus: "proposal-c" }).html);
+  for (const piece of ["62,000원", "120개월", "20세 이상", "예"]) {
+    assert.ok(c.includes(piece), piece);
   }
 });
 
@@ -246,12 +304,14 @@ test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
     assert.ok(shown.includes(facet.title), facet.id); // 골격은 그대로
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
-  // **facet 마다** 그 subject 가 값이 없다는 것이 보인다. 겹친 자리에서 조용히 사라지면 안 된다.
+  // **facet 마다** 그 subject 가 값이 없다는 것이 보인다. 조용히 사라지면 안 된다.
+  // focus 를 따라 바뀌는 쪽은 그 subject 를 골라야 그 사실이 보인다.
+  const mine = renderView({ template: FIX.template, values: [FIX.filled, blank], focus: blank.subjectId });
   for (const facet of FIX.template.facets) {
-    const part = textOf(sectionOf(html, facet.element));
+    const part = textOf(sectionOf(mine.html, facet.element));
     assert.ok(part.includes(NO_VALUE), `${facet.id}: 값 없음이 안 보인다`);
   }
-  // 겹치는 좌표에는 얹을 자리가 없으므로 축 아래에 적는다.
+  // 겹치는 쪽은 축 아래에 적는다 — 얹을 자리가 없어도 이름이 남는다.
   assert.match(html, /class="offs"/);
   // 주석이 이유를 facet 마다 말한다
   assert.equal((shown.match(new RegExp(said, "g")) ?? []).length, FIX.template.facets.length);
@@ -532,6 +592,14 @@ test("값이 비는 경우가 샘플에도 남아 있다", () => {
 });
 
 // ---------------------------------------------------------------- primitive element 설명서
+
+test("설명서가 말하는 비교 방법이 렌더와 갈리지 않는다", () => {
+  // 산문 파일(catalog/elements.json)이 적은 것과 렌더가 하는 것이 같아야 한다.
+  for (const row of elementPages()) {
+    assert.equal(row.compare, COMPARE[row.id], `${row.id}: 설명서와 렌더가 다르다`);
+    assert.equal(row.compareSaid, row.compare === "overlay" ? "겹친다" : "focus 를 따라 바뀐다");
+  }
+});
 
 test("목차가 스키마의 primitive element 를 빠짐없이 덮는다", () => {
   const enumerated = read("schema/weave-common.schema.json").$defs.Element.enum;
