@@ -93,11 +93,15 @@ function axisNumber(axis, raw) {
 
 // ---------------------------------------------------------------- HTML 조각
 
-/** 갈래 표시. **넷이 같은 크기·같은 선 굵기**다 — 「주의」가 더 위험해 보이면 안 된다. */
+/** 갈래 표시. **통용되는 UI 시맨틱을 따른다** — 주의는 warning, 보충은 info.
+ *  색은 갈래(`note-<kind>`)에서만 나온다. 값이나 subject 에서는 나오지 않는다. */
 function kindIcon(kind) {
   const body = ICON[kind];
   if (!body) return "";
-  return `<svg class="kind-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">${body}</svg>`;
+  return (
+    `<svg class="kind-icon note-${esc(kind)}" viewBox="0 0 24 24" width="14" height="14" ` +
+    `aria-hidden="true">${body}</svg>`
+  );
 }
 
 /**

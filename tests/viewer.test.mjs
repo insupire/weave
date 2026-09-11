@@ -425,9 +425,13 @@ test("아이콘은 lucide 실물을 옮겨 온 것이다", () => {
     [...Object.keys(KIND_LABEL), ...Object.keys(ELEMENTS)].sort(),
   );
   // 심각도를 말하는 그림을 쓰지 않는다.
-  for (const banned of ["triangle-alert", "circle-alert", "octagon-alert", "shield-alert", "ban"]) {
-    assert.ok(!src.includes(banned), `심각도 아이콘: ${banned}`);
+  // 도메인(돈·병원·서류) 그림은 여전히 안 된다.
+  for (const banned of ["banknote", "coins", "wallet", "hospital", "stethoscope", "receipt"]) {
+    assert.ok(!src.includes(banned), `도메인 아이콘: ${banned}`);
   }
+  // 주석 넷은 통용되는 UI 시맨틱을 따른다 — 사람이 준 예 그대로.
+  assert.ok(src.includes("circle-alert"), "주의는 warning 의 통용 표시다");
+  assert.ok(src.includes("`info`"), "보충은 info 의 통용 표시다");
 });
 
 test("주석 갈래를 정본 이름으로 부른다", () => {
@@ -461,7 +465,31 @@ test("평가를 시각으로 말하지 않는다", () => {
   // 기계가 볼 수 있는 것만 여기 있다 — 「이 빨강이 나쁨을 뜻하는가」는 사람이 본다(AGENTS.md).
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
 
-  // 1. 색이 있는 자리는 **subject 팔레트뿐**이다. 나머지 뼈대는 무채색으로 남는다.
+  // 색이 나오는 자리는 둘뿐이다 — subject 팔레트(자리 차례)와 주석 갈래(통용 시맨틱).
+  const byKind = [...css.matchAll(/\.note-([a-z]+)\s*\{\s*--kind:([^;]+);\s*\}/g)];
+  const kindColors = new Set(
+    byKind.map((m) => m[2].trim()).filter((v) => v.startsWith("#")).map((v) => v.toLowerCase()),
+  );
+
+  // 0. **색 있는 값이 설 수 있는 자리는 그 둘의 선언뿐이다.** 다른 규칙은 무채색이거나
+  //    var(--subject)·var(--kind) 를 거쳐야 한다 — 값에 색을 직접 칠하는 길을 막는다.
+  const isChromatic = (hex) => {
+    const parts = hex.length <= 4
+      ? [...hex].slice(0, 3).map((c) => c + c)
+      : [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)];
+    return new Set(parts.map((x) => parseInt(x, 16))).size !== 1;
+  };
+  for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    const hues = [...body.matchAll(/#([0-9a-fA-F]{3,8})\b/g)].map((m) => m[1]).filter(isChromatic);
+    if (hues.length === 0) continue;
+    assert.match(
+      body.trim(),
+      /^--(subject|kind):\s*#[0-9a-fA-F]{3,8};$/,
+      `색을 직접 칠한다: ${selector.trim()} { ${body.trim()} }`,
+    );
+  }
+
+  // 1. 그 둘 말고는 색이 없다. 뼈대는 무채색으로 남는다.
   const palette = [...css.matchAll(/\.sub-(\d+)\s*\{\s*--subject:\s*(#[0-9a-fA-F]{6});\s*\}/g)];
   assert.equal(palette.length, TONES, "팔레트가 TONES 와 다르다");
   assert.deepEqual(palette.map((m) => Number(m[1])), [...Array(TONES)].map((_, i) => i + 1));
@@ -474,6 +502,7 @@ test("평가를 시각으로 말하지 않는다", () => {
       : [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)];
     if (new Set(pairs.map((p) => parseInt(p, 16))).size === 1) continue; // 무채색
     if (paletteColors.has(`#${hex.toLowerCase()}`)) continue; // 자리 차례로 배정되는 팔레트
+    if (kindColors.has(`#${hex.toLowerCase()}`)) continue; // 주석 갈래의 통용색
     chromatic.push(`#${hex}`);
   }
   for (const [, body] of css.matchAll(/rgba?\(([^)]+)\)/g)) {
@@ -489,11 +518,19 @@ test("평가를 시각으로 말하지 않는다", () => {
     }
   }
 
-  // 3. 주석 네 갈래의 무게가 같다 — 갈래이지 심각도가 아니다.
-  const icons = [...fix().html.matchAll(/<svg class="kind-icon"([^>]*)>/g)].map((m) => m[1]);
-  assert.ok(icons.length >= 4);
-  assert.equal(new Set(icons).size, 1, `갈래마다 표시가 다르다: ${[...new Set(icons)].join(" | ")}`);
-  assert.ok(!/\.note-(quote|tip|note|caution)\s*\{/.test(css), "갈래별 시각");
+  // 3. **색은 갈래에서만 나온다.** 「주의가 빨갛다」와 「값이 작으면 빨갛다」를 가르는 선이 여기다.
+  //    갈래는 통용되는 UI 시맨틱을 따르되(주의=warning · 보충=info), 그것은 **이 자리를 어떻게
+  //    읽으라는 말**이지 그 제안서가 좋고 나쁘다는 말이 아니다.
+  const kinds = read("schema/weave-common.schema.json").$defs.AnnotationKind.enum;
+  assert.deepEqual(byKind.map((m) => m[1]), kinds, "갈래별 색이 스키마의 갈래와 다르다");
+  // 갈래 색이 닿는 자리는 표시와 갈래 이름뿐이다 — 값이나 글은 물들이지 않는다.
+  assert.match(css, /\.kind-icon \{[^}]*stroke:var\(--kind/);
+  assert.ok(!/\.note \.text \{[^}]*var\(--kind/.test(css), "갈래 색이 글까지 물들인다");
+  assert.ok(!/\.big \{[^}]*var\(--kind/.test(css) && !/\.val \{[^}]*var\(--kind/.test(css),
+    "갈래 색이 값까지 물들인다");
+  // 갈래 넷이 모두 그려진다.
+  const icons = [...fix().html.matchAll(/<svg class="kind-icon note-([a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(icons)].sort(), [...kinds].sort());
 
   // 4. 순위·경고를 뜻하는 기호가 없다.
   const shown = fix({ focus: "proposal-a" }).html;
@@ -514,6 +551,51 @@ test("subject 색은 값이 아니라 자리로 배정된다", () => {
   const swapped = fix({ values: [FIX.mixed, FIX.empty, FIX.filled] });
   assert.equal(swapped.view.seats.map((s) => s.tone).join(" "), "sub-1 sub-2 sub-3");
   assert.equal(swapped.view.seats[0].id, FIX.mixed.subjectId);
+});
+
+test("오른쪽 판의 띠는 스크롤 영역 밖에 있다", () => {
+  // 분석뷰는 길다. 아래를 보다가 focus 를 바꾸려고 위로 되올라오면 안 된다.
+  const page = fs.readFileSync(path.join(ROOT, "viewer.html"), "utf-8");
+  const markup = page.split('<script type="module">')[0];
+  const pane = markup.slice(markup.indexOf('<div class="pane view">'));
+  const bar = pane.indexOf('<div class="bar">');
+  const scroll = pane.indexOf('<div class="scroll">');
+  const body = pane.indexOf('id="view"');
+  assert.ok(bar >= 0 && scroll > bar, "띠가 스크롤 영역보다 앞에 서야 한다");
+  assert.ok(body > scroll, "본문이 스크롤 영역 안에 있어야 한다");
+
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  assert.match(css, /\.pane\.view \{ overflow:hidden; \}/, "판이 스크롤 상자면 띠가 밀린다");
+  assert.match(css, /\.scroll \{[^}]*overflow:auto/, "스크롤하는 것은 본문뿐이다");
+  // 붙박이를 만들려고 시각을 새로 들이지 않는다. 구조로 푼 자리다.
+  assert.ok(!/position:\s*sticky/.test(css), "sticky 로 띄우지 않는다");
+});
+
+test("장식으로 위계를 만들지 않는다", () => {
+  // 띠와 상자로 말하던 것을 글자로 말하게 한다. 되살아나면 여기서 걸린다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+
+  // 둥근 상자에 왼쪽 띠를 덧댄 것 · 왼쪽 띠를 흉내 낸 inset 그림자
+  assert.ok(!/border-left\s*:/.test(css), "왼쪽 띠");
+  assert.ok(!/box-shadow/.test(css), "그림자");
+
+  // 모서리는 하나뿐이다. 덩어리마다 제각각 굴리지 않는다.
+  const radii = new Set([...css.matchAll(/border-radius:\s*([^;]+);/g)].map((m) => m[1].trim()));
+  assert.deepEqual([...radii], ["var(--r)"], `모서리가 여럿: ${[...radii]}`);
+
+  // 활성·선택을 밑줄로 말하지 않는다 — 왼쪽 띠를 아래로 옮긴 것뿐이다.
+  // 구조로 쓰는 테두리(판 구분선·표)와는 선택자로 가른다.
+  for (const [, sel, body] of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (!sel.includes("[aria-pressed")) continue;
+    assert.ok(!/border-(top|bottom|left|right)/.test(body), `활성 표시에 테두리: ${sel.trim()}`);
+  }
+  // 투명 밑줄을 깔아 두고 색만 바꾸는 우회도 막는다
+  assert.ok(!/border-bottom[^;}]*transparent/.test(css), "투명 밑줄");
+
+  // 점선·겹선 장식과 빗금 텍스처와 가운데 정렬
+  assert.ok(!/\b(dashed|dotted|double)\b/.test(css), "점선·겹선 장식");
+  assert.ok(!css.includes("repeating-linear-gradient"), "빗금 텍스처");
+  assert.ok(!/text-align:\s*center/.test(css), "가운데 정렬");
 });
 
 test("선은 색이 아니라 점선 무늬로 갈린다", () => {

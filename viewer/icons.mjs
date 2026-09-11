@@ -6,19 +6,20 @@
 //   다시 받기 npm pack lucide-static@1.44.0 로 풀어 icons/ 에서 아래 이름을 꺼낸다
 //
 // CDN 도 아이콘 폰트도 쓰지 않는다 — 파일 하나로 열려야 하므로 여기 인라인한다.
-// **갈래를 가리키는 것만** 고른다. 도메인(돈·병원·서류)도, 심각도를 말하는 그림도 두지 않는다.
+// 주석 넷은 **통용되는 UI 시맨틱**을 따른다 — 주의는 warning, 보충은 info.
+// primitive element 다섯은 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
 
 export const LUCIDE_VERSION = "1.44.0";
 
 export const ICON = {
-  // 주석 갈래 — 인용 (lucide `quote`)
+  // 주석 갈래 — 인용. 근거·출처라 상태가 아니다 (lucide `quote`)
   quote: "<path d=\"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\" /> <path d=\"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\" />",
-  // 주석 갈래 — 팁 (lucide `lightbulb`)
+  // 주석 갈래 — 팁. 도움말의 통용 표시 (lucide `lightbulb`)
   tip: "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /> <path d=\"M9 18h6\" /> <path d=\"M10 22h4\" />",
-  // 주석 갈래 — 보충 (lucide `sticky-note`)
-  note: "<path d=\"M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z\" /> <path d=\"M15 3v5a1 1 0 0 0 1 1h5\" />",
-  // 주석 갈래 — 주의. 단서를 가리키는 기호이지 위험을 말하지 않는다 (lucide `asterisk`)
-  caution: "<path d=\"M12 5v14\" /> <path d=\"m18.065 8.496-12.125 7\" /> <path d=\"m5.94 8.504 12.125 7\" />",
+  // 주석 갈래 — 보충. info 의 통용 표시 (lucide `info`)
+  note: "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 16v-4\" /> <path d=\"M12 8h.01\" />",
+  // 주석 갈래 — 주의. warning 의 통용 표시 (lucide `circle-alert`)
+  caution: "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\" /> <line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\" />",
   // primitive element — stat (lucide `hash`)
   stat: "<line x1=\"4\" x2=\"20\" y1=\"9\" y2=\"9\" /> <line x1=\"4\" x2=\"20\" y1=\"15\" y2=\"15\" /> <line x1=\"10\" x2=\"8\" y1=\"3\" y2=\"21\" /> <line x1=\"16\" x2=\"14\" y1=\"3\" y2=\"21\" />",
   // primitive element — facts (lucide `table-properties`)

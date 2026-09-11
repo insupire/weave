@@ -217,7 +217,7 @@ svg .series-label.is-focus { font-weight:700; }
 .notes { list-style:none; margin:8px 0 0; padding:0; }
 .note { display:grid; grid-template-columns:2.8em 1fr; gap:0 10px;
   font-size:12.5px; padding:1px 0; }
-.note .kind { color:var(--mute); font-size:11px; line-height:1.85; white-space:nowrap; }
+.note .kind { color:var(--kind, var(--mute)); font-size:11px; line-height:1.85; white-space:nowrap; }
 
 /* **필드에 붙는 말.** 표시는 값 옆에 늘 서 있고 내용은 가리키거나 초점을 받으면 열린다.
    갈래 표시가 보이는 것이 핵심이다 — 인용(근거)과 주의(한계)는 값과 함께 읽혀야 뜻이 산다. */
@@ -234,10 +234,19 @@ svg .series-label.is-focus { font-weight:700; }
 .note-pop .note { cursor:auto; }
 .pop-close { display:none; }
 
-/* 갈래 표시. **넷이 똑같은 크기와 선 굵기**다 — 갈래이지 심각도가 아니다. */
-.kind-icon { width:10px; height:10px; margin-right:4px; vertical-align:-1px;
-  fill:none; stroke:var(--mute); stroke-width:1.4; }
-.kind-icon circle, .kind-icon rect, .kind-icon path { fill:none; }
+/* 주석 갈래의 색. **통용되는 UI 시맨틱을 따른다** — 주의는 warning, 보충은 info.
+   이 자리를 어떻게 읽으라는 말이지 **그 제안서가 좋고 나쁘다는 말이 아니다.**
+   그래서 색은 갈래 표시와 갈래 이름에만 얹고 값이나 글에는 얹지 않는다.
+   색이 나오는 곳은 여기와 subject 팔레트 둘뿐이다 — 값·subject·facet 에서는 색이 나오지 않는다. */
+.note-quote { --kind:var(--mute); }   /* 근거·출처. 상태가 아니다 */
+.note-tip { --kind:#175cd3; }         /* 도움말의 통용색 */
+.note-note { --kind:var(--mute); }    /* info — 사람이 준 예대로 중립 회색 */
+.note-caution { --kind:#b42318; }     /* warning 의 통용색 */
+
+.kind-icon { width:12px; height:12px; margin-right:4px; vertical-align:-2px;
+  fill:none; stroke:var(--kind, var(--mute)); stroke-width:2;
+  stroke-linecap:round; stroke-linejoin:round; }
+.note .kind, .note-mark .kind-icon { color:var(--kind, var(--mute)); }
 .note .text { color:var(--ink); }
 /* 좁은 자리에서는 매달린 라벨이 폭을 먹는다. 같은 줄에 흘려 보낸다. */
 .card .note, td .note { display:block; }
