@@ -532,9 +532,23 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   assert.ok(markup.includes('id="add-subject"') && markup.includes('id="drop-subject"'));
   for (const tab of nodes.get("tabs").children) assert.ok(!String(tab.innerHTML).includes("명단"));
 
+  // **탭은 subject 단위다.** 명단에 있는 subject 는 값 한 벌이 있든 없든 전부 탭을 갖는다.
+  const sample0 = sample(sampleNames[0]);
+  const tabNames = () => nodes.get("tabs").children.map((t) => String(t.innerHTML));
+  assert.equal(tabNames().length, sample0.subjects.length + 1, "템플릿 하나 + subject 마다 하나");
+  for (const seat of sample0.subjects) {
+    assert.ok(tabNames().some((n) => n.includes(seat.label)), `탭이 없다: ${seat.id}`);
+  }
+  // 값 한 벌이 없는 subject 의 탭이 그 사실을 말한다. 묶는 말은 없다.
+  const analysed = new Set(sample0.values.map((v) => v.subjectId));
+  const blankSeat = sample0.subjects.find((s) => !analysed.has(s.id));
+  assert.ok(blankSeat, "샘플에 아직 분석되지 않은 subject 가 있어야 한다");
+  assert.ok(tabNames().some((n) => n.includes(blankSeat.label) && n.includes("분석 전")));
+  assert.ok(!markup.includes("tab-group"), "묶는 말이 돌아왔다");
+
   const click = (id) => nodes.get(id)._on.click();
   const seats = () => nodes.get("focus-buttons").children.length; // none + 자리들
-  const tabs = () => nodes.get("tabs").children.length; // 템플릿 + 「값 한 벌」 + 값 탭들
+  const tabs = () => nodes.get("tabs").children.length; // 템플릿 + subject 마다 하나
   const unanalysed = () => (nodes.get("view").innerHTML.match(new RegExp(UNANALYZED, "g")) ?? []).length;
   const before = seats();
   const beforeTabs = tabs();
@@ -543,21 +557,32 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"), "새 자리는 아직 없다");
   click("add-subject");
   assert.equal(seats(), before + 1, "자리가 하나 늘어야 한다");
-  assert.equal(tabs(), beforeTabs + 1, "값 탭이 함께 생겨야 한다");
+  assert.equal(tabs(), beforeTabs + 1, "subject 탭이 함께 생겨야 한다");
   assert.ok(nodes.get("view").innerHTML.includes(">subject-"), "새 자리가 분석뷰에 서야 한다");
+  assert.equal(nodes.get("editor").hidden, false, "값 한 벌이 있으니 편집기가 선다");
+  assert.equal(nodes.get("drop-values").hidden, false, "지울 값 한 벌이 있다");
 
-  // **미분석을 만드는 길** — 값 한 벌만 지우면 자리가 남는다.
+  // **미분석을 만드는 길** — 값 한 벌만 지운다. **탭은 남고** 그 자리가 아직 분석 중이 된다.
   const wasUnanalysed = unanalysed();
   click("drop-values");
   assert.equal(seats(), before + 1, "자리는 남는다");
-  assert.equal(tabs(), beforeTabs, "값 탭만 사라진다");
+  assert.equal(tabs(), beforeTabs + 1, "탭도 남는다 — 탭은 subject 단위다");
   assert.ok(unanalysed() > wasUnanalysed, "아직 분석 중이 하나 늘어야 한다");
+  assert.equal(nodes.get("editor").hidden, true, "편집기 대신 분석 전 안내가 선다");
+  assert.equal(nodes.get("no-values").hidden, false);
+  assert.ok(nodes.get("no-values-said").textContent.includes("아직 분석 전"));
+  assert.equal(nodes.get("drop-values").hidden, true, "지울 값 한 벌이 없다");
+  assert.ok(nodes.get("tabs").children.some((t) => String(t.innerHTML).includes("분석 전")));
 
-  // 자리까지 지우는 길은 따로 있다. 템플릿 탭에서는 마지막 자리를 지운다.
-  nodes.get("tabs").children[0]._on.click();
+  // 그 자리에서 값 한 벌을 만들 수 있다 — 위의 되돌리기다.
+  click("make-values");
+  assert.equal(unanalysed(), wasUnanalysed, "미분석이 도로 줄어야 한다");
+  assert.equal(nodes.get("editor").hidden, false);
+
+  // 자리까지 지우는 길은 따로 있다.
   click("drop-subject");
   assert.equal(seats(), before, "자리가 도로 줄어야 한다");
+  assert.equal(tabs(), beforeTabs, "탭도 도로 줄어야 한다");
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"));
-  assert.equal(unanalysed(), wasUnanalysed, "미분석도 도로 줄어야 한다");
   fs.rmSync(path.dirname(file), { recursive: true, force: true });
 });

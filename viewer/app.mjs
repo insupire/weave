@@ -15,9 +15,10 @@ const pretty = (doc) => JSON.stringify(doc, null, 2);
 const state = {
   page: PAGES[0].id,
   sample: null,
-  tabs: [], // { id, label, text } — 템플릿 하나와 값 한 벌들
-  active: 0,
+  templateText: "", // 템플릿 하나. 모든 값이 여기 매인다
+  values: {}, // subjectId → 값 한 벌의 글. 없는 자리는 키가 없다
   subjects: [], // 명단. weave-render-args 의 subjects 다
+  active: "template", // "template" 또는 subject 의 id. 탭은 subject 단위다
   focus: null,
   seq: 0,
   showElements: false, // primitive element 이름. 분석뷰의 것이 아니라 설명서의 것이라 기본은 끔
@@ -87,18 +88,23 @@ function elementPage(page) {
 }
 
 // ---------------------------------------------------------------- 플레이그라운드
+//
+// **탭은 subject 단위다.** 명단에 있는 subject 는 값 한 벌이 있든 없든 전부 탭을 갖는다.
+// 탭 하나가 곧 subject 이므로 「값 한 벌」이라고 또 적지 않는다.
+//
+// 계약은 그대로다 — subject 는 비교 대상 자체이고 값 한 벌은 그것에 대해 분석이 알아낸 것이다.
+// 둘이 같다면 「subject 는 있는데 값이 아직 없다」를 말할 수 없다. 합친 것은 화면의 탭뿐이다.
 
 function loadSample(key) {
   const sample = SAMPLES[key];
   state.sample = key;
-  state.tabs = [
-    { id: "template", label: "템플릿", text: sample.template },
-    ...sample.values.map((v, i) => ({ id: `values-${i}`, label: v.label, text: v.text })),
-  ];
-  state.active = 0;
-  state.seq = state.tabs.length;
+  state.templateText = sample.template;
+  state.values = Object.fromEntries(sample.values.map((v) => [v.id, v.text]));
   state.subjects = sample.args.subjects.map((s) => ({ ...s }));
   state.focus = sample.args.focus ?? null;
+  state.active = "template";
+  state.seq = state.subjects.length;
+  // 플레이그라운드의 DOM 은 쪽을 보고 있지 않아도 채워 둔다 — 옮겨 가도 편집 중인 글이 산다.
   drawTabs();
   drawEditor();
   refresh();
@@ -112,22 +118,26 @@ function parse(text) {
   }
 }
 
-const tabOf = (id) => state.tabs.find((t) => t.id === id);
-const valueTabs = () => state.tabs.filter((t) => t.id.startsWith("values-"));
+const seatOf = (id) => state.subjects.find((s) => s.id === id);
+const hasValues = (id) => Object.prototype.hasOwnProperty.call(state.values, id);
+/** 탭 이름. 명단의 이름을 쓰고, 없으면 값 한 벌의 것을, 그것도 없으면 id 를 쓴다. */
+const seatName = (seat) => seat.label || parse(state.values[seat.id] ?? "").doc?.subjectLabel || seat.id;
+/** 지금 보고 있는 subject. 템플릿 탭이면 마지막 자리. */
+const aimedSeat = () => seatOf(state.active) ?? state.subjects[state.subjects.length - 1];
 
 function read() {
   const problems = [];
-  // 탭을 id 로 되찾지 않고 그 자리에서 읽는다 — 값 한 벌을 지웠다 더하면 id 가 겹칠 수 있다.
-  const take = (tab) => {
-    if (!tab || tab.text.trim() === "") return null;
-    const { doc, error } = parse(tab.text);
-    if (error) problems.push(`${tab.label}: JSON 으로 읽지 못했다 — ${error}`);
+  const take = (label, text) => {
+    if (!text || text.trim() === "") return null;
+    const { doc, error } = parse(text);
+    if (error) problems.push(`${label}: JSON 으로 읽지 못했다 — ${error}`);
     return doc;
   };
-  const template = take(tabOf("template"));
+  const template = take("템플릿", state.templateText);
   const values = [];
-  for (const tab of valueTabs()) {
-    const doc = take(tab);
+  for (const seat of state.subjects) {
+    if (!hasValues(seat.id)) continue;
+    const doc = take(seatName(seat), state.values[seat.id]);
     if (doc) values.push(doc);
   }
   return { template, values, problems };
@@ -139,39 +149,58 @@ function escapeText(text) {
   return node.innerHTML;
 }
 
+function stash() {
+  if (state.active === "template") state.templateText = $("editor").value;
+  else if (hasValues(state.active)) state.values[state.active] = $("editor").value;
+}
+
 function drawTabs() {
   const bar = $("tabs");
   bar.innerHTML = "";
-  let grouped = false;
-  state.tabs.forEach((tab, index) => {
-    // 템플릿은 하나, 값 한 벌은 여럿. 말 하나가 뒤를 묶어 종류를 가른다.
-    if (!grouped && tab.id.startsWith("values-")) {
-      grouped = true;
-      const mark = document.createElement("span");
-      mark.className = "tab-group";
-      mark.textContent = "값 한 벌";
-      bar.appendChild(mark);
-    }
+  const tabs = [
+    { id: "template", name: "템플릿", blank: false, text: state.templateText },
+    ...state.subjects.map((seat) => ({
+      id: seat.id,
+      name: seatName(seat),
+      blank: !hasValues(seat.id),
+      text: state.values[seat.id],
+    })),
+  ];
+  for (const tab of tabs) {
     const button = document.createElement("button");
-    button.className = tab.id === "template" ? "tab tab-template" : "tab tab-values";
+    button.className = tab.id === "template" ? "tab tab-template" : "tab tab-subject";
     button.type = "button";
-    button.setAttribute("aria-pressed", String(index === state.active));
-    const broken = tab.text.trim() !== "" && parse(tab.text).error;
-    button.innerHTML = `${escapeText(tab.label)}${broken ? ' <span class="bad">!</span>' : ""}`;
+    button.setAttribute("aria-pressed", String(tab.id === state.active));
+    const broken = !tab.blank && tab.text && tab.text.trim() !== "" && parse(tab.text).error;
+    // 아직 분석 전임을 장식이 아니라 글로 말한다.
+    const state_mark = tab.blank ? ' <small class="tab-state">분석 전</small>' : "";
+    button.innerHTML = `${escapeText(tab.name)}${state_mark}${broken ? ' <span class="bad">!</span>' : ""}`;
     button.addEventListener("click", () => {
-      state.tabs[state.active].text = $("editor").value;
-      state.active = index;
+      stash();
+      state.active = tab.id;
       drawTabs();
       drawEditor();
+      refresh();
     });
     bar.appendChild(button);
-  });
+  }
 }
 
 function drawEditor() {
+  const blank = state.active !== "template" && !hasValues(state.active);
+  $("editor").hidden = blank;
+  $("no-values").hidden = !blank;
+  $("drop-values").hidden = blank || state.active === "template";
+  if (blank) {
+    const seat = seatOf(state.active);
+    // 「에」는 받침을 타지 않아 어느 이름 뒤에도 붙는다.
+    $("no-values-said").textContent =
+      `아직 분석 전입니다. 「${seat ? seatName(seat) : state.active}」에 값 한 벌이 없어 분석뷰에서 「아직 분석 중」으로 섭니다.`;
+    return;
+  }
   const editor = $("editor");
-  editor.value = state.tabs[state.active].text;
-  editor.setAttribute("aria-label", state.tabs[state.active].label);
+  editor.value = state.active === "template" ? state.templateText : state.values[state.active];
+  editor.setAttribute("aria-label", state.active === "template" ? "템플릿" : state.active);
 }
 
 /** focus 를 짧게 나열한다. 항목은 none 과 각 subject 의 이름이다. */
@@ -206,7 +235,7 @@ function refresh() {
   // 오른쪽 판은 분석뷰뿐이다. 이름표는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
-  drawFocus(view?.seats ?? state.subjects.map((s) => ({ id: s.id, name: s.label || s.id })));
+  drawFocus(view?.seats ?? state.subjects.map((s) => ({ id: s.id, name: seatName(s) })));
 
   const all = [...problems, ...report];
   const strip = $("strip");
@@ -216,48 +245,26 @@ function refresh() {
   drawTabs();
 }
 
-// ---------------------------------------------------------------- subject 를 더하고 뺀다
+// ------------------------------------------------ subject 를 더하고 빼는 것은 화면의 동작이다
 
-/** 더하는 동작은 하나다 — 자리와 값 한 벌이 함께 생긴다. 흔한 경우에 같은 일이기 때문이다. */
+function skeleton(seat) {
+  const { doc } = parse(state.templateText);
+  const out = { weave: "1", templateId: doc?.id ?? "", subjectId: seat.id, subjectLabel: seatName(seat), facets: {} };
+  for (const facet of doc?.facets ?? []) {
+    out.facets[facet.id] = { fields: {} };
+    for (const field of facet.fields ?? []) out.facets[facet.id].fields[field.key] = { state: "empty" };
+  }
+  return pretty(out);
+}
+
+/** 더하는 동작은 하나다 — 자리와 값 한 벌이 함께 생긴다. */
 function addSubject() {
-  state.tabs[state.active].text = $("editor").value;
-  const { doc } = parse(tabOf("template").text);
+  stash();
   state.seq += 1;
   const seat = { id: `subject-${state.seq}`, label: `subject-${state.seq}` };
   state.subjects.push(seat);
-
-  const skeleton = { weave: "1", templateId: doc?.id ?? "", subjectId: seat.id, subjectLabel: seat.label, facets: {} };
-  for (const facet of doc?.facets ?? []) {
-    skeleton.facets[facet.id] = { fields: {} };
-    for (const field of facet.fields ?? []) skeleton.facets[facet.id].fields[field.key] = { state: "empty" };
-  }
-  state.seq += 1;
-  state.tabs.push({ id: `values-${state.seq}`, label: seat.label, text: pretty(skeleton) });
-  state.active = state.tabs.length - 1;
-  drawTabs();
-  drawEditor();
-  refresh();
-}
-
-/** 지금 보고 있는 탭이 값 한 벌이면 그 subject, 아니면 마지막 자리. */
-function aimedSeat() {
-  const tab = state.tabs[state.active];
-  const id = tab.id.startsWith("values-") ? parse(tab.text).doc?.subjectId : null;
-  return state.subjects.find((s) => s.id === id) ?? state.subjects[state.subjects.length - 1];
-}
-
-function dropTabOf(seatId) {
-  const index = state.tabs.findIndex((t) => t.id.startsWith("values-") && parse(t.text).doc?.subjectId === seatId);
-  if (index < 0) return false;
-  state.tabs.splice(index, 1);
-  if (state.active >= state.tabs.length) state.active = state.tabs.length - 1;
-  return true;
-}
-
-/** 값 한 벌만 지운다. **자리가 남아 아직 분석 중이 된다** — 그 상태를 만들어 보는 길이다. */
-function dropValues() {
-  const seat = aimedSeat();
-  if (!seat || !dropTabOf(seat.id)) return;
+  state.values[seat.id] = skeleton(seat);
+  state.active = seat.id;
   drawTabs();
   drawEditor();
   refresh();
@@ -265,11 +272,34 @@ function dropValues() {
 
 /** 자리까지 지운다. */
 function dropSubject() {
+  stash();
   const seat = aimedSeat();
   if (!seat) return;
-  dropTabOf(seat.id);
   state.subjects = state.subjects.filter((s) => s.id !== seat.id);
+  delete state.values[seat.id];
   if (state.focus === seat.id) state.focus = null;
+  if (state.active === seat.id) state.active = "template";
+  drawTabs();
+  drawEditor();
+  refresh();
+}
+
+/** 값 한 벌만 지운다. **자리가 남아 아직 분석 중이 된다** — 그 상태를 만들어 보는 길이다. */
+function dropValues() {
+  stash();
+  const seat = seatOf(state.active);
+  if (!seat || !hasValues(seat.id)) return;
+  delete state.values[seat.id];
+  drawTabs();
+  drawEditor();
+  refresh();
+}
+
+/** 그 자리에서 값 한 벌을 만든다. 위의 되돌리기이지 두 번째 더하기가 아니다. */
+function makeValues() {
+  const seat = seatOf(state.active);
+  if (!seat || hasValues(seat.id)) return;
+  state.values[seat.id] = skeleton(seat);
   drawTabs();
   drawEditor();
   refresh();
@@ -285,6 +315,8 @@ function draw() {
   if (playing) {
     $("pg-title").textContent = page.title;
     $("pg-lead").textContent = page.lead;
+    drawTabs();
+    drawEditor();
     refresh();
   } else {
     $("page").innerHTML = page.kind === "element" ? elementPage(page) : guidePage(page);
@@ -294,7 +326,7 @@ function draw() {
 
 let timer = null;
 function scheduleRefresh() {
-  state.tabs[state.active].text = $("editor").value;
+  stash();
   clearTimeout(timer);
   timer = setTimeout(refresh, 140);
 }
@@ -310,8 +342,9 @@ export function start() {
   picker.addEventListener("change", () => loadSample(picker.value));
   $("editor").addEventListener("input", scheduleRefresh);
   $("add-subject").addEventListener("click", addSubject);
-  $("drop-values").addEventListener("click", dropValues);
   $("drop-subject").addEventListener("click", dropSubject);
+  $("drop-values").addEventListener("click", dropValues);
+  $("make-values").addEventListener("click", makeValues);
   $("show-elements").addEventListener("change", (event) => {
     state.showElements = Boolean(event.target.checked);
     refresh();

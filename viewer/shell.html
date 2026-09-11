@@ -37,13 +37,18 @@
             <select id="sample"></select>
             <button type="button" id="add-subject"
               title="자리와 값 한 벌이 함께 생긴다">＋ subject</button>
+            <button type="button" id="drop-subject"
+              title="지금 보고 있는 subject 를 자리까지 지운다. 템플릿 탭에서는 마지막 자리">－ subject</button>
             <button type="button" id="drop-values"
               title="값 한 벌만 지운다. 자리가 남아 「아직 분석 중」이 된다">－ 값 한 벌</button>
-            <button type="button" id="drop-subject"
-              title="지금 보고 있는 값 한 벌의 subject 를 자리까지 지운다. 템플릿 탭에서는 마지막 자리">－ subject</button>
           </div>
           <div class="tabs" id="tabs"></div>
           <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
+          <!-- 값 한 벌이 없는 subject 의 탭. 그 사실을 말하고 거기서 만들 수 있다. -->
+          <div class="no-values" id="no-values" hidden>
+            <p id="no-values-said"></p>
+            <button type="button" id="make-values">값 한 벌 만들기</button>
+          </div>
           <div class="strip" id="strip"></div>
         </div>
         <div class="pane view">
