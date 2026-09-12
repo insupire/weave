@@ -148,6 +148,22 @@
               }
             }
           }
+        },
+        {
+          "if": { "properties": { "element": { "const": "parts" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": {
+                  "properties": {
+                    "shape": { "const": "items" },
+                    "columns": { "minItems": 2, "maxItems": 2 }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },

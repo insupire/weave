@@ -1,0 +1,63 @@
+{
+  "weave": "1",
+  "templateId": "premium-split-1",
+  "subjectId": "plan-b",
+  "subjectLabel": "나 설계",
+  "facets": {
+    "premium": {
+      "fields": {
+        "monthly": {
+          "state": "filled",
+          "value": 61500
+        }
+      }
+    },
+    "split": {
+      "fields": {
+        "share": {
+          "state": "filled",
+          "value": [
+            {
+              "part": "주계약(종신)",
+              "amount": 31000
+            },
+            {
+              "part": "뇌혈관질환진단비",
+              "amount": 17800
+            },
+            {
+              "part": "허혈성심장질환진단비",
+              "amount": 12700
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "주계약 몫이 전체의 절반을 넘습니다."
+        }
+      ]
+    },
+    "covered": {
+      "fields": {
+        "brain": {
+          "state": "filled",
+          "value": 20000000
+        },
+        "heart": {
+          "state": "filled",
+          "value": 20000000
+        },
+        "cancer": {
+          "state": "filled",
+          "value": 0
+        },
+        "main": {
+          "state": "filled",
+          "value": "종신 2,000만원"
+        }
+      }
+    }
+  }
+}

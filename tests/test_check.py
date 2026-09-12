@@ -113,7 +113,13 @@ def set_score(doc: dict) -> None:
     facet(doc, "monthly-premium")["score"] = 90
 
 
+def break_share(doc: dict) -> None:
+    """parts 의 둘째 열을 글로 바꾼다 — 쪼갤 수 없는 것은 쪼갠 것이 아니다."""
+    facet(doc, "premium-split")["fields"][0]["columns"][1]["type"] = "text"
+
+
 TEMPLATE_DEFECTS = [
+    ("parts 의 몫을 글로 연다", break_share, "둘째 열은 몫이라 수치형"),
     ("primitive element 에 순위를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "rank"), "is not one of"),
     ("primitive element 에 등급 게이지를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "gauge"), "is not one of"),
     ("facet 에 점수를 붙인다", set_score, "Additional properties"),

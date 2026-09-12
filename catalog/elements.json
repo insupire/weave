@@ -589,5 +589,109 @@
         }
       ]
     }
+  },
+  "parts": {
+    "compare": "focus",
+    "draws": "하나를 쪼갠 조각들. 합치면 한 덩어리가 된다",
+    "note": "bars 와 다르다 — 막대는 서로 다른 것들의 크기를 견주고 여기 조각들은 한 덩어리의 안쪽이다. 한 subject 의 안을 나눈 것이라 겹칠 수 없어 focus 를 따른다. 파이가 아니라 띠로 그린다: 색으로 가르지 않으므로 조각마다 이름을 옆에 세울 수 있는 쪽이 읽힌다. 둘째 열이 몫이라 수치형이어야 한다",
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-parts",
+        "title": "parts 보기",
+        "facets": [
+          {
+            "id": "split",
+            "title": "보험료가 어디로 가나",
+            "element": "parts",
+            "fields": [
+              {
+                "key": "share",
+                "label": "몫",
+                "shape": "items",
+                "hint": "월 보험료를 쪼갠 것이에요.",
+                "description": "월 보험료를 주계약과 특약으로 쪼개 각 몫을 원 단위 정수로 담는다.",
+                "columns": [
+                  {
+                    "key": "part",
+                    "label": "어디",
+                    "type": "text",
+                    "description": "그 몫이 가는 곳의 이름 그대로 담는다."
+                  },
+                  {
+                    "key": "amount",
+                    "label": "몫",
+                    "type": "money",
+                    "description": "그 몫의 월 보험료를 원 단위 정수로 담는다."
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              {
+                "kind": "note",
+                "text": "조각의 차례는 설계안에 적힌 차례입니다. 크기 순서가 아닙니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-parts",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "split": {
+              "fields": {
+                "share": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "part": "주계약",
+                      "amount": 7400
+                    },
+                    {
+                      "part": "암 특약",
+                      "amount": 31200
+                    },
+                    {
+                      "part": "뇌혈관 특약",
+                      "amount": 14600
+                    },
+                    {
+                      "part": "그 밖",
+                      "amount": 4200
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-parts",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "split": {
+              "fields": {
+                "share": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "담보별 보험료가 적혀 있지 않습니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
   }
 }

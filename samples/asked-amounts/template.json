@@ -1,0 +1,143 @@
+{
+  "weave": "1",
+  "id": "asked-amounts-1",
+  "title": "말한 금액이 그대로 왔나",
+  "facets": [
+    {
+      "id": "match",
+      "title": "말한 금액과 준 금액",
+      "element": "rows",
+      "fields": [
+        {
+          "key": "asked-vs-given",
+          "label": "담보별",
+          "shape": "items",
+          "description": "말한 담보를 말한 순서대로 하나씩. 각 줄에 말한 금액과 이 제안서가 준 금액을 함께 담는다. 제안서가 그 담보를 안 넣었으면 준 금액을 비운다.",
+          "hint": "말한 금액과 이 제안서가 준 금액을 나란히 둔 것이에요.",
+          "columns": [
+            {
+              "key": "cover",
+              "label": "담보",
+              "type": "text",
+              "description": "말한 담보의 이름 그대로 담는다."
+            },
+            {
+              "key": "asked",
+              "label": "말한 금액",
+              "type": "money",
+              "description": "사용자가 말한 가입금액을 원 단위 정수로 담는다."
+            },
+            {
+              "key": "given",
+              "label": "이 제안서",
+              "type": "money",
+              "description": "이 제안서가 그 담보에 넣은 가입금액을 원 단위 정수로 담는다."
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "두 금액을 나란히 두기만 합니다. 어느 쪽이 낫다고 말하지 않습니다."
+        },
+        {
+          "kind": "caution",
+          "text": "같은 이름의 담보라도 보장 범위가 다를 수 있습니다. 금액만으로 견주면 안 됩니다."
+        }
+      ]
+    },
+    {
+      "id": "by-cover",
+      "title": "제안서끼리는 어떻게 다른가",
+      "element": "list",
+      "fields": [
+        {
+          "key": "cover-list",
+          "label": "담보별 가입금액",
+          "shape": "items",
+          "description": "말한 담보를 하나씩. 각 제안서가 그 담보에 넣은 가입금액을 담는다.",
+          "hint": "한 줄에 담보 하나, 칸마다 제안서 하나예요.",
+          "columns": [
+            {
+              "key": "cover",
+              "label": "담보",
+              "type": "text",
+              "description": "담보의 이름 그대로 담는다."
+            },
+            {
+              "key": "amount",
+              "label": "가입금액",
+              "type": "money",
+              "description": "그 담보의 가입금액을 원 단위 정수로 담는다."
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "빈 칸은 그 제안서에 그 담보가 없다는 뜻입니다."
+        }
+      ]
+    },
+    {
+      "id": "premium",
+      "title": "그래서 다달이 얼마인가",
+      "element": "stat",
+      "fields": [
+        {
+          "key": "monthly",
+          "label": "월 보험료",
+          "shape": "single",
+          "description": "이 제안서의 월 납입 보험료 총액을 원 단위 정수로.",
+          "type": "money",
+          "hint": "이 제안서에서 매달 빠져나가는 돈이에요."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "가입금액을 맞추면 보험료가 오릅니다. 둘을 함께 봅니다."
+        }
+      ]
+    },
+    {
+      "id": "terms",
+      "title": "언제까지 내고 언제까지 받나",
+      "element": "facts",
+      "fields": [
+        {
+          "key": "pay-period",
+          "label": "납입기간",
+          "shape": "single",
+          "description": "납입기간을 사람이 읽는 표시 그대로. 보기: 20년납.",
+          "type": "text",
+          "hint": "보험료를 내는 기간이에요."
+        },
+        {
+          "key": "cover-period",
+          "label": "보장기간",
+          "shape": "single",
+          "description": "보장기간을 사람이 읽는 표시 그대로. 보기: 90세만기.",
+          "type": "text",
+          "hint": "보장을 받는 기간이에요."
+        },
+        {
+          "key": "renewal",
+          "label": "갱신",
+          "shape": "single",
+          "description": "갱신 주기를 사람이 읽는 표시 그대로. 보기: 비갱신.",
+          "type": "text",
+          "hint": "몇 년마다 보험료가 다시 매겨지는지예요."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "tip",
+          "text": "말한 조건(90세 만기·20년납·비갱신)과 다른 곳이 있으면 여기서 드러납니다."
+        }
+      ]
+    }
+  ]
+}

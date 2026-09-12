@@ -153,6 +153,27 @@
           ]
         }
       }
+    },
+    "premium-split": {
+      "fields": {
+        "split": {
+          "state": "filled",
+          "value": [
+            {
+              "part": "주계약",
+              "amount": 21000
+            },
+            {
+              "part": "암 특약",
+              "amount": 43400
+            },
+            {
+              "part": "그 밖의 특약",
+              "amount": 23000
+            }
+          ]
+        }
+      }
     }
   }
 }

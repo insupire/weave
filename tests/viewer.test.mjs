@@ -111,9 +111,11 @@ const NAMES = { "proposal-a": "가 제안서", "proposal-b": "나 제안서", "p
 test("비교하는 법이 primitive element 마다 다르다", () => {
   // 겹칠 자리가 있는 것만 겹친다. 나머지는 focus 가 무엇을 그릴지 고른다.
   assert.deepEqual(COMPARE, {
-    stat: "focus", facts: "focus", bars: "focus", rows: "focus",
+    stat: "focus", facts: "focus", bars: "focus", rows: "focus", parts: "focus",
     line: "overlay", list: "overlay",
   });
+  // **하나를 쪼갠 것은 겹칠 수 없다** — 두 subject 의 안이 한 덩어리가 될 수 없다.
+  assert.equal(COMPARE.parts, "focus");
   // **겹치는 표와 고른 것만 내는 표는 다른 이름이다.** 한 이름이 화면마다 다르게 굴면
   // 이름만 보고 알 수 없다 — 그래서 템플릿이 고르게 하지 않고 primitive 를 갈랐다.
   assert.notEqual(COMPARE.list, COMPARE.rows);
@@ -1431,6 +1433,44 @@ test("이 필드가 무엇인지는 이름 옆에서 열린다", () => {
   }
 });
 
+test("하나를 쪼갠 것은 합이 전체다", () => {
+  // **`bars` 와 다른 자리다.** 막대는 서로 다른 것들의 크기를 견주고, 조각은 한 덩어리의
+  // 안쪽이다 — 합이 전체라는 사실이 `bars` 로는 보이지 않는다.
+  const { html } = fix({ focus: "proposal-a" });
+  const part = sectionOf(html, "parts");
+  const facet = FIX.template.facets.find((f) => f.element === "parts");
+  const items = FIX.filled.facets[facet.id].fields[facet.fields[0].key].value;
+  const share = facet.fields[0].columns[1];
+
+  // 조각이 값 그대로 서고, 너비가 **전체 대비 몫**이다. 합치면 100 이 된다.
+  const widths = [...part.matchAll(/class="slice"[^>]*width:([\d.]+)%/g)].map((m) => Number(m[1]));
+  assert.equal(widths.length, items.length, "조각 수가 값과 다르다");
+  assert.ok(Math.abs(widths.reduce((a, b) => a + b, 0) - 100) < 0.01, `합이 전체가 아니다: ${widths}`);
+  const whole = items.reduce((sum, one) => sum + one[share.key], 0);
+  for (const [i, one] of items.entries()) {
+    assert.ok(Math.abs(widths[i] - (one[share.key] / whole) * 100) < 0.01, `${i}: 몫이 다르다`);
+    assert.ok(textOf(part).includes(formatScalar(share.type, one[share.key])), `${i}: 값이 안 보인다`);
+  }
+
+  // **차례는 값이 아니라 선언이다.** 큰 것을 앞으로 옮기지 않는다 — 그것이 순위다.
+  const said = [...part.matchAll(/<span class="who">([^<]*)<\/span>/g)].map((m) => m[1]);
+  assert.deepEqual(said, items.map((one) => one[facet.fields[0].columns[0].key]), "조각 차례가 값을 탄다");
+
+  // **무채색 둘을 자리 차례로 번갈아 쓴다.** 크기와 무관하고 우열이 없다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  assert.match(css, /\.slice:nth-child\(even\)/, "자리 차례가 아니라 다른 것으로 가른다");
+  assert.ok(!/\.slice[^{]*\{[^}]*var\(--(kind|trace|subject)/.test(css), "조각이 갈래·상태 색을 받는다");
+
+  // **쪼갤 것이 없으면 띠를 그리지 않는다.** 값이 아예 없을 때와, 목록이 비었을 때 둘 다.
+  const blank = sectionOf(renderView({ template: FIX.template, values: [FIX.empty] }).html, "parts");
+  assert.ok(!blank.includes('class="band"'), "값이 없는데 띠가 섰다");
+  const none = structuredClone(FIX.values);
+  none[0].facets[facet.id].fields[facet.fields[0].key] = { state: "filled", value: [] };
+  const drawn = sectionOf(fix({ values: none, focus: "proposal-a" }).html, "parts");
+  assert.ok(!drawn.includes('class="band"'), "빈 목록인데 띠가 섰다");
+  assert.ok(textOf(drawn).includes(NO_ITEMS), "빈 목록이라고 말하지 않는다");
+});
+
 test("겹치는 표와 고른 것만 내는 표가 이름으로 갈린다", () => {
   const { html } = fix({ focus: "proposal-a" });
   const list = sectionOf(html, "list");
@@ -1481,9 +1521,14 @@ test("샘플은 서로 다른 템플릿 짜임으로 갈린다", () => {
   assert.equal(new Set(mix).size, mix.length, `element 묶음이 겹친다: ${mix.join(" / ")}`);
 });
 
-test("맨 처음 띄우는 샘플이 primitive element 를 전부 쓴다", () => {
-  const first = sample(sampleNames[0]);
-  assert.deepEqual([...new Set(first.template.facets.map((f) => f.element))].sort(), Object.keys(ELEMENTS).sort());
+test("샘플을 다 합치면 primitive element 를 전부 쓴다", () => {
+  // **한 샘플에 다 밀어 넣지 않는다.** 그러면 그 샘플이 실물이 아니라 진열장이 된다 —
+  // 샘플은 사람이 읽는 화면이고, 어휘를 빠짐없이 쓰는지는 고정 케이스가 본다.
+  const used = new Set(sampleNames.flatMap((name) => sample(name).template.facets.map((f) => f.element)));
+  assert.deepEqual([...used].sort(), Object.keys(ELEMENTS).sort());
+  // 고정 케이스가 그 자리를 이어받았다 — 거기서는 한 문서가 전부를 쓴다.
+  assert.deepEqual([...new Set(FIX.template.facets.map((f) => f.element))].sort(),
+    Object.keys(ELEMENTS).sort(), "고정 케이스가 어휘를 다 쓰지 않는다");
 });
 
 test("샘플 넷이 전부 그려지고 아무것도 던지지 않는다", () => {

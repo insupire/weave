@@ -1,0 +1,171 @@
+{
+  "weave": "1",
+  "id": "care-1",
+  "title": "돌봄이 필요해지면 무엇이 나오나",
+  "facets": [
+    {
+      "id": "daily",
+      "title": "하루에 얼마가 나오나",
+      "element": "stat",
+      "fields": [
+        {
+          "key": "care-daily",
+          "label": "간병인 사용 일당",
+          "shape": "range",
+          "description": "간병인을 쓴 하루마다 나오는 금액을 원 단위 정수로. 구간으로 적혀 있으면 최솟값과 최댓값을 함께 담는다.",
+          "type": "money",
+          "hint": "간병인을 쓴 하루마다 나오는 돈이에요."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "간병인을 실제로 쓴 날에만 나옵니다. 입원했다고 자동으로 나오지 않습니다."
+        },
+        {
+          "kind": "note",
+          "text": "구간으로 적힌 것은 조건에 따라 금액이 달라진다는 뜻입니다."
+        }
+      ]
+    },
+    {
+      "id": "by-grade",
+      "title": "등급마다 얼마가 나오나",
+      "element": "bars",
+      "fields": [
+        {
+          "key": "grade-1",
+          "label": "1등급",
+          "shape": "single",
+          "description": "장기요양 1등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.",
+          "type": "money",
+          "hint": "가장 무거운 등급이에요."
+        },
+        {
+          "key": "grade-2",
+          "label": "2등급",
+          "shape": "single",
+          "description": "장기요양 2등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.",
+          "type": "money"
+        },
+        {
+          "key": "grade-3",
+          "label": "3등급",
+          "shape": "single",
+          "description": "장기요양 3등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.",
+          "type": "money"
+        },
+        {
+          "key": "grade-4",
+          "label": "4등급",
+          "shape": "single",
+          "description": "장기요양 4등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.",
+          "type": "money"
+        },
+        {
+          "key": "grade-5",
+          "label": "5등급",
+          "shape": "single",
+          "description": "장기요양 5등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.",
+          "type": "money",
+          "hint": "가장 가벼운 등급이에요."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "등급은 장기요양 판정의 이름이고 이 화면이 매기는 것이 아닙니다."
+        },
+        {
+          "kind": "caution",
+          "text": "막대 길이는 항목마다 따로 잽니다. 서로 다른 항목의 길이를 견주면 안 됩니다."
+        }
+      ]
+    },
+    {
+      "id": "terms",
+      "title": "언제까지, 며칠까지",
+      "element": "facts",
+      "fields": [
+        {
+          "key": "cover-period",
+          "label": "보장기간",
+          "shape": "single",
+          "description": "보장기간을 사람이 읽는 표시 그대로. 보기: 100세만기.",
+          "type": "text",
+          "hint": "보장을 받는 기간이에요."
+        },
+        {
+          "key": "day-limit",
+          "label": "지급일수 한도",
+          "shape": "single",
+          "description": "간병 일당을 최대 며칠까지 주는지 일 수를 정수로. 한도가 없으면 비운다.",
+          "type": "number",
+          "hint": "일당이 나오는 날의 최대 수예요."
+        },
+        {
+          "key": "waiting",
+          "label": "면책기간",
+          "shape": "single",
+          "description": "가입 뒤 보장이 시작되기까지 기다리는 기간을 개월로.",
+          "type": "duration",
+          "hint": "가입하고 이만큼 지나야 보장이 시작돼요."
+        },
+        {
+          "key": "integrated",
+          "label": "간호간병통합서비스",
+          "shape": "single",
+          "description": "간호간병통합서비스 병동 입원 담보가 있으면 참.",
+          "type": "boolean",
+          "hint": "간병인 대신 병원이 돌보는 병동이에요."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "면책기간 안에 진단받으면 나오지 않습니다. 가입 시점이 중요합니다."
+        }
+      ]
+    },
+    {
+      "id": "covers",
+      "title": "어떤 상태를 보장하나",
+      "element": "rows",
+      "fields": [
+        {
+          "key": "state-list",
+          "label": "보장하는 상태",
+          "shape": "items",
+          "description": "이 설계가 보장하는 상태를 설계안에 적힌 순서 그대로 하나씩. 상태 이름과 그때 나오는 금액을 담는다.",
+          "hint": "고른 설계가 보장하는 상태만 폅니다.",
+          "columns": [
+            {
+              "key": "state",
+              "label": "상태",
+              "type": "text",
+              "description": "설계안에 적힌 상태 이름 그대로 담는다."
+            },
+            {
+              "key": "amount",
+              "label": "금액",
+              "type": "money",
+              "description": "그 상태로 판정받으면 나오는 금액을 원 단위 정수로 담는다."
+            },
+            {
+              "key": "once",
+              "label": "한 번만",
+              "type": "boolean",
+              "description": "한 번 받으면 끝나는 담보면 참으로 담는다."
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "여기 없는 상태는 이 설계안에 적혀 있지 않은 것입니다."
+        }
+      ]
+    }
+  ]
+}

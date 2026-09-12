@@ -20,9 +20,9 @@ export const WEAVE_AXIS_TYPES = ["age", "date", "duration", "number"] as const s
 export type WeaveShape = "single" | "range" | "series" | "items";
 export const WEAVE_SHAPES = ["single", "range", "series", "items"] as const satisfies readonly WeaveShape[];
 
-/** primitive element. 렌더가 구현하는 것은 이 여섯이다. */
-export type WeaveElement = "stat" | "facts" | "bars" | "line" | "list" | "rows";
-export const WEAVE_ELEMENTS = ["stat", "facts", "bars", "line", "list", "rows"] as const satisfies readonly WeaveElement[];
+/** primitive element. 렌더가 구현하는 것은 이 일곱이다. */
+export type WeaveElement = "stat" | "facts" | "bars" | "line" | "list" | "rows" | "parts";
+export const WEAVE_ELEMENTS = ["stat", "facts", "bars", "line", "list", "rows", "parts"] as const satisfies readonly WeaveElement[];
 
 /** 주석의 갈래. 넷뿐이고 확실성 수치는 없다. */
 export type WeaveAnnotationKind = "quote" | "tip" | "note" | "caution";

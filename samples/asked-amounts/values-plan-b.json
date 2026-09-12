@@ -1,0 +1,93 @@
+{
+  "weave": "1",
+  "templateId": "asked-amounts-1",
+  "subjectId": "plan-b",
+  "subjectLabel": "나 제안",
+  "facets": {
+    "match": {
+      "fields": {
+        "asked-vs-given": {
+          "state": "filled",
+          "value": [
+            {
+              "cover": "암진단비",
+              "asked": 100000000,
+              "given": 50000000
+            },
+            {
+              "cover": "뇌혈관질환진단비",
+              "asked": 20000000,
+              "given": 20000000
+            },
+            {
+              "cover": "허혈성심장질환진단비",
+              "asked": 20000000,
+              "given": 20000000
+            },
+            {
+              "cover": "질병후유장해(3%이상)",
+              "asked": 50000000
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "암진단비가 말한 금액의 절반이고 질병후유장해는 들어 있지 않습니다."
+        }
+      ]
+    },
+    "by-cover": {
+      "fields": {
+        "cover-list": {
+          "state": "filled",
+          "value": [
+            {
+              "cover": "암진단비",
+              "amount": 50000000
+            },
+            {
+              "cover": "뇌혈관질환진단비",
+              "amount": 20000000
+            },
+            {
+              "cover": "허혈성심장질환진단비",
+              "amount": 20000000
+            }
+          ]
+        }
+      }
+    },
+    "premium": {
+      "fields": {
+        "monthly": {
+          "state": "filled",
+          "value": 96400
+        }
+      }
+    },
+    "terms": {
+      "fields": {
+        "pay-period": {
+          "state": "filled",
+          "value": "20년납"
+        },
+        "cover-period": {
+          "state": "filled",
+          "value": "90세만기"
+        },
+        "renewal": {
+          "state": "filled",
+          "value": "10년 갱신"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "갱신형이라 10년마다 보험료가 오릅니다."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "weave": "1",
+  "templateId": "premium-split-1",
+  "subjectId": "plan-a",
+  "subjectLabel": "가 설계",
+  "facets": {
+    "premium": {
+      "fields": {
+        "monthly": {
+          "state": "filled",
+          "value": 42800
+        }
+      }
+    },
+    "split": {
+      "fields": {
+        "share": {
+          "state": "filled",
+          "value": [
+            {
+              "part": "주계약(질병사망)",
+              "amount": 7400
+            },
+            {
+              "part": "뇌혈관질환진단비",
+              "amount": 18200
+            },
+            {
+              "part": "허혈성심장질환진단비",
+              "amount": 14300
+            },
+            {
+              "part": "질병입원일당",
+              "amount": 2900
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "quote",
+          "text": "설계안 3쪽 담보별 보험료에서 읽었습니다."
+        },
+        {
+          "kind": "note",
+          "text": "주계약 몫이 전체의 6분의 1쯤입니다."
+        }
+      ]
+    },
+    "covered": {
+      "fields": {
+        "brain": {
+          "state": "filled",
+          "value": 20000000
+        },
+        "heart": {
+          "state": "filled",
+          "value": 20000000
+        },
+        "cancer": {
+          "state": "filled",
+          "value": 0
+        },
+        "main": {
+          "state": "filled",
+          "value": "질병사망 1,000만원"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "암은 0원입니다. 최근 수술 이력으로 이 설계에서는 넣지 않았습니다."
+        }
+      ]
+    }
+  }
+}

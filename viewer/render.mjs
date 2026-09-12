@@ -249,7 +249,7 @@ function drawCell(report, where, decl, value) {
 // **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
 // 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
 export const COMPARE = {
-  stat: "focus", facts: "focus", bars: "focus", rows: "focus",
+  stat: "focus", facts: "focus", bars: "focus", rows: "focus", parts: "focus",
   line: "overlay", list: "overlay",
 };
 
@@ -579,7 +579,54 @@ function rows(ctx, facet) {
   );
 }
 
-export const ELEMENTS = { stat, facts, bars, line, list, rows };
+/**
+ * **하나를 쪼갠 것.** 조각들이 합쳐 한 덩어리가 된다 — 「내 보험료가 어디에 쓰이나」.
+ *
+ * `bars` 와 다르다. 막대는 **서로 다른 것들의 크기**를 견주고, 여기 조각들은 **한 덩어리의
+ * 안쪽**이다. 합이 전체라는 사실이 `bars` 로는 보이지 않는다.
+ *
+ * **겹칠 수 없다** — 한 subject 의 안을 나눈 것이라 두 subject 의 안이 한 덩어리가 될 수
+ * 없다. 그래서 focus 를 따른다.
+ *
+ * **파이가 아니라 띠로 그린다.** 우리는 색으로 가르지 않는데, 색 없는 파이는 조각을 가를
+ * 길이 각도뿐이라 읽히지 않는다. 띠는 조각마다 이름을 옆에 세울 수 있고 길이가 각도보다
+ * 정확히 읽힌다. 조각은 자리 차례로 두 무채색을 번갈아 쓴다 — 크기와 무관하고 우열이 없다.
+ */
+function parts(ctx, facet) {
+  const decl = facet.fields[0];
+  const columns = Array.isArray(decl.columns) ? decl.columns : [];
+  const subject = shownOf(ctx);
+  const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}` +
+    `${fieldMark(ctx, facet, decl)}</div>`;
+  if (columns.length < 2) return `${label}<div class="blank">${missMark()}</div>`;
+  const [name, share] = columns;
+  if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
+
+  const { state, entry } = oneRead(ctx, facet, decl, subject);
+  if (state !== "filled" || !Array.isArray(entry.value)) {
+    return `${label}<div class="blank">${missMark()}</div>`;
+  }
+  const slices = entry.value
+    .map((item) => ({ said: item?.[name.key], size: item?.[share.key] }))
+    .filter((one) => typeof one.size === "number" && Number.isFinite(one.size) && one.size > 0);
+  if (slices.length === 0) {
+    return `${label}<div class="blank"><span class="miss">${NO_ITEMS}</span></div>`;
+  }
+  const whole = slices.reduce((sum, one) => sum + one.size, 0);
+  const band = slices
+    .map((one) =>
+      `<span class="slice" style="width:${((one.size / whole) * 100).toFixed(4)}%" ` +
+      `title="${esc(one.said ?? "")}"></span>`)
+    .join("");
+  const rows = slices
+    .map((one) =>
+      `<div class="slice-row"><span class="who">${esc(one.said ?? "")}</span>` +
+      `<span class="val">${esc(formatScalar(share.type, one.size))}</span></div>`)
+    .join("");
+  return `${label}<div class="band">${band}</div><div class="slices">${rows}</div>`;
+}
+
+export const ELEMENTS = { stat, facts, bars, line, list, rows, parts };
 
 // ---------------------------------------------------------------- 페이지
 

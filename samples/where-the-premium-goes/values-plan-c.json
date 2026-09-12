@@ -1,0 +1,56 @@
+{
+  "weave": "1",
+  "templateId": "premium-split-1",
+  "subjectId": "plan-c",
+  "subjectLabel": "다 설계",
+  "facets": {
+    "premium": {
+      "fields": {
+        "monthly": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "설계안을 아직 받지 못해 읽은 값이 없습니다."
+        }
+      ]
+    },
+    "split": {
+      "fields": {
+        "share": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "보험료 내역이 없으면 쪼갤 수 없습니다."
+        }
+      ]
+    },
+    "covered": {
+      "fields": {
+        "brain": {
+          "state": "empty"
+        },
+        "heart": {
+          "state": "empty"
+        },
+        "cancer": {
+          "state": "empty"
+        },
+        "main": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "설계안을 아직 받지 못했습니다."
+        }
+      ]
+    }
+  }
+}

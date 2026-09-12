@@ -1,0 +1,81 @@
+{
+  "weave": "1",
+  "templateId": "care-1",
+  "subjectId": "plan-c",
+  "subjectLabel": "다 설계",
+  "facets": {
+    "daily": {
+      "fields": {
+        "care-daily": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "간병 특약이 붙지 않은 설계라 읽을 값이 없습니다."
+        }
+      ]
+    },
+    "by-grade": {
+      "fields": {
+        "grade-1": {
+          "state": "empty"
+        },
+        "grade-2": {
+          "state": "empty"
+        },
+        "grade-3": {
+          "state": "empty"
+        },
+        "grade-4": {
+          "state": "empty"
+        },
+        "grade-5": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "장기요양 담보가 없습니다."
+        }
+      ]
+    },
+    "terms": {
+      "fields": {
+        "cover-period": {
+          "state": "empty"
+        },
+        "day-limit": {
+          "state": "empty"
+        },
+        "waiting": {
+          "state": "empty"
+        },
+        "integrated": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "간병 담보가 없어 적을 조건이 없습니다."
+        }
+      ]
+    },
+    "covers": {
+      "fields": {
+        "state-list": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "이 설계는 돌봄을 보장하지 않습니다."
+        }
+      ]
+    }
+  }
+}

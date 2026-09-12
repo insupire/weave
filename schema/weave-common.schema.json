@@ -40,8 +40,8 @@
       "enum": ["single", "range", "series", "items"]
     },
     "Element": {
-      "description": "primitive element. 렌더가 구현하는 것은 이 여섯이다.",
-      "enum": ["stat", "facts", "bars", "line", "list", "rows"]
+      "description": "primitive element. 렌더가 구현하는 것은 이 일곱이다.",
+      "enum": ["stat", "facts", "bars", "line", "list", "rows", "parts"]
     },
     "Number": {
       "description": "숫자. 기본 단위 없음.",

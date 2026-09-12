@@ -1,8 +1,0 @@
-{
-  "order": 1,
-  "name": "다섯 가지로 훑어보기",
-  "args": {
-    "focus": "proposal-b",
-    "previousFocus": "proposal-a"
-  }
-}

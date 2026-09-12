@@ -78,6 +78,19 @@
           ]
         }
       }
+    },
+    "premium-split": {
+      "fields": {
+        "split": {
+          "state": "empty",
+          "notes": [
+            {
+              "kind": "caution",
+              "text": "보험료 내역이 적혀 있지 않습니다."
+            }
+          ]
+        }
+      }
     }
   }
 }

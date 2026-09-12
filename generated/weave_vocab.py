@@ -22,9 +22,9 @@ AXISTYPES: tuple[AxisType, ...] = ("age", "date", "duration", "number",)
 Shape = Literal["single", "range", "series", "items"]
 SHAPES: tuple[Shape, ...] = ("single", "range", "series", "items",)
 
-# primitive element. 렌더가 구현하는 것은 이 여섯이다.
-Element = Literal["stat", "facts", "bars", "line", "list", "rows"]
-ELEMENTS: tuple[Element, ...] = ("stat", "facts", "bars", "line", "list", "rows",)
+# primitive element. 렌더가 구현하는 것은 이 일곱이다.
+Element = Literal["stat", "facts", "bars", "line", "list", "rows", "parts"]
+ELEMENTS: tuple[Element, ...] = ("stat", "facts", "bars", "line", "list", "rows", "parts",)
 
 # 주석의 갈래. 넷뿐이고 확실성 수치는 없다.
 AnnotationKind = Literal["quote", "tip", "note", "caution"]

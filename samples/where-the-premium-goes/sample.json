@@ -1,6 +1,6 @@
 {
   "order": 3,
-  "name": "계약사항표 한 장",
+  "name": "내 보험료가 어디에 쓰이나",
   "args": {
     "focus": "plan-a"
   }

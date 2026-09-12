@@ -38,7 +38,7 @@ class SamplesAreWhole(unittest.TestCase):
     def test_the_samples_are_counted_here(self) -> None:
         # 사람이 빈 화면에서 시작하지 않는다. 성격이 다른 것으로 넷.
         # 수를 세는 자리는 **여기 하나**다. 두 군데서 세면 샘플을 늘릴 때마다 두 군데를 고친다.
-        self.assertEqual(len(sample_dirs()), 6, [p.name for p in sample_dirs()])
+        self.assertEqual(len(sample_dirs()), 4, [p.name for p in sample_dirs()])
 
     def test_each_sample_has_its_three_parts(self) -> None:
         for folder in sample_dirs():
@@ -129,11 +129,17 @@ class CheckerPassesEverySample(unittest.TestCase):
 
 
 class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
-    def test_the_first_sample_uses_every_element(self) -> None:
-        """맨 처음 띄우는 샘플이 언어 전부를 보여야 한다. 사람이 처음 보는 화면이다."""
+    def test_the_samples_cover_every_element_together(self) -> None:
+        """샘플 **전부를 합치면** 언어를 다 쓴다. 한 샘플에 다 밀어 넣지 않는다.
+
+        커버리지를 첫 샘플에 지우면 그 샘플이 실물이 아니라 진열장이 된다 — 샘플은
+        사람이 읽는 화면이고 커버리지는 기계가 보는 것이라 목적이 다르다. 어휘를 빠짐없이
+        쓰는지는 고정 케이스가 본다(``test_every_element_is_exercised``). 여기서는
+        **설명서가 모든 원소를 실제 화면으로 한 번은 보여 주는지**만 본다.
+        """
         enum = set(documents()["weave-common.schema.json"]["$defs"]["Element"]["enum"])
-        first = load(sample_dirs()[0] / "template.json")
-        self.assertEqual({f["element"] for f in first["facets"]}, enum)
+        used = {f["element"] for d in sample_dirs() for f in load(d / "template.json")["facets"]}
+        self.assertEqual(used, enum, f"어느 샘플도 안 쓰는 원소: {sorted(enum - used)}")
 
     def test_the_order_is_a_total_order(self) -> None:
         orders = [load(f / "sample.json")["order"] for f in sample_dirs()]

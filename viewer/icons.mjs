@@ -7,7 +7,7 @@
 //
 // CDN 도 아이콘 폰트도 쓰지 않는다 — 파일 하나로 열려야 하므로 여기 인라인한다.
 // 주석 넷은 **통용되는 UI 시맨틱**을 따른다 — 주의는 warning, 보충은 info.
-// primitive element 여섯은 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
+// primitive element 일곱은 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
 
 export const LUCIDE_VERSION = "1.44.0";
 
@@ -30,6 +30,8 @@ export const ICON = {
   line: "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\" /> <path d=\"m19 9-5 5-4-4-3 3\" />",
   // primitive element — rows (lucide `rows-3`)
   rows: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /> <path d=\"M21 9H3\" /> <path d=\"M21 15H3\" />",
+  // primitive element — parts (lucide `chart-pie`)
+  parts: "<path d=\"M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z\" /> <path d=\"M21.21 15.89A10 10 0 1 1 8 2.83\" />",
   // primitive element — list (lucide `table`)
   list: "<path d=\"M12 3v18\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /> <path d=\"M3 9h18\" /> <path d=\"M3 15h18\" />",
 };

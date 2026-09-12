@@ -1,0 +1,99 @@
+{
+  "weave": "1",
+  "templateId": "care-1",
+  "subjectId": "plan-b",
+  "subjectLabel": "나 설계",
+  "facets": {
+    "daily": {
+      "fields": {
+        "care-daily": {
+          "state": "filled",
+          "value": {
+            "min": 100000,
+            "max": 100000
+          }
+        }
+      }
+    },
+    "by-grade": {
+      "fields": {
+        "grade-1": {
+          "state": "filled",
+          "value": 50000000
+        },
+        "grade-2": {
+          "state": "filled",
+          "value": 40000000
+        },
+        "grade-3": {
+          "state": "empty"
+        },
+        "grade-4": {
+          "state": "empty"
+        },
+        "grade-5": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "3등급부터는 나오지 않습니다. 빈 자리가 그 뜻입니다."
+        },
+        {
+          "kind": "note",
+          "text": "무거운 등급에 금액을 몰아 둔 설계입니다."
+        }
+      ]
+    },
+    "terms": {
+      "fields": {
+        "cover-period": {
+          "state": "filled",
+          "value": "90세만기"
+        },
+        "day-limit": {
+          "state": "filled",
+          "value": 120
+        },
+        "waiting": {
+          "state": "filled",
+          "value": 24
+        },
+        "integrated": {
+          "state": "filled",
+          "value": false
+        }
+      }
+    },
+    "covers": {
+      "fields": {
+        "state-list": {
+          "state": "filled",
+          "value": [
+            {
+              "state": "장기요양 1~2등급",
+              "amount": 20000000,
+              "once": true
+            },
+            {
+              "state": "중증치매(CDR 3점 이상)",
+              "amount": 20000000,
+              "once": true
+            },
+            {
+              "state": "간병인 사용 일당",
+              "amount": 100000
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "파킨슨병과 경증치매는 이 설계에 없습니다."
+        }
+      ]
+    }
+  }
+}

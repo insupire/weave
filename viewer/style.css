@@ -211,6 +211,17 @@ col.is-focus { border:2px solid var(--ink); }
 .table-scroll { overflow-x:auto; margin-top:var(--step); padding:3px; }
 /* 열 너비가 균일하다. 자리마다 너비가 다르면 넓은 칸이 중요해 보인다 —
    `fixed` 가 남은 폭을 고르게 나누고, 다 못 담으면 표가 상자 밖으로 넘쳐 굴러간다. */
+/* **하나를 쪼갠 띠.** 조각이 합쳐 한 덩어리가 된다 — 파이가 아니라 띠인 까닭은
+   색으로 가르지 않기 때문이다. 조각은 **자리 차례로** 두 무채색을 번갈아 쓴다:
+   크기와 무관하고 앞이 뒤보다 무겁다는 뜻이 없다. 사이의 흰 틈이 경계를 세운다. */
+/* 조각 사이는 **틈**이 가른다 — 띠를 덧대지 않는다. 흰 바탕이 그대로 경계가 된다. */
+.band { display:flex; gap:2px; height:14px; margin-top:var(--step); background:var(--surface); }
+.slice { display:block; height:100%; background:var(--ink); }
+.slice:nth-child(even) { background:var(--mute); }
+.slices { margin-top:var(--step); }
+.slice-row { display:flex; justify-content:space-between; gap:12px; font-size:13px; padding:2px 0; }
+.slice-row .who { color:var(--mute); }
+
 table { border-collapse:collapse; table-layout:fixed; width:max-content; min-width:100%;
   font-size:14px; }
 th, td { border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top; }

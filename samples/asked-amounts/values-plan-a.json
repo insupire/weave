@@ -1,0 +1,92 @@
+{
+  "weave": "1",
+  "templateId": "asked-amounts-1",
+  "subjectId": "plan-a",
+  "subjectLabel": "가 제안",
+  "facets": {
+    "match": {
+      "fields": {
+        "asked-vs-given": {
+          "state": "filled",
+          "value": [
+            {
+              "cover": "암진단비",
+              "asked": 100000000,
+              "given": 100000000
+            },
+            {
+              "cover": "뇌혈관질환진단비",
+              "asked": 20000000,
+              "given": 20000000
+            },
+            {
+              "cover": "허혈성심장질환진단비",
+              "asked": 20000000,
+              "given": 20000000
+            },
+            {
+              "cover": "질병후유장해(3%이상)",
+              "asked": 50000000,
+              "given": 50000000
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "quote",
+          "text": "설계안 2쪽 보장내역 표에서 담보별로 읽었습니다."
+        }
+      ]
+    },
+    "by-cover": {
+      "fields": {
+        "cover-list": {
+          "state": "filled",
+          "value": [
+            {
+              "cover": "암진단비",
+              "amount": 100000000
+            },
+            {
+              "cover": "뇌혈관질환진단비",
+              "amount": 20000000
+            },
+            {
+              "cover": "허혈성심장질환진단비",
+              "amount": 20000000
+            },
+            {
+              "cover": "질병후유장해(3%이상)",
+              "amount": 50000000
+            }
+          ]
+        }
+      }
+    },
+    "premium": {
+      "fields": {
+        "monthly": {
+          "state": "filled",
+          "value": 148200
+        }
+      }
+    },
+    "terms": {
+      "fields": {
+        "pay-period": {
+          "state": "filled",
+          "value": "20년납"
+        },
+        "cover-period": {
+          "state": "filled",
+          "value": "90세만기"
+        },
+        "renewal": {
+          "state": "filled",
+          "value": "비갱신"
+        }
+      }
+    }
+  }
+}

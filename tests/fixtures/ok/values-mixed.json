@@ -101,6 +101,23 @@
           ]
         }
       }
+    },
+    "premium-split": {
+      "fields": {
+        "split": {
+          "state": "filled",
+          "value": [
+            {
+              "part": "주계약",
+              "amount": 38000
+            },
+            {
+              "part": "특약",
+              "amount": 24000
+            }
+          ]
+        }
+      }
     }
   }
 }

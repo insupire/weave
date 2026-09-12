@@ -14,6 +14,7 @@ import sys
 from dataclasses import dataclass, field
 
 from weave import schemas
+from weave.schemas import documents
 
 SHAPE_DEF = {
     "single": "#/$defs/ValueSingle",
@@ -96,6 +97,15 @@ def check_template(doc: object) -> Result:
                 columns = [c["key"] for c in decl["columns"]]
                 for name in _duplicates(columns):
                     result.add(f"{base}['fields'][{findex}]", f"열 key 가 겹친다: {name}")
+            # parts 는 **하나를 쪼갠 것**이라 둘째 열이 몫이어야 한다. 쪼갤 수 없으면 그릴 수 없다.
+            if facet["element"] == "parts" and decl["shape"] == "items":
+                share = decl["columns"][1] if len(decl["columns"]) > 1 else None
+                numeric = documents()[schemas.COMMON]["$defs"]["NumericType"]["enum"]
+                if share is None or share["type"] not in numeric:
+                    result.add(
+                        f"{base}['fields'][{findex}]",
+                        "parts 의 둘째 열은 몫이라 수치형이어야 한다",
+                    )
             # 선언하지 않은 자리를 타는 필드는 가리킬 것이 없다.
             where = f"{base}['fields'][{findex}]"
             if "choice" in decl and decl["choice"] not in choices:
