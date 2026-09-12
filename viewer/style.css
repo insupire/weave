@@ -159,10 +159,10 @@ col.is-focus { border:2px solid var(--ink); }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 /* **늘 보이는 한 줄.** 값이 무엇인지 그 자리에서 말한다 — 표시 뒤로 숨지 않는다.
    딸린 말이라 작고 흐리게 서고, 값보다 앞에 나서지 않는다. */
-.hint { font-size:12px; color:var(--mute); margin-top:var(--row); max-width:60ch; }
+/* **이름 옆 표시가 열면 나오는 한 줄.** 늘 보이면 계약 표가 값보다 설명으로 길어진다 —
+   읽고 싶을 때 연다. 여는 길은 값 주석과 같은 것을 쓴다. */
+.hint { margin:0; font-size:12.5px; color:var(--ink); }
 /* facts 는 줄이 촘촘해 딸린 말이 다음 줄 것처럼 읽히기 쉽다 — 값에 붙이고 아래를 띄운다. */
-.fact .hint { grid-column:2 / -1; margin-top:2px; margin-bottom:6px; }
-.bar-row .hint { grid-column:1 / -1; margin-top:0; }
 .who { font-size:12.5px; color:var(--mute); }
 /* 없다는 **표기**. 값이 설 자리에 서서 「여기에 값이 없다」를 말한다 —
    빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
@@ -323,6 +323,11 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
   .bar { gap:10px; padding:8px 14px; }
   /* 닫는 길도 손가락으로 되어야 한다. */
   .pop-close { min-height:44px; padding:0 16px; }
+  /* **글 사이에 선 표시도 손가락이 맞춰야 한다.** 누르는 자리를 넓히되 음수 여백으로
+     흐름은 그대로 둔다 — 줄 간격이 좁아 44px 을 채우면 위아래 줄의 자리와 겹친다.
+     겹치면 옆것이 눌리므로 줄 사이에 맞는 만큼만 넓힌다. */
+  .note-mark { padding:8px 6px; margin:-8px 0 -8px 0; }
+  .big .note-mark, .val .note-mark { padding:10px 8px; margin:-10px 0; }
 }
 
 @media (max-width: 420px) {

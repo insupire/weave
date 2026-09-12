@@ -725,16 +725,17 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   assert.ok(!/\.(note-mark|mark-icon)[^{]*\{[^}]*var\(--kind/.test(css), "표시가 갈래색을 받는다");
 
-  // **bars 는 표시를 맨 앞 라벨 옆에 세운다.** 오른쪽 끝 값에 붙이면 막대 길이를 읽는
-  // 자리와 겹치고, 좁아질 때 값이 먼저 줄어드는 자리라 표시가 밀린다.
+  // **자리가 뜻을 가른다** — 이름 옆은 hint(이 필드가 무엇인지), 값 옆은 그 값에 대한 말.
+  // bars 에서 그 둘이 한 줄에 양끝으로 선다.
   const rows = sectionOf(html, "bars").split('<div class="bar-row">').slice(1);
   const marked = rows.filter((row) => row.includes("note-mark"));
   assert.ok(marked.length > 0, "고정 케이스에 말이 붙은 막대가 있어야 한다");
   for (const row of marked) {
     const label = row.slice(0, row.indexOf('<span class="track"'));
-    assert.ok(label.includes("note-mark"), `표시가 라벨 옆에 서지 않는다: ${row}`);
-    assert.ok(!row.slice(row.indexOf('<span class="val">')).includes("note-mark"),
-      "표시가 값 옆에 남아 있다");
+    const val = row.slice(row.indexOf('<span class="val">'));
+    assert.ok(!/note-mark(?![^"]*hint-mark)/.test(label.replace(/hint-mark/g, "")) || label.includes("hint-mark"),
+      `라벨 옆에 값 주석이 섰다: ${label}`);
+    assert.ok(val.includes("note-mark"), `값 주석이 값 옆에 서지 않는다: ${row}`);
   }
   // 내용은 본문에 펼쳐지지 않고 표시 안에 있다.
   const at = html.indexOf(said);
@@ -1365,7 +1366,7 @@ test("타입마다 표시 단위가 있다", () => {
   assert.notEqual(formatScalar("multiple", 4.9), formatScalar("ratio", 4.9));
 });
 
-test("읽는 사람에게 주는 한 줄은 늘 보인다", () => {
+test("이 필드가 무엇인지는 이름 옆에서 열린다", () => {
   // **셋이 받는 사람이 다르다.**
   //   `description` — 분석에게. 무엇을 어떤 단위로 찾을지. 화면에 안 나온다.
   //   `hint`        — 읽는 사람에게. **이 필드가 무엇인지.** 값이 없어도 필요하다.
@@ -1377,19 +1378,50 @@ test("읽는 사람에게 주는 한 줄은 늘 보인다", () => {
   assert.equal(field.hint.maxLength, 80, "한 줄을 넘길 수 있으면 혼자 서는 글이 된다");
   assert.match(field.hint.pattern, /\\n/, "줄바꿈을 막지 않는다");
 
-  // 여섯 element 모두에서 **늘 보인다** — 표시 뒤로 숨지 않는다.
+  // **자리가 뜻을 가른다.** 이름 옆 표시를 열면 hint 가 나오고, 값 옆 표시를 열면 그
+  // 값에 대한 말이 나온다. 양끝으로 갈리니 섞이지 않는다.
+  //
+  // 늘 보이던 것을 감췄으므로 「제품 지식이 감춰지지 않는다」를 **자리로** 다시 세운다:
+  // hint 를 단 필드마다 표시가 서고, 열면 그 글이 나오고, 값 옆 표시와 한 자리에 겹치지 않는다.
   const said = "이 값이 무엇인지 한 줄로 말합니다.";
   const template = structuredClone(FIX.template);
   for (const facet of template.facets) facet.fields[0].hint = `${facet.id} — ${said}`;
   const { html } = renderView({ template, values: FIX.values, focus: "proposal-a" });
   for (const facet of template.facets) {
     const part = sectionOf(html, facet.element);
-    const at = textOf(part).indexOf(`${facet.id} — ${said}`);
-    assert.ok(at > 0, `${facet.id}: 한 줄이 안 보인다`);
-    // 표시(툴팁) 안이 아니라 본문에 선다.
+    // 1. **표시가 선다.** 없어지면 hint 가 조용히 사라진 것이다.
+    const at = part.indexOf("hint-mark");
+    assert.ok(at > 0, `${facet.id}: 이름 옆 표시가 없다`);
+    // 2. **열면 그 글이 나온다** — 표시 안에 있다.
     const raw = part.indexOf(`${facet.id} — ${said}`);
-    assert.ok(!pops(part).some(([from, to]) => raw > from && raw < to), `${facet.id}: 표시 뒤로 숨었다`);
+    assert.ok(raw > 0, `${facet.id}: hint 글이 없다`);
+    assert.ok(pops(part).some(([from, to]) => raw > from && raw < to), `${facet.id}: 표시 밖에 있다`);
+    // 3. **값 옆 표시와 자리가 갈린다.** 값이 설 자리가 있는 element 에서는 값 주석이
+    //    **이름 자리에 들어오지 못한다.** (`line`·`rows` 는 값이 설 한 자리가 없어
+    //    이름 줄에 함께 서고, 그때도 hint 가 앞선다 — 아래 4번이 차례를 본다.)
+    //    **이름 자리를 전부 본다** — 첫 줄만 보면 말이 안 붙은 필드를 보고 지나간다.
+    const zones = {
+      stat: [/<div class="field-label">([\s\S]*?)<\/div>/g],
+      list: [/<div class="field-label">([\s\S]*?)<\/div>/g],
+      facts: [/<dt>([\s\S]*?)<\/dt>/g],
+      bars: [/<span class="who">([\s\S]*?)<span class="track"/g],
+    }[facet.element];
+    let looked = 0;
+    for (const pattern of zones ?? []) {
+      for (const [, zone] of part.matchAll(pattern)) {
+        looked += 1;
+        assert.ok(!zone.includes('class="note-mark" '), `${facet.id}: 값 주석이 이름 자리에 섰다`);
+      }
+    }
+    if (zones) assert.ok(looked > 0, `${facet.id}: 이름 자리를 하나도 못 찾았다`);
+    // 4. 값 주석 표시가 있다면 **hint 뒤**다. 차례가 고정이라 여는 것이 무엇인지 갈린다.
+    const valueAt = part.indexOf('class="note-mark" ');
+    if (valueAt > 0) assert.ok(at < valueAt, `${facet.id}: 값 주석이 이름 옆보다 앞에 선다`);
   }
+  // 4. **hint 없는 필드에는 표시가 없다.** 빈 표시를 세우지 않는다.
+  const bare = structuredClone(FIX.template);
+  for (const facet of bare.facets) for (const decl of facet.fields) delete decl.hint;
+  assert.ok(!renderView({ template: bare, values: FIX.values }).html.includes("hint-mark"));
   // **추출 지시는 화면에 나오지 않는다.** 둘이 헷갈리면 쓰는 쪽이 매번 고민한다.
   for (const facet of FIX.template.facets) {
     for (const decl of facet.fields) {
