@@ -96,7 +96,23 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다. 트리거의 형태는 `tests/test_ci.py` 가 본다 |
+| CSS 캐스케이드 · 움직임 · `@media` 분기 | `make all` 에 더해 **브라우저로 계산값을 확인한다** — 아래를 본다 |
 | `docs/` · `AGENTS.md` 만 | 없음 |
+
+**`make all` 은 어느 규칙이 이기는지 못 본다.** 고정 케이스는 스타일시트를 **글자로** 읽으므로
+「`@media` 안에 이 규칙을 적었는가」까지만 보고 **더 구체적인 선택자가 그것을 이기는지**는 못 본다.
+실제로 `@media (prefers-reduced-motion)` 안에 릴의 숫자를 지우는 규칙을 적어 뒀는데 숫자를 내던
+`.slot[data-slot="num"] i::before` 가 이겨 **`0 0 0 0 0 0 원` 이 그대로 서 있었고 판정은 통과시켰다.**
+움직임도 같다 — 도는지 멈추는지는 정지한 마크업에 안 적혀 있다.
+
+확인하는 법 둘. **계산값을 묻는다** — 페이지를 헤드리스로 띄워 `getComputedStyle(el, "::before").content`
+와 `animationName`·`animationDuration` 을 세어 본다(`--force-prefers-reduced-motion` 으로 분기도 함께).
+**두 시점을 찍어 대조한다** — 같은 페이지를 `--virtual-time-budget` 만 달리해 두 번 찍고 바이트로 견준다.
+같으면 안 도는 것이다. 창 폭은 `--window-size` 로 못 줄인다(최소 500px) — 넓은 창 안의 좁은 `<iframe>` 으로 잰다.
+
+**이것을 CI 에 들이지 않기로 했다 — 되는데 일부러 안 넣은 것이다.** 지금 CI 는 python 과 node 만으로
+20초에 돈다. 브라우저를 들이면 1~2분이 되고 **이 저장소는 최소함이 곧 성격**이다. 게다가 여기 화면은
+참조일 뿐이고 제품의 시각 정본은 claim-design-system 이 갖는다. 그래서 이 자리는 **사람이 본다.**
 
 ## 검사기가 못 보는 것
 
@@ -278,6 +294,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | 전화기에서 글자와 선이 읽히는가 (크기·대비) |
 | 아이콘이 보험을 연상시키지 않는가 (이름 검사 너머) |
 | 「대략적인 느낌이 오는가」 — 이것이 시각을 들인 목적이다 |
+| **자리가 실제로 도는가, 움직임을 끈 사람에게 읽을 수 있는 숫자가 남지 않는가** — 캐스케이드는 엔진이 있어야 안다 |
 
 **Tailwind 를 들이지 않기로 했다.** 허가는 받았지만 이득이 아니다 — `renderView` 의 출력은
 앱이 가져다 쓰는 **계약 면**이고 지금은 의미 있는 클래스(`facet element-stat` · `miss empty`)만
