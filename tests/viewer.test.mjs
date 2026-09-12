@@ -1366,22 +1366,21 @@ test("타입마다 표시 단위가 있다", () => {
 });
 
 test("읽는 사람에게 주는 한 줄은 늘 보인다", () => {
-  // **템플릿 필드 주석과 `description` 은 받는 사람이 다르다.** 앞의 것은 읽는 사람에게 늘 보이고,
-  // 뒤의 것은 분석에게 주는 추출 지시라 화면에 나오지 않는다.
-  const schema = read("schema/weave-template.schema.json");
-  const field = schema.$defs.Field.properties;
-  assert.ok(field.notes && field.description, "둘 다 있어야 한다");
-  // **갈래를 늘리지 않았다.** 값 한 벌의 것과 같은 넷이다 — 갈래는 뜻만 가르고,
-  // 늘 보이느냐 표시 뒤냐는 **붙은 자리**가 정한다.
-  const said2 = schema.$defs.FieldNotes.items.properties;
-  assert.match(JSON.stringify(said2.kind), /AnnotationKind/, "갈래를 따로 만들었다");
-  assert.equal(said2.text.maxLength, 120, "길면 값 옆이 아니라 facet 의 말이 된다");
-  assert.match(said2.text.pattern, /\\n/, "줄바꿈을 막지 않는다");
+  // **셋이 받는 사람이 다르다.**
+  //   `description` — 분석에게. 무엇을 어떤 단위로 찾을지. 화면에 안 나온다.
+  //   `hint`        — 읽는 사람에게. **이 필드가 무엇인지.** 값이 없어도 필요하다.
+  //   주석          — 이 값에 대해 할 말.
+  // 합치면 쓰는 쪽이 매번 「이건 hint 인가 note 인가」를 고민한다. 가르면 그 고민이 없다.
+  const field = read("schema/weave-template.schema.json").$defs.Field.properties;
+  assert.ok(field.hint && field.description, "둘 다 있어야 한다");
+  assert.ok(!("notes" in field), "필드 주석이 템플릿에 되살아났다 — hint 의 자리다");
+  assert.equal(field.hint.maxLength, 80, "한 줄을 넘길 수 있으면 혼자 서는 글이 된다");
+  assert.match(field.hint.pattern, /\\n/, "줄바꿈을 막지 않는다");
 
   // 여섯 element 모두에서 **늘 보인다** — 표시 뒤로 숨지 않는다.
   const said = "이 값이 무엇인지 한 줄로 말합니다.";
   const template = structuredClone(FIX.template);
-  for (const facet of template.facets) facet.fields[0].notes = [{ kind: "note", text: `${facet.id} — ${said}` }];
+  for (const facet of template.facets) facet.fields[0].hint = `${facet.id} — ${said}`;
   const { html } = renderView({ template, values: FIX.values, focus: "proposal-a" });
   for (const facet of template.facets) {
     const part = sectionOf(html, facet.element);

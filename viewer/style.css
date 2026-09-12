@@ -159,10 +159,10 @@ col.is-focus { border:2px solid var(--ink); }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 /* **늘 보이는 한 줄.** 값이 무엇인지 그 자리에서 말한다 — 표시 뒤로 숨지 않는다.
    딸린 말이라 작고 흐리게 서고, 값보다 앞에 나서지 않는다. */
-.field-notes { font-size:12px; color:var(--mute); margin-top:var(--row); max-width:60ch; }
+.hint { font-size:12px; color:var(--mute); margin-top:var(--row); max-width:60ch; }
 /* facts 는 줄이 촘촘해 딸린 말이 다음 줄 것처럼 읽히기 쉽다 — 값에 붙이고 아래를 띄운다. */
-.fact .field-notes { grid-column:2 / -1; margin-top:2px; margin-bottom:6px; }
-.bar-row .field-notes { grid-column:1 / -1; margin-top:0; }
+.fact .hint { grid-column:2 / -1; margin-top:2px; margin-bottom:6px; }
+.bar-row .hint { grid-column:1 / -1; margin-top:0; }
 .who { font-size:12.5px; color:var(--mute); }
 /* 없다는 **표기**. 값이 설 자리에 서서 「여기에 값이 없다」를 말한다 —
    빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */

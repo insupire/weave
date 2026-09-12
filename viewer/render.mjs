@@ -181,14 +181,14 @@ function notePop(notes) {
  * **되돌리기 쉽게** 하려는 것이다: subject 것을 내는 호출에 이름을 둘째 인자로 주면 된다.
  */
 /**
- * **템플릿이 필드에 단 말.** 늘 보인다 — 표시 뒤로 숨지 않는다.
+ * **읽는 사람에게 늘 보이는 한 줄.** 표시 뒤로 숨지 않는다.
  *
- * 값 한 벌의 필드 주석과 갈래는 같고 **붙은 자리가 다르다.** 템플릿의 것은 모든 subject 에
- * 같은 말이라 숨길 이유가 없고, 값 한 벌의 것은 subject 마다 달라서 모아 둔다.
- * **갈래가 아니라 자리가 동작을 정한다** — 갈래 넷은 뜻만 가른다.
+ * 주석과 하는 일이 다르다 — `hint` 는 **이 필드가 무엇인지**를 말하고(값이 없어도 필요하다),
+ * 주석은 **이 값에 대해 할 말**을 한다. 쓰는 때가 달라서 가른다: 합치면 쓰는 쪽이 매번
+ * 「이건 hint 인가 note 인가」를 고민한다.
  */
-function fieldSaid(decl) {
-  return decl?.notes?.length ? `<div class="field-notes">${notesHtml(decl.notes)}</div>` : "";
+function hintHtml(decl) {
+  return decl?.hint ? `<div class="hint">${esc(decl.hint)}</div>` : "";
 }
 
 function notesHtml(notes, where = "") {
@@ -302,7 +302,7 @@ function stat(ctx, facet) {
   const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-    `<div class="big">${value}${notePop(entry?.notes)}</div>${fieldSaid(decl)}`
+    `<div class="big">${value}${notePop(entry?.notes)}</div>${hintHtml(decl)}`
   );
 }
 
@@ -316,7 +316,7 @@ function facts(ctx, facet) {
     const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
     return (
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
-      `<dd>${value}${notePop(entry?.notes)}</dd>${fieldSaid(decl)}</div>`
+      `<dd>${value}${notePop(entry?.notes)}</dd>${hintHtml(decl)}</div>`
     );
   });
   return `<dl class="facts">${rows.join("")}</dl>`;
@@ -350,7 +350,7 @@ function bars(ctx, facet) {
       // 겹치고, 좁은 화면에서 값이 먼저 줄어드는 자리라 표시가 밀린다.
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}` +
       `${notePop(entry?.notes)}</span>${mark}<span class="val">${text}</span>` +
-      `${fieldSaid(decl)}</div>`
+      `${hintHtml(decl)}</div>`
     );
   });
   return rows.join("");
@@ -401,7 +401,7 @@ function line(ctx, facet) {
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
     `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
-    fieldSaid(decl) + body +
+    hintHtml(decl) + body +
     // 선 끝에 이름이 붙으므로 **아래에 범례를 두지 않는다.** 고른 것이 못 섰을 때만 말한다.
     blankRow(missing, ctx) +
     // 어긋난 값은 범례가 아니라 결함 신호다. 누구 것인지 적어야 고칠 수 있어 전원을 낸다.
@@ -485,7 +485,7 @@ function list(ctx, facet) {
     .filter(({ subject }) => unread.has(subject.id))
     .map(({ subject }) => ({ ...subject }));
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
-    fieldSaid(decl);
+    hintHtml(decl);
   if (rows.size === 0) {
     return label +
       // 목록 **전체**가 비었다는 말은 값 하나의 자리가 아니라 표가 설 자리다. 글로 선다.
@@ -540,7 +540,7 @@ function rows(ctx, facet) {
   if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
   const subject = shownOf(ctx);
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}` +
-    `${fieldMark(ctx, facet, decl)}</div>` + fieldSaid(decl);
+    `${fieldMark(ctx, facet, decl)}</div>` + hintHtml(decl);
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 
   const { state, entry } = oneRead(ctx, facet, decl, subject);

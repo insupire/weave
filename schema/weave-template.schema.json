@@ -166,9 +166,12 @@
           "description": "이 필드가 타는 고르는 자리의 id. 있으면 그 자리의 고를 것마다 값이 따로 있다. 템플릿이 선언하지 않은 id 는 쓸 수 없다. 한 필드는 한 자리만 탄다 — 둘을 타면 값이 곱해진다.",
           "$ref": "weave-common.schema.json#/$defs/Key"
         },
-        "notes": {
-          "description": "템플릿 저작자가 이 필드에 다는 주석. **모든 subject 에 같은 말이라 숨길 이유가 없다 — 늘 보인다.** 값 한 벌의 필드 주석은 subject 마다 달라서 표시 뒤에서 열린다: 갈래가 아니라 **붙은 자리**가 동작을 정한다. description 과 다르다 — 그쪽은 분석에게 주는 추출 지시이고 화면에 나오지 않는다. 필드에 매인 짧은 말이다: 값과 무관한 긴 글은 facet 주석의 자리다.",
-          "$ref": "#/$defs/FieldNotes"
+        "hint": {
+          "description": "읽는 사람에게 **늘 보이는 한 줄.** 이 필드가 무엇인지를 말한다 — 값이 없어도 필요한 말이다. 주석과 다르다: 주석은 **이 값에 대해 할 말**이고 hint 는 **이 필드가 무엇인가**다. description 과도 다르다 — 그쪽은 분석에게 주는 추출 지시이고 화면에 나오지 않는다. 한 줄이고 필드에 매인다: 값과 무관한 자유 문장을 여기 두지 않는다.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[^\\n\\r]+$"
         },
         "allowed": {
           "description": "값이 이 목록 안에 있어야 한다. 자유 글에서 오타와 변종을 막는 자리다. text 를 담는 single 필드에만 쓴다.",
@@ -230,26 +233,6 @@
           }
         }
       ]
-    },
-    "FieldNotes": {
-      "description": "필드에 매인 주석. 갈래는 값 한 벌의 것과 **같은 넷**이다 — 갈래는 뜻만 가른다. 다만 늘 보이는 자리라 짧고 한 줄이어야 한다: 길어지면 값 옆이 아니라 facet 의 말이 된다.",
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 3,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["kind", "text"],
-        "properties": {
-          "kind": { "$ref": "weave-common.schema.json#/$defs/AnnotationKind" },
-          "text": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120,
-            "pattern": "^[^\\n\\r]+$"
-          }
-        }
-      }
     },
     "Column": {
       "description": "items 한 칸의 선언. 열도 추출 지시를 갖는다.",

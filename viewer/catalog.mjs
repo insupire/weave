@@ -652,12 +652,7 @@ export const PAGES = [
                     "description": "그 담보 몫의 월 보험료를 원 단위 정수로 담는다."
                   }
                 ],
-                "notes": [
-                  {
-                    "kind": "note",
-                    "text": "설계안에 적힌 순서 그대로예요."
-                  }
-                ]
+                "hint": "설계안에 적힌 순서 그대로예요."
               }
             ],
             "notes": [
