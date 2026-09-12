@@ -35,9 +35,10 @@ def load(path: pathlib.Path) -> dict:
 
 
 class SamplesAreWhole(unittest.TestCase):
-    def test_there_are_four_samples(self) -> None:
+    def test_the_samples_are_counted_here(self) -> None:
         # 사람이 빈 화면에서 시작하지 않는다. 성격이 다른 것으로 넷.
-        self.assertEqual(len(sample_dirs()), 5, [p.name for p in sample_dirs()])
+        # 수를 세는 자리는 **여기 하나**다. 두 군데서 세면 샘플을 늘릴 때마다 두 군데를 고친다.
+        self.assertEqual(len(sample_dirs()), 6, [p.name for p in sample_dirs()])
 
     def test_each_sample_has_its_three_parts(self) -> None:
         for folder in sample_dirs():

@@ -1,0 +1,271 @@
+{
+  "weave": "1",
+  "templateId": "one-proposal-1",
+  "subjectId": "plan-c",
+  "subjectLabel": "다 설계",
+  "facets": {
+    "premium": {
+      "fields": {
+        "monthly-premium": {
+          "state": "filled",
+          "value": 52300
+        }
+      }
+    },
+    "overview": {
+      "fields": {
+        "insurer": {
+          "state": "filled",
+          "value": "바로생명"
+        },
+        "product": {
+          "state": "filled",
+          "value": "바로 암케어 플러스 무배당 2602"
+        },
+        "pay-period": {
+          "state": "filled",
+          "value": "20년납"
+        },
+        "cover-period": {
+          "state": "filled",
+          "value": "80세만기"
+        },
+        "renewal": {
+          "state": "filled",
+          "value": "10년 갱신"
+        },
+        "refund": {
+          "state": "filled",
+          "value": true
+        },
+        "source": {
+          "state": "filled",
+          "value": "설계사 제안"
+        },
+        "estimated": {
+          "state": "filled",
+          "value": true
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "갱신형이라 10년마다 보험료가 오릅니다. 지금 금액만으로 견주면 안 됩니다."
+        }
+      ]
+    },
+    "payback": {
+      "fields": {
+        "payback-curve": {
+          "byVariant": {
+            "cancer": {
+              "state": "filled",
+              "value": [
+                {
+                  "at": 41,
+                  "value": 0.4
+                },
+                {
+                  "at": 50,
+                  "value": 1.6
+                },
+                {
+                  "at": 60,
+                  "value": 3.1
+                },
+                {
+                  "at": 70,
+                  "value": 4.5
+                },
+                {
+                  "at": 80,
+                  "value": 5.2
+                }
+              ]
+            },
+            "brain": {
+              "state": "filled",
+              "value": [
+                {
+                  "at": 41,
+                  "value": 0.0
+                },
+                {
+                  "at": 50,
+                  "value": 0.0
+                },
+                {
+                  "at": 60,
+                  "value": 0.0
+                },
+                {
+                  "at": 70,
+                  "value": 0.0
+                },
+                {
+                  "at": 80,
+                  "value": 0.0
+                }
+              ]
+            },
+            "heart": {
+              "state": "filled",
+              "value": [
+                {
+                  "at": 41,
+                  "value": 0.1
+                },
+                {
+                  "at": 50,
+                  "value": 0.5
+                },
+                {
+                  "at": 60,
+                  "value": 1.0
+                },
+                {
+                  "at": 70,
+                  "value": 1.5
+                },
+                {
+                  "at": 80,
+                  "value": 1.8
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "covered-total": {
+      "fields": {
+        "covered-amount": {
+          "byVariant": {
+            "cancer": {
+              "state": "filled",
+              "value": 60000000
+            },
+            "brain": {
+              "state": "filled",
+              "value": 0
+            },
+            "heart": {
+              "state": "filled",
+              "value": 10000000
+            }
+          }
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "이 설계는 뇌혈관질환을 보장하지 않습니다. 0원은 모른다는 뜻이 아니라 보장이 없다는 뜻입니다."
+        }
+      ]
+    },
+    "covered-items": {
+      "fields": {
+        "covered-list": {
+          "byVariant": {
+            "cancer": {
+              "state": "filled",
+              "value": [
+                {
+                  "name": "암진단비(유사암제외)",
+                  "amount": 50000000
+                },
+                {
+                  "name": "유사암진단비",
+                  "amount": 10000000
+                }
+              ]
+            },
+            "brain": {
+              "state": "filled",
+              "value": []
+            },
+            "heart": {
+              "state": "filled",
+              "value": [
+                {
+                  "name": "허혈성심장질환진단비",
+                  "amount": 10000000
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "surrender": {
+      "fields": {
+        "surrender-burden": {
+          "state": "filled",
+          "value": [
+            {
+              "at": 41,
+              "value": 61000
+            },
+            {
+              "at": 50,
+              "value": 44000
+            },
+            {
+              "at": 60,
+              "value": 36000
+            },
+            {
+              "at": 70,
+              "value": 33000
+            },
+            {
+              "at": 80,
+              "value": 31000
+            }
+          ]
+        }
+      }
+    },
+    "riders": {
+      "fields": {
+        "rider-list": {
+          "state": "filled",
+          "value": [
+            {
+              "name": "암진단비(유사암제외)",
+              "amount": 50000000,
+              "premium": 33800,
+              "pay-period": "20년납",
+              "cover-period": "80세",
+              "renewal": "10년 갱신"
+            },
+            {
+              "name": "유사암진단비",
+              "amount": 10000000,
+              "premium": 3100,
+              "pay-period": "20년납",
+              "cover-period": "80세",
+              "renewal": "10년 갱신"
+            },
+            {
+              "name": "허혈성심장질환진단비",
+              "amount": 10000000,
+              "premium": 9200,
+              "pay-period": "20년납",
+              "cover-period": "80세",
+              "renewal": "10년 갱신"
+            },
+            {
+              "name": "질병입원일당(1일이상)",
+              "amount": 20000,
+              "premium": 6200,
+              "pay-period": "20년납",
+              "cover-period": "80세",
+              "renewal": "10년 갱신"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
