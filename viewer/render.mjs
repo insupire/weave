@@ -221,8 +221,35 @@ function notesHtml(notes, where = "") {
  * 우리가 지켜온 것이 무너진다. 그려도 되는 것은 **자리**뿐이라 빈 칸에 줄만 긋는다.
  * 깜빡이거나 움직이지 않는다 — 「기다리는 중」은 앱이 얹을 말이고 언어의 것이 아니다.
  */
-function slot(said = "값이 올 자리") {
-  return `<span class="slot" role="img" aria-label="${esc(said)}"></span>`;
+/** 수로 서는 타입. 자리의 생김새를 값의 생김새에 맞추는 유일한 기준이다. */
+const NUMERIC = new Set(["number", "money", "ratio", "multiple", "duration", "age"]);
+
+/**
+ * 자리 하나의 릴 수와 뒤에 붙는 단위. **타입마다 고정**이다 — 값에서 끌어오면
+ * 자릿수 자체가 크기를 말해 버린다. 금액 자리는 늘 여섯 칸이고, 87,400 이든 8,740,000 이든 같다.
+ */
+const SLOT_SHAPE = {
+  number: [6, ""], money: [6, "원"], ratio: [3, "%"], multiple: [3, "배"],
+  duration: [3, "개월"], age: [3, "세"], boolean: [1, ""], text: [1, ""], date: [1, ""],
+};
+
+function slot(said = "값이 올 자리", type = "text", big = false) {
+  const kind = NUMERIC.has(type) ? "num" : "text";
+  const [count, unit] = SLOT_SHAPE[type] ?? SLOT_SHAPE.text;
+  // **산출물은 자리만 낸다.** 표식(`.slot` · 릴 `<i>`)이 서고 **뷰어 스타일시트가 그것을 굴린다** —
+  // 여기에 시간도 프레임도 애니메이션 지시도 한 글자 없다. 앱은 이 표식 위에 제 방식을 얹는다.
+  //
+  // 단위는 **값이 아니라 생김새**다. 「여기에 금액이 온다」를 수 없이 말할 수 있는 유일한 글자라
+  // 정지해 있어도 값으로 오독되지 않는다 — 읽을 수 있는 정지 **숫자**만 두지 않으면 된다.
+  const reels = "<i></i>".repeat(count);
+  const tail = unit ? `<b class="slot-unit">${esc(unit)}</b>` : "";
+  return `<span class="slot${big ? " slot-big" : ""}" data-slot="${kind}" ` +
+    `role="img" aria-label="${esc(said)}">${reels}${tail}</span>`;
+}
+
+/** 축과 띠 위를 **지나가는 표식**. 자리가 어디까지 뻗는지만 말하고 크기는 말하지 않는다. */
+function sweep() {
+  return `<span class="sweep" aria-hidden="true"></span>`;
 }
 
 /** 모른다는 **표기**. 왜 없는지는 주석이 글로 말한다. */
@@ -340,7 +367,7 @@ function stat(ctx, facet) {
   // **수 하나가 크게 설 자리.** 그 자리의 크기 그대로 비워 둔다.
   if (ctx.subjects.length === 0) {
     return `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>` +
-      `<div class="big">${slot()}</div>`;
+      `<div class="big">${slot("값이 올 자리", decl.type, true)}</div>`;
   }
   const subject = shownOf(ctx);
   if (!subject) return `<div class="blank">${missMark()}</div>`;
@@ -359,7 +386,7 @@ function facts(ctx, facet) {
   if (ctx.subjects.length === 0) {
     const empty = facet.fields.map((decl) =>
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}${hintMark(decl)}</dt>` +
-      `<dd>${slot()}</dd></div>`);
+      `<dd>${slot("값이 올 자리", decl.type)}</dd></div>`);
     return `<dl class="facts">${empty.join("")}</dl>`;
   }
   const subject = shownOf(ctx);
@@ -394,7 +421,8 @@ function bars(ctx, facet) {
   if (ctx.subjects.length === 0) {
     return facet.fields.map((decl) =>
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}${hintMark(decl)}</span>` +
-      `<span class="track"></span><span class="val">${slot()}</span></div>`).join("");
+      `<span class="track">${sweep()}</span>` +
+      `<span class="val">${slot("값이 올 자리", decl.type)}</span></div>`).join("");
   }
   const subject = shownOf(ctx);
   if (!subject) return `<div class="blank">${missMark()}</div>`;
@@ -504,7 +532,9 @@ function emptyAxes() {
   return (
     `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
     `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
-    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/>` +
+    // 가로축을 따라 지나가는 표식. **높이를 말하지 않는다** — 값이 어디에 설지는 아직 없다.
+    `<line class="sweep" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
   );
 }
 
@@ -595,9 +625,10 @@ function list(ctx, facet) {
       label +
       `<div class="table-scroll"><table class="items"><colgroup><col><col></colgroup>` +
       `<thead><tr><th class="corner">${esc(key.label ?? key.key)}</th>` +
-      `<th>${slot("제안서가 올 자리")}</th></tr></thead>` +
-      `<tbody><tr><th class="row-label" scope="row">${slot("항목이 올 자리")}</th>` +
-      `<td>${slot()}</td></tr></tbody></table></div>`
+      `<th>${slot("제안서가 올 자리", key.type)}</th></tr></thead>` +
+      `<tbody><tr><th class="row-label" scope="row">${slot("항목이 올 자리", key.type)}</th>` +
+      `<td>${rest.map((c) => slot("값이 올 자리", c.type)).join("") || slot()}</td>` +
+      `</tr></tbody></table></div>`
     );
   }
   if (rows.size === 0) {
@@ -663,7 +694,7 @@ function rows(ctx, facet) {
   // 사용자가 무엇을 담기로 했는지가 여기서 그대로 읽힌다.
   if (ctx.subjects.length === 0) {
     const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
-    const blank = columns.map(() => `<td>${slot()}</td>`).join("");
+    const blank = columns.map((c) => `<td>${slot("값이 올 자리", c.type)}</td>`).join("");
     return (
       label +
       `<div class="table-scroll"><table class="items"><thead><tr>${head}</tr></thead>` +
@@ -721,7 +752,7 @@ function parts(ctx, facet) {
   const [name, share] = columns;
   // **빈 띠가 자리를 말한다.** 조각의 이름은 값이 갖고 오는 것이라 지어내지 않는다.
   if (ctx.subjects.length === 0) {
-    return `${label}<div class="band" role="img" aria-label="조각이 올 자리"></div>`;
+    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${sweep()}</div>`;
   }
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 

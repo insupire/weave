@@ -657,20 +657,28 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
   const byId = Object.fromEntries(FIX.template.facets.map((f) => [f.element, f]));
   assert.equal(Object.keys(byId).length, Object.keys(ELEMENTS).length, "fixture 가 원소 전부를 써야 한다");
   const at = (element) => sectionOf(html, element);
-  const slots = (part) => (part.match(/class="slot"/g) ?? []).length;
+  const slots = (part) => (part.match(/class="slot[ "]/g) ?? []).length;
 
   // 공통 — **가짜 값도 표기도 쓰지 않는다.** `—` 는 「어떤 subject 의 값을 모른다」는 말인데
   // 여기엔 모를 subject 자체가 없다. 「없음」류의 글도 아직 할 말이 아니다.
   assert.ok(!html.includes(NO_VALUE_MARK), "모른다는 표기가 섰다 — 모를 subject 가 없는 자리다");
+  // **자리의 모양이 값의 생김새를 따른다.** 릴 수는 타입마다 고정이라 자릿수가 크기를 말하지 않는다.
+  const shapeOf = (part, type) => {
+    const m = part.match(new RegExp(`<span class="slot[^"]*" data-slot="[^"]*"[^>]*>([\\s\\S]*?)</span>`));
+    assert.ok(m, `${type}: 자리가 없다`);
+    return m[1];
+  };
+  assert.equal((shapeOf(at("stat"), "stat").match(/<i><\/i>/g) ?? []).length, 6, "금액 자리는 여섯 칸이다");
+  assert.match(at("stat"), /class="slot slot-big" data-slot="num"/, "큰 수 자리가 수의 모양이 아니다");
+  assert.match(at("stat"), /class="slot-unit">원</, "금액이 올 자리인 것이 안 읽힌다");
+
   for (const said of [NO_VALUE, NO_ITEM, NO_ITEMS, UNDRAWABLE]) {
     assert.ok(!textOf(html).includes(said), `아직 할 말이 아니다: ${said}`);
   }
-  // **깜빡이지 않는다.** 「기다리는 중」은 앱이 얹는 말이라 자리 자체는 가만히 있는다.
+  // **자리의 모양이 값의 생김새를 따른다.** 밑줄 하나가 아니라 수가 설 칸·글줄·자·축이다.
+  // 움직임은 여기 없다 — 아래 「움직임은 뷰어가 얹는다」가 그 선을 따로 본다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
-  assert.ok(!/@keyframes/.test(css), "스켈레톤 애니메이션이 들어왔다");
-  const slotRule = css.match(/\n\.slot\s*\{[^}]*\}/);
-  assert.ok(slotRule, ".slot 이 모양을 안 갖고 있다");
-  assert.ok(!/animation|transition/.test(slotRule[0]), "자리가 움직인다");
+  assert.match(css, /\.slot i \{[^}]*background/, "릴이 모양을 안 갖고 있다");
 
   // stat — 수 하나가 크게 설 자리를 그 크기 그대로 비운다.
   assert.match(at("stat"), /class="big"/);
@@ -721,6 +729,126 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
   assert.ok(!/class="slice-row"/.test(band), "조각 이름을 지어냈다");
 });
 
+test("움직임은 뷰어가 얹는다 — 산출물에는 한 글자도 없다", () => {
+  // **막아야 하는 것은 산출물에 움직임이 들어가는 것**이지 뷰어가 움직이는 것이 아니다.
+  // 렌더는 자리 표식만 내고 스타일시트가 그것을 굴린다. 그래야 앱이 제 방식을 얹을 수 있다.
+  const drawn = [
+    renderView({ template: FIX.template, values: [] }).html, // subject 0
+    fix().html, // 값이 있는 보통 화면
+    ...sampleNames.map((n) => drawSample(sample(n), { values: [] }).html),
+  ];
+  // 시간 · 프레임 · 애니메이션 지시 · 그것을 태울 스크립트. SVG 쪽(SMIL)까지 함께 막는다.
+  const banned = [
+    "animation", "@keyframes", "transition", "<animate", "dur=", "begin=", "repeatCount",
+    "keyTimes", "steps(", "requestAnimationFrame", "setInterval", "setTimeout", "<style", "style=\"--",
+  ];
+  for (const html of drawn) {
+    for (const one of banned) {
+      assert.ok(!html.includes(one), `산출물에 움직임이 들어왔다: ${one}`);
+    }
+  }
+  // 표식은 있어야 한다 — 없으면 뷰어가 굴릴 것이 없고 위 판정은 공짜로 통과한다.
+  const zero = drawn[0];
+  assert.match(zero, /class="slot[ "]/, "굴릴 자리 표식이 없다");
+  assert.match(zero, /class="sweep"/, "지나갈 표식이 없다");
+  assert.match(zero, /<line class="sweep"/, "축 위를 지나갈 표식이 없다");
+
+  // **굴리는 쪽은 스타일시트 하나뿐이다.** 앱 스크립트가 몰래 굴리면 그것도 산출물의 움직임이다.
+  const app = fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8");
+  for (const one of ["requestAnimationFrame", "setInterval", "@keyframes", "animate("]) {
+    assert.ok(!app.includes(one), `앱이 굴린다: ${one}`);
+  }
+});
+
+test("읽을 수 있는 정지 숫자를 두지 않는다", () => {
+  // **0원은 이 도메인에서 진짜 값이다** — 미보장이 0원이다. 정지한 회색 0 은 값으로 오독된다.
+  // 도는 숫자는 멈춰 있지 않아 값으로 읽힐 수 없고, 멈출 때는 숫자가 사라진다.
+  const html = renderView({ template: FIX.template, values: [] }).html;
+  for (const [, inside] of html.matchAll(/<span class="slot[^"]*"[^>]*>([\s\S]*?)<\/span>/g)) {
+    assert.ok(!/[0-9]/.test(inside), `자리에 숫자가 박혀 있다: ${inside.slice(0, 60)}`);
+    // 릴과 단위 말고는 아무것도 없다 — 흐린 더미 값이 끼어들 틈을 남기지 않는다.
+    const left = inside.replace(/<i><\/i>/g, "").replace(/<b class="slot-unit">[^<]*<\/b>/g, "").trim();
+    assert.equal(left, "", `자리에 다른 것이 들었다: ${left.slice(0, 60)}`);
+  }
+  // 단위는 값이 아니다. 숫자가 없으므로 정지해 있어도 값으로 읽히지 않는다.
+  assert.match(html, /class="slot-unit">개월</, "기간 자리가 기간인 줄 모른다");
+
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  // 숫자를 내는 자리는 **도는 릴 하나뿐**이고, 멈추면 그 글자가 사라진다.
+  const digitRules = [...css.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, , body]) => /content:\s*"[^"]*[0-9]/.test(body));
+  assert.equal(digitRules.length, 1, `숫자를 내는 규칙이 여럿이다: ${digitRules.map((r) => r[1].trim())}`);
+  assert.match(digitRules[0][1].trim(), /^\.slot\[data-slot="num"\] i::before$/);
+  // 그 자리는 **늘 도는 자리**다. 굴리는 규칙이 같은 릴을 덮고 있어야 정지 숫자가 생기지 않는다.
+  assert.match(css, /\.slot i::before \{[^}]*animation:reel var\(--spin\)/, "릴이 안 돈다");
+});
+
+test("움직임을 끈 사람에게도 자리가 선다", () => {
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const quiet = css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/);
+  assert.ok(quiet, "움직임을 끈 사람을 위한 자리가 없다");
+  const body = quiet[1];
+  // 굴리던 것이 **멈추는** 것이 아니라 **사라진다** — 멈춘 릴에 숫자가 남으면 그것이 정지 숫자다.
+  //
+  // **글자가 있는지가 아니라 이기는지를 본다.** `.slot i::before { content:"" }` 를 적어 두고도
+  // 숫자를 내던 `.slot[data-slot="num"] i::before` 가 더 구체적이라 캐스케이드에서 이겨
+  // 멈춘 릴에 0 이 그대로 섰던 적이 있다. 판정이 글자만 보면 그 화면을 통과시킨다.
+  const bareCss = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const quietStart = bareCss.indexOf("@media (prefers-reduced-motion: reduce)");
+  const digitSel = [...bareCss.slice(0, quietStart).matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, , rule]) => /content:\s*"[^"]*[0-9]/.test(rule))
+    .map(([, sel]) => sel.trim());
+  assert.ok(digitSel.length >= 1, "숫자를 내는 자리를 못 찾았다 — 판정이 헛돈다");
+  // `@media` 껍데기를 벗기고 **안쪽 규칙만** 훑는다 — 껍데기째 재면 안쪽 선택자를 한 번도 안 본다.
+  const quietBody = bareCss.slice(quietStart).match(/\{([\s\S]*)\n\}/)[1];
+  const quietRules = [...quietBody.matchAll(/([^{}]*)\{([^}]*)\}/g)];
+  assert.ok(quietRules.length >= 2, "조용한 자리에 규칙이 거의 없다 — 판정이 헛돈다");
+  for (const one of digitSel) {
+    const covered = quietRules.some(([, sel, rule]) =>
+      sel.split(",").map((x) => x.trim()).includes(one) && /content:""/.test(rule));
+    assert.ok(covered, `멈춘 릴에 숫자가 남는다 — 같은 선택자로 덮지 않았다: ${one}`);
+  }
+  assert.match(body, /animation:none/, "릴이 안 멈춘다");
+  assert.match(body, /\.sweep \{[^}]*display:none/, "지나가는 표식이 안 멈춘다");
+  // 그래도 「여기 값이 온다」가 읽혀야 한다 — 릴 상자의 모양은 그대로 남는다.
+  assert.match(body, /\.slot i \{[^}]*background:var\(--surface\)/, "조용한 자리가 안 보인다");
+  // 모양을 내는 것은 산출물 쪽(릴 수 · 단위 · 자 · 축)이라 움직임을 꺼도 그대로 선다.
+  const html = renderView({ template: FIX.template, values: [] }).html;
+  assert.match(html, /data-slot="num"/);
+  assert.match(html, /class="track"/);
+  assert.match(html, /class="axis"/);
+
+  // **모든 자리가 같은 속도로 돈다.** 어느 자리가 더 빨리 돌면 그것이 강조다.
+  // 속도를 적는 자리를 세는 것으로는 모자란다 — 어디에 적히든 `--spin` 하나에서만 나와야 한다.
+  // **주석을 걷고 센다** — 주석이 선택자에 붙어 오면 이름으로 거르는 판정이 전부 헛돈다.
+  let spun = 0;
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const [, sel, rule] of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    const name = sel.trim();
+    // 자리와 지나가는 표식을 건드리는 규칙은 **어느 이름으로 적혔든** 잡는다.
+    if (!/\.slot|\.sweep/.test(name)) continue;
+    const timed = rule.match(/animation(?:-duration)?:\s*([^;]+)/);
+    if (timed) {
+      // 릴은 `--spin`, 지나가는 표식은 `--pass`. **갈래마다 하나뿐**이라 인스턴스가 못 흔든다.
+      assert.match(timed[1], /var\(--spin\)|var\(--pass\)|none/,
+        `자리마다 속도가 다르다: ${name} — ${timed[1]}`);
+      spun += 1;
+    }
+    // **어긋내도 되는 것은 시작점뿐이다.** 자리마다 무엇을 달리 주든 그것이 시작점이 아니면
+    // 크기나 순서를 암시할 길이 열린다 — 그래서 바꿀 수 있는 것을 이름으로 못 박는다.
+    if (/nth-child/.test(name)) {
+      assert.ok(!/animation:|animation-duration/.test(rule), `시작점이 아니라 속도를 바꿨다: ${name}`);
+      const props = [...rule.matchAll(/(--[a-z-]+|[a-z-]+)\s*:/g)].map((m) => m[1]);
+      assert.ok(props.length > 0, `nth-child 가 아무것도 안 한다: ${name}`);
+      for (const prop of props) {
+        assert.ok(["animation-delay", "--phase"].includes(prop),
+          `nth-child 가 시작점 말고 ${prop} 를 바꾼다: ${name}`);
+      }
+    }
+  }
+  assert.ok(spun >= 1, "도는 자리를 하나도 못 찾았다 — 판정이 헛돈다");
+});
+
 test("subject 0 에서도 고르는 자리는 서고 focus 는 가리킬 것이 없어도 안 무너진다", () => {
   // **축은 값이 아니라 템플릿의 것이다.** 아직 아무도 없어도 「무엇으로 볼지」는 고를 수 있어야
   // 그 facet 에 무엇이 올지가 읽힌다.
@@ -734,7 +862,7 @@ test("subject 0 에서도 고르는 자리는 서고 focus 는 가리킬 것이 
   assert.match(html, /data-option="y20" aria-pressed="true"/);
   // 고른 것을 바꿔도 골격은 그대로다 — 아직 바뀔 값이 없다.
   const other = renderView({ template: axed, values: [], choices: { term: "y10" } }).html;
-  assert.equal((other.match(/class="slot"/g) ?? []).length, (html.match(/class="slot"/g) ?? []).length);
+  assert.equal((other.match(/class="slot[ "]/g) ?? []).length, (html.match(/class="slot[ "]/g) ?? []).length);
 
   // **focus 는 가리킬 것이 없다.** 없는 subject 를 가리켜도 자리는 그대로 선다.
   const lost = renderView({ template: FIX.template, values: [], focus: "nobody", previousFocus: "nobody2" });
@@ -1357,7 +1485,12 @@ test("장식으로 위계를 만들지 않는다", () => {
   // 점선·겹선 장식과 빗금 텍스처와 가운데 정렬
   assert.ok(!/\b(dashed|dotted|double)\b/.test(css), "점선·겹선 장식");
   assert.ok(!css.includes("repeating-linear-gradient"), "빗금 텍스처");
-  assert.ok(!/text-align:\s*center/.test(css), "가운데 정렬");
+  // 가운데 정렬은 **내용의 위계**를 막자는 것이다. 릴 한 칸(글자 폭 하나) 안에서 숫자가
+  // 가운데 서는 것은 위계가 아니라 글리프 자리라, 규칙을 지우지 않고 선택자로 가른다.
+  for (const [, sel, body] of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (!/text-align:\s*center/.test(body)) continue;
+    assert.match(sel.trim(), /^\.slot(\[|\s|$)/, `가운데 정렬: ${sel.trim()}`);
+  }
 });
 
 test("선은 보는 상태로 갈린다 — 색을 빼도 갈린다", () => {

@@ -170,12 +170,89 @@ col.is-focus { border:2px solid var(--ink); }
    빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
 .miss { font-size:12.5px; color:var(--mute); }
 .miss.value { cursor:help; }
-/* **아직 아무도 오지 않은 자리.** 값이 설 곳에 줄만 긋는다 — 가짜 값을 그리지 않고
-   깜빡이지도 않는다. 「기다리는 중」은 앱이 얹을 말이다. */
-.slot { display:inline-block; min-width:6em; max-width:100%; height:1em;
-  vertical-align:-2px; border-bottom:1px solid var(--line); }
-.big .slot { min-width:8em; }
-td .slot, th .slot { min-width:0; width:100%; }
+/* **아직 아무도 오지 않은 자리 — 여기가 굴린다.**
+
+   산출물(renderView)은 표식만 낸다: `.slot` 과 그 안의 릴 `<i>`, 그리고 `.sweep`.
+   시간도 프레임도 애니메이션 지시도 산출물에는 한 글자 없다. **움직임은 전부 이 파일의 것**이라
+   앱은 같은 표식 위에 제 방식을 얹으면 된다. 「산출물에 디자인이 없다」가 그대로 선다.
+
+   왜 도는가. 정지한 회색 0 은 이 도메인에서 **진짜 값**으로 읽힌다 — 미보장이 0원이다.
+   도는 숫자는 멈춰 있지 않아 값으로 읽힐 수가 없고, 이 자리는 진짜로 「곧 옵니다」가 맞는
+   순간이다. 움직임이 오히려 정직한 쪽이다.
+
+   무엇을 말하지 않는가. **모든 자리가 같은 속도로 돈다** — 어느 자리가 더 빨리 돌면 그것이
+   강조다. 한 자리 안의 릴만 위상을 어긋내고(속도가 아니라 시작점), 릴 수는 **타입마다 고정**이라
+   자릿수가 크기를 말하지 않는다. */
+.slot { --reel:1.15em; --spin:1100ms; --phase:0ms;
+  display:inline-flex; gap:1px; align-items:stretch; vertical-align:-.18em;
+  height:var(--reel); max-width:100%; overflow:hidden; }
+.slot i { display:block; overflow:hidden; background:var(--surface); font-style:normal; }
+.slot i::before { display:block; line-height:var(--reel); text-align:center;
+  color:var(--mute); animation:reel var(--spin) linear infinite var(--phase); }
+
+/* **줄마다 시작점을 어긋낸다.** 안 그러면 모든 줄의 릴이 한 박자로 돌아 같은 숫자가 나란히
+   서고, 그것이 「값이 전부 같다」로 읽힌다. 바꾸는 것은 시작점뿐이고 속도는 전부 같다. */
+.bar-row:nth-child(2n) .slot, .fact:nth-child(2n) .slot, tbody tr:nth-child(2n) .slot { --phase:-163ms; }
+.bar-row:nth-child(3n) .slot, .fact:nth-child(3n) .slot, tbody tr:nth-child(3n) .slot { --phase:-379ms; }
+.bar-row:nth-child(5n) .slot, .fact:nth-child(5n) .slot, tbody tr:nth-child(5n) .slot { --phase:-617ms; }
+
+/* 수가 설 자리 — 릴이 숫자를 굴린다. */
+.slot[data-slot="num"] i { width:.68em; }
+.slot[data-slot="num"] i::before { content:"0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0"; white-space:pre; }
+/* 시작점만 어긋난다. 음수라 첫 프레임부터 이미 갈려 있다 — 속도는 전부 같다. */
+/* 위상 차이는 **한 칸(110ms)의 배수가 아니다.** 배수로 어긋내면 어느 순간에도 릴이
+   1·2·3·4… 로 나란히 서서 수열처럼 읽힌다. 일부러 어긋난 값을 쓴다. */
+.slot[data-slot="num"] i:nth-child(2)::before { animation-delay:calc(var(--phase) - 63ms); }
+.slot[data-slot="num"] i:nth-child(3)::before { animation-delay:calc(var(--phase) - 291ms); }
+.slot[data-slot="num"] i:nth-child(4)::before { animation-delay:calc(var(--phase) - 537ms); }
+.slot[data-slot="num"] i:nth-child(5)::before { animation-delay:calc(var(--phase) - 812ms); }
+.slot[data-slot="num"] i:nth-child(6)::before { animation-delay:calc(var(--phase) - 946ms); }
+.slot-unit { font-weight:400; color:var(--mute); align-self:center; margin-left:2px; }
+
+/* 글이 설 자리 — 굴릴 숫자가 없으니 **글줄 길이**가 구른다. 글자를 지어내지 않는다. */
+.slot[data-slot="text"] i { width:7em; }
+.slot[data-slot="text"] i::before { content:""; height:calc(var(--reel) * 5);
+  background-repeat:no-repeat; background-size:100% .34em;
+  background-image:
+    linear-gradient(to right, var(--line) 0 62%, transparent 62%),
+    linear-gradient(to right, var(--line) 0 84%, transparent 84%),
+    linear-gradient(to right, var(--line) 0 45%, transparent 45%),
+    linear-gradient(to right, var(--line) 0 71%, transparent 71%),
+    linear-gradient(to right, var(--line) 0 62%, transparent 62%);
+  background-position:0 .38em, 0 calc(var(--reel) + .38em), 0 calc(var(--reel) * 2 + .38em),
+    0 calc(var(--reel) * 3 + .38em), 0 calc(var(--reel) * 4 + .38em); }
+.slot[data-slot="text"] i::before { animation-name:reel-text; }
+
+@keyframes reel { from { transform:translateY(0); } to { transform:translateY(calc(var(--reel) * -10)); } }
+@keyframes reel-text { from { transform:translateY(0); } to { transform:translateY(calc(var(--reel) * -4)); } }
+
+.big .slot { --reel:1.05em; }
+.big .slot i { width:.62em; }
+td .slot, th .slot { max-width:100%; }
+
+/* **지나가는 표식.** 자가 어디까지 뻗는지·띠가 어디서 나뉠지만 말하고 크기는 말하지 않는다. */
+.track, .band { position:relative; overflow:hidden; }
+.sweep { --pass:2000ms; }
+.track .sweep, .band .sweep { position:absolute; top:0; bottom:0; width:28%;
+  background:linear-gradient(to right, transparent, var(--line), transparent);
+  animation:sweep var(--pass) linear infinite; }
+@keyframes sweep { from { left:-28%; } to { left:100%; } }
+/* 지나가는 표식은 **한 속도뿐**이다. 축이 더 멀리 가는 것은 축이 길어서이지 더 빨라서가 아니다. */
+svg.line .sweep { stroke:var(--line); stroke-width:1; animation:sweep-x var(--pass) linear infinite; }
+@keyframes sweep-x { from { transform:translateX(0); } to { transform:translateX(552px); } }
+
+/* **움직임을 끈 사람에게는 조용한 자리가 선다.** 굴리던 것이 멈추는 것이 아니라 사라진다 —
+   멈춘 릴에 숫자가 남으면 그것이 읽을 수 있는 정지 숫자가 된다. 자리의 모양은 그대로 남는다. */
+@media (prefers-reduced-motion: reduce) {
+  /* **숫자를 내던 선택자를 그대로 다시 적는다.** 덜 구체적인 `.slot i::before` 로 덮으려 하면
+     `.slot[data-slot="num"] i::before` 가 캐스케이드에서 이겨 멈춘 릴에 0 이 남는다.
+     실제로 한 번 그렇게 서 있었고 눈으로 잡았다. */
+  .slot i::before,
+  .slot[data-slot="num"] i::before,
+  .slot[data-slot="text"] i::before { animation:none; content:""; background-image:none; height:auto; }
+  .slot i { background:var(--surface); }
+  .sweep { display:none; }
+}
 
 /* 틀이 아니라 자리다 */
 .blank { padding:4px 0 8px; }
