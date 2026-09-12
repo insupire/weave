@@ -80,9 +80,12 @@ def check_template(doc: object) -> Result:
     for name in _duplicates([f["id"] for f in doc["facets"]]):
         result.add("$['facets']", f"facet id 가 겹친다: {name}")
 
-    variants = [v["id"] for v in doc.get("variants", [])]
-    for name in _duplicates(variants):
-        result.add("$['variants']", f"갈래 id 가 겹친다: {name}")
+    choices = {c["id"]: [o["id"] for o in c["options"]] for c in doc.get("choices", [])}
+    for name in _duplicates([c["id"] for c in doc.get("choices", [])]):
+        result.add("$['choices']", f"고르는 자리 id 가 겹친다: {name}")
+    for index, choice in enumerate(doc.get("choices", [])):
+        for name in _duplicates([o["id"] for o in choice["options"]]):
+            result.add(f"$['choices'][{index}]", f"고를 것의 id 가 겹친다: {name}")
 
     for index, facet in enumerate(doc["facets"]):
         base = f"$['facets'][{index}]"
@@ -93,9 +96,10 @@ def check_template(doc: object) -> Result:
                 columns = [c["key"] for c in decl["columns"]]
                 for name in _duplicates(columns):
                     result.add(f"{base}['fields'][{findex}]", f"열 key 가 겹친다: {name}")
-            # 축이 없는데 갈리는 필드는 가리킬 갈래가 없다.
-            if decl.get("varies") and not variants:
-                result.add(f"{base}['fields'][{findex}]", "축(variants)이 없는데 varies 를 달았다")
+            # 선언하지 않은 자리를 타는 필드는 가리킬 것이 없다.
+            where = f"{base}['fields'][{findex}]"
+            if "choice" in decl and decl["choice"] not in choices:
+                result.add(where, f"템플릿이 선언하지 않은 고르는 자리다: {decl['choice']}")
     return result
 
 
@@ -134,7 +138,7 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
 
     facets = {f["id"]: f for f in template["facets"]}
     _compare_keys(result, "$['facets']", "facet", set(facets), set(doc["facets"]))
-    variants = {v["id"] for v in template.get("variants", [])}
+    choices = {c["id"]: {o["id"] for o in c["options"]} for c in template.get("choices", [])}
 
     for facet_id, declared in facets.items():
         given = doc["facets"].get(facet_id)
@@ -148,34 +152,39 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
             if slot is None:
                 continue
             where = f"{base}['fields'][{key!r}]"
-            for label, entry in _entries(result, where, decl, variants, slot):
+            for label, entry in _entries(result, where, decl, choices, slot):
                 if entry["state"] != "filled":
                     continue
                 _check_value(result, f"{label}['value']", decl, entry["value"])
+                if "allowed" in decl and entry["value"] not in decl["allowed"]:
+                    result.add(f"{label}['value']", f"허용한 값이 아니다: {entry['value']!r}")
     return result
 
 
-def _entries(result: Result, where: str, decl: dict, variants: set, slot: dict):
-    """필드 한 자리에서 판정할 값들. 축이 있으면 갈래마다 하나다.
+def _entries(result: Result, where: str, decl: dict, choices: dict, slot: dict):
+    """필드 한 자리에서 판정할 값들. 고르는 자리를 타면 고를 것마다 하나다.
 
     **어느 모양이어야 하는지는 템플릿이 정한다.** 스키마는 둘 다 받으므로 여기서 가른다 —
-    갈리는 필드에 값 하나만 주거나, 안 갈리는 필드를 갈래로 쪼개면 그것이 결함이다.
+    타는 필드에 값 하나만 주거나, 안 타는 필드를 쪼개면 그것이 결함이다.
+
+    **선언한 만큼 채워야 한다.** 고를 것이 여섯이면 값도 여섯이다 — 고르는 자리를 늘리는
+    값이 여기서 드러난다.
     """
-    varies = bool(decl.get("varies"))
-    given = "byVariant" in slot
-    if varies and not given:
-        result.add(where, "갈래마다 값을 두는 필드인데 값이 하나다")
+    rides = decl.get("choice")
+    given = "byOption" in slot
+    if rides and not given:
+        result.add(where, f"고르는 자리({rides})를 타는 필드인데 값이 하나다")
         return []
-    if not varies and given:
-        result.add(where, "갈래가 없는 필드인데 갈래마다 값을 뒀다")
+    if not rides and given:
+        result.add(where, "고르는 자리를 타지 않는 필드인데 고를 것마다 값을 뒀다")
         return []
-    if not varies:
+    if not rides:
         return [(where, slot)]
-    _compare_keys(result, f"{where}['byVariant']", "갈래", variants, set(slot["byVariant"]))
+    _compare_keys(result, f"{where}['byOption']", "고를 것", choices.get(rides, set()), set(slot["byOption"]))
     return [
-        (f"{where}['byVariant'][{name!r}]", entry)
-        for name, entry in slot["byVariant"].items()
-        if name in variants
+        (f"{where}['byOption'][{name!r}]", entry)
+        for name, entry in slot["byOption"].items()
+        if name in choices.get(rides, set())
     ]
 
 

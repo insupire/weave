@@ -21,15 +21,15 @@
     },
     "Type": {
       "description": "값의 타입. 렌더는 이 여덟에만 의존한다.",
-      "enum": ["number", "money", "ratio", "duration", "age", "boolean", "text", "date"]
+      "enum": ["number", "money", "ratio", "multiple", "duration", "age", "boolean", "text", "date"]
     },
     "NumericType": {
       "description": "크기를 견줄 수 있는 타입.",
-      "enum": ["number", "money", "ratio", "duration", "age"]
+      "enum": ["number", "money", "ratio", "multiple", "duration", "age"]
     },
     "OrderedType": {
       "description": "순서를 매길 수 있는 타입. range 와 series 축이 쓴다.",
-      "enum": ["number", "money", "ratio", "duration", "age", "date"]
+      "enum": ["number", "money", "ratio", "multiple", "duration", "age", "date"]
     },
     "AxisType": {
       "description": "series 의 가로축이 될 수 있는 타입.",
@@ -40,8 +40,8 @@
       "enum": ["single", "range", "series", "items"]
     },
     "Element": {
-      "description": "primitive element. 렌더가 구현하는 것은 이 다섯이다.",
-      "enum": ["stat", "facts", "bars", "line", "list"]
+      "description": "primitive element. 렌더가 구현하는 것은 이 여섯이다.",
+      "enum": ["stat", "facts", "bars", "line", "list", "rows"]
     },
     "Number": {
       "description": "숫자. 기본 단위 없음.",
@@ -54,6 +54,12 @@
     "Ratio": {
       "description": "비율. 기본 단위 분수(0.5 = 50%).",
       "type": "number"
+    },
+    "Multiple": {
+      "description": "배수. 1 이 「낸 만큼」이고 2 가 「두 배」다. 비율(ratio)과 다르다 — 0.049 가 4.9% 이고 4.9 가 4.9 배다.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100000
     },
     "Duration": {
       "description": "기간. 기본 단위 개월, 정수(20년 = 240).",

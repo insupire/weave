@@ -7,7 +7,7 @@
     "payout": {
       "fields": {
         "diagnosis-benefit": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": 30000000
@@ -33,7 +33,7 @@
     "coverage": {
       "fields": {
         "diagnosis": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": 30000000
@@ -49,7 +49,7 @@
           }
         },
         "hospital": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": 50000

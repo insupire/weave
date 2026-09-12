@@ -39,15 +39,15 @@
       }
     },
     "FieldSlot": {
-      "description": "필드 한 자리. 축이 없는 필드면 값 하나이고, 템플릿이 varies 를 단 필드면 byVariant 로 갈래마다 하나다. **어느 쪽이어야 하는지는 템플릿이 정한다** — 여기서는 둘 다 받고, 대조는 검사기가 한다. 갈래 값에 또 갈래를 둘 수는 없다.",
+      "description": "필드 한 자리. 고르는 자리를 타지 않는 필드면 값 하나이고, 템플릿이 choice 를 단 필드면 byOption 으로 고를 것마다 하나다. **어느 쪽이어야 하는지는 템플릿이 정한다** — 여기서는 둘 다 받고, 대조는 검사기가 한다. 고른 값 안에 또 고를 것을 둘 수는 없다.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "state": { "enum": ["filled", "empty"] },
         "value": { "$ref": "#/$defs/Value" },
         "notes": { "$ref": "weave-common.schema.json#/$defs/Annotations" },
-        "byVariant": {
-          "description": "축의 갈래마다 따로 있는 값. 키는 템플릿 variants 의 id 이고 빠짐도 덤도 없이 전부 덮는다.",
+        "byOption": {
+          "description": "고르는 자리의 고를 것마다 따로 있는 값. 키는 그 자리의 option id 이고 빠짐도 덤도 없이 전부 덮는다.",
           "type": "object",
           "minProperties": 1,
           "propertyNames": { "$ref": "weave-common.schema.json#/$defs/Key" },
@@ -56,13 +56,13 @@
       },
       "allOf": [
         {
-          "if": { "required": ["byVariant"] },
+          "if": { "required": ["byOption"] },
           "then": {
             "not": { "anyOf": [{ "required": ["state"] }, { "required": ["value"] }, { "required": ["notes"] }] }
           }
         },
         {
-          "if": { "not": { "required": ["byVariant"] } },
+          "if": { "not": { "required": ["byOption"] } },
           "then": { "$ref": "#/$defs/FieldValue" }
         }
       ]

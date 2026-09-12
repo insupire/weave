@@ -10,12 +10,18 @@
           "state": "filled",
           "value": 87400,
           "notes": [
-            { "kind": "quote", "text": "합계보험료 87,400원 (보장보험료 87,400원 / 적립보험료 0원)" }
+            {
+              "kind": "quote",
+              "text": "합계보험료 87,400원 (보장보험료 87,400원 / 적립보험료 0원)"
+            }
           ]
         }
       },
       "notes": [
-        { "kind": "note", "text": "비갱신형이라 이 금액이 끝까지 그대로입니다." }
+        {
+          "kind": "note",
+          "text": "비갱신형이라 이 금액이 끝까지 그대로입니다."
+        }
       ]
     },
     "contract-terms": {
@@ -23,19 +29,39 @@
         "payment-period": {
           "state": "filled",
           "value": 240,
-          "notes": [{ "kind": "quote", "text": "납입기간 20년납" }]
+          "notes": [
+            {
+              "kind": "quote",
+              "text": "납입기간 20년납"
+            }
+          ]
         },
         "maturity-age": {
           "state": "empty",
           "notes": [
-            { "kind": "note", "text": "종신 보장이라 만기나이가 없습니다." },
-            { "kind": "quote", "text": "보험기간 종신" }
+            {
+              "kind": "note",
+              "text": "종신 보장이라 만기나이가 없습니다."
+            },
+            {
+              "kind": "quote",
+              "text": "보험기간 종신"
+            }
           ]
         },
-        "entry-age": { "state": "filled", "value": { "min": 15, "max": 65 } }
+        "entry-age": {
+          "state": "filled",
+          "value": {
+            "min": 15,
+            "max": 65
+          }
+        }
       },
       "notes": [
-        { "kind": "note", "text": "설계안 2쪽 계약사항 표에서 읽었습니다." }
+        {
+          "kind": "note",
+          "text": "설계안 2쪽 계약사항 표에서 읽었습니다."
+        }
       ]
     },
     "renewal": {
@@ -43,27 +69,48 @@
         "renews": {
           "state": "filled",
           "value": false,
-          "notes": [{ "kind": "quote", "text": "비갱신형 (주계약·특약 전부)" }]
+          "notes": [
+            {
+              "kind": "quote",
+              "text": "비갱신형 (주계약·특약 전부)"
+            }
+          ]
         },
         "renewal-cycle": {
           "state": "empty",
-          "notes": [{ "kind": "note", "text": "비갱신형이라 갱신주기가 없습니다." }]
+          "notes": [
+            {
+              "kind": "note",
+              "text": "비갱신형이라 갱신주기가 없습니다."
+            }
+          ]
         }
       }
     },
     "coverage-amounts": {
       "fields": {
-        "death": { "state": "filled", "value": 50000000 },
+        "death": {
+          "state": "filled",
+          "value": 50000000
+        },
         "cancer": {
           "state": "filled",
           "value": 30000000,
-          "notes": [{ "kind": "caution", "text": "유사암은 가입금액의 20%만 나옵니다." }]
+          "notes": [
+            {
+              "kind": "caution",
+              "text": "유사암은 가입금액의 20%만 나옵니다."
+            }
+          ]
         },
         "brain": {
           "state": "filled",
           "value": 20000000,
           "notes": [
-            { "kind": "caution", "text": "뇌혈관질환 전체가 아니라 뇌졸중만 보장하는 담보입니다." }
+            {
+              "kind": "caution",
+              "text": "뇌혈관질환 전체가 아니라 뇌졸중만 보장하는 담보입니다."
+            }
           ]
         }
       }
@@ -73,7 +120,10 @@
         "premium-curve": {
           "state": "empty",
           "notes": [
-            { "kind": "note", "text": "비갱신형이라 갱신 예시표가 설계안에 없습니다." }
+            {
+              "kind": "note",
+              "text": "비갱신형이라 갱신 예시표가 설계안에 없습니다."
+            }
           ]
         }
       }
@@ -83,13 +133,49 @@
         "rider-list": {
           "state": "filled",
           "value": [
-            { "name": "암진단비(유사암제외)", "amount": 30000000, "renews": false, "maturity-age": 100 },
-            { "name": "뇌졸중진단비", "amount": 20000000, "renews": false, "maturity-age": 100 },
-            { "name": "질병입원일당(1일이상)", "amount": 30000, "renews": false, "maturity-age": 80 },
-            { "name": "상해수술비", "amount": 300000, "renews": false }
+            {
+              "name": "암진단비(유사암제외)",
+              "amount": 30000000,
+              "renews": false,
+              "maturity-age": 100
+            },
+            {
+              "name": "뇌졸중진단비",
+              "amount": 20000000,
+              "renews": false,
+              "maturity-age": 100
+            },
+            {
+              "name": "질병입원일당(1일이상)",
+              "amount": 30000,
+              "renews": false,
+              "maturity-age": 80
+            },
+            {
+              "name": "상해수술비",
+              "amount": 300000,
+              "renews": false
+            }
           ],
           "notes": [
-            { "kind": "caution", "text": "상해수술비는 만기가 표에 적혀 있지 않습니다." }
+            {
+              "kind": "caution",
+              "text": "상해수술비는 만기가 표에 적혀 있지 않습니다."
+            }
+          ]
+        }
+      }
+    },
+    "payment-plan": {
+      "fields": {
+        "plan": {
+          "state": "filled",
+          "value": [
+            {
+              "phase": "처음",
+              "monthly": 87400,
+              "until": 70
+            }
           ]
         }
       }

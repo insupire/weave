@@ -41,13 +41,13 @@
         "source": {
           "state": "filled",
           "value": "설계사 제안"
-        },
-        "estimated": {
-          "state": "filled",
-          "value": true
         }
       },
       "notes": [
+        {
+          "kind": "caution",
+          "text": "설계안에 없어 계산으로 메운 값이 섞여 있습니다."
+        },
         {
           "kind": "caution",
           "text": "갱신형이라 10년마다 보험료가 오릅니다. 지금 금액만으로 견주면 안 됩니다."
@@ -57,7 +57,7 @@
     "payback": {
       "fields": {
         "payback-curve": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": [
@@ -140,7 +140,7 @@
     "covered-total": {
       "fields": {
         "covered-amount": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": 60000000
@@ -166,7 +166,7 @@
     "covered-items": {
       "fields": {
         "covered-list": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": [

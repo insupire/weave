@@ -9,27 +9,55 @@
         "first-premium": {
           "state": "filled",
           "value": 29900,
-          "notes": [{ "kind": "quote", "text": "합계보험료 29,900원" }]
+          "notes": [
+            {
+              "kind": "quote",
+              "text": "합계보험료 29,900원"
+            }
+          ]
         }
       }
     },
     "contract-terms": {
       "fields": {
-        "payment-period": { "state": "filled", "value": 480 },
-        "maturity-age": { "state": "filled", "value": 80 },
-        "entry-age": { "state": "filled", "value": { "min": 15, "max": 60 } }
+        "payment-period": {
+          "state": "filled",
+          "value": 480
+        },
+        "maturity-age": {
+          "state": "filled",
+          "value": 80
+        },
+        "entry-age": {
+          "state": "filled",
+          "value": {
+            "min": 15,
+            "max": 60
+          }
+        }
       },
       "notes": [
-        { "kind": "note", "text": "주계약 하나뿐이라 계약사항 표가 짧습니다." }
+        {
+          "kind": "note",
+          "text": "주계약 하나뿐이라 계약사항 표가 짧습니다."
+        }
       ]
     },
     "renewal": {
       "fields": {
-        "renews": { "state": "filled", "value": true },
+        "renews": {
+          "state": "filled",
+          "value": true
+        },
         "renewal-cycle": {
           "state": "filled",
           "value": 60,
-          "notes": [{ "kind": "quote", "text": "5년 갱신형" }]
+          "notes": [
+            {
+              "kind": "quote",
+              "text": "5년 갱신형"
+            }
+          ]
         }
       }
     },
@@ -37,12 +65,25 @@
       "fields": {
         "death": {
           "state": "empty",
-          "notes": [{ "kind": "note", "text": "암만 보장하는 상품이라 사망보장이 없습니다." }]
+          "notes": [
+            {
+              "kind": "note",
+              "text": "암만 보장하는 상품이라 사망보장이 없습니다."
+            }
+          ]
         },
-        "cancer": { "state": "filled", "value": 20000000 },
+        "cancer": {
+          "state": "filled",
+          "value": 20000000
+        },
         "brain": {
           "state": "empty",
-          "notes": [{ "kind": "note", "text": "뇌혈관질환은 보장하지 않습니다." }]
+          "notes": [
+            {
+              "kind": "note",
+              "text": "뇌혈관질환은 보장하지 않습니다."
+            }
+          ]
         }
       }
     },
@@ -51,12 +92,24 @@
         "premium-curve": {
           "state": "filled",
           "value": [
-            { "at": 40, "value": 29900 },
-            { "at": 45, "value": 38100 },
-            { "at": 50, "value": 49700 }
+            {
+              "at": 40,
+              "value": 29900
+            },
+            {
+              "at": 45,
+              "value": 38100
+            },
+            {
+              "at": 50,
+              "value": 49700
+            }
           ],
           "notes": [
-            { "kind": "caution", "text": "예시표가 50세까지만 있습니다. 만기가 80세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다." }
+            {
+              "kind": "caution",
+              "text": "예시표가 50세까지만 있습니다. 만기가 80세이므로 그 뒤 여섯 번의 갱신은 알 수 없습니다."
+            }
           ]
         }
       }
@@ -67,7 +120,24 @@
           "state": "filled",
           "value": [],
           "notes": [
-            { "kind": "tip", "text": "특약 없이 주계약 하나로만 된 설계입니다. 보장은 단순하지만 빠진 위험이 많다는 뜻이기도 합니다." }
+            {
+              "kind": "tip",
+              "text": "특약 없이 주계약 하나로만 된 설계입니다. 보장은 단순하지만 빠진 위험이 많다는 뜻이기도 합니다."
+            }
+          ]
+        }
+      }
+    },
+    "payment-plan": {
+      "fields": {
+        "plan": {
+          "state": "filled",
+          "value": [
+            {
+              "phase": "처음",
+              "monthly": 62000,
+              "until": 65
+            }
           ]
         }
       }

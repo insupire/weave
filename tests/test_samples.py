@@ -54,33 +54,29 @@ class SamplesAreWhole(unittest.TestCase):
         ]
         self.assertEqual(len(set(shapes)), len(shapes), f"짜임이 겹친다: {shapes}")
 
-    def test_one_sample_shows_the_axis(self) -> None:
-        """축은 있어도 되고 없어도 되는 것이라 **둘 다** 샘플에 서야 한다.
+    def test_one_sample_shows_a_choice(self) -> None:
+        """고르는 자리는 있어도 되고 없어도 되는 것이라 **둘 다** 샘플에 서야 한다.
 
-        축이 없는 것이 기본이고 대다수가 그것이다. 축을 보여 주는 샘플이 하나도 없으면
-        설명서가 말로만 설명하게 되고, 축이 실제로 도는지 아무도 안 본다.
+        없는 것이 기본이고 대다수가 그것이다. 보여 주는 샘플이 하나도 없으면 설명서가
+        말로만 설명하게 되고, 그 자리가 실제로 도는지 아무도 안 본다.
         """
-        axed = [d for d in sample_dirs() if load(d / "template.json").get("variants")]
-        plain = [d for d in sample_dirs() if not load(d / "template.json").get("variants")]
-        self.assertTrue(axed, "축을 보여 주는 샘플이 없다")
-        self.assertTrue(plain, "축 없는 샘플이 없다 — 그쪽이 기본이다")
-        for folder in axed:
+        picked = [d for d in sample_dirs() if load(d / "template.json").get("choices")]
+        plain = [d for d in sample_dirs() if not load(d / "template.json").get("choices")]
+        self.assertTrue(picked, "고르는 자리를 보여 주는 샘플이 없다")
+        self.assertTrue(plain, "고르는 자리 없는 샘플이 없다 — 그쪽이 기본이다")
+        for folder in picked:
             template = load(folder / "template.json")
-            self.assertGreaterEqual(len(template["variants"]), 2, "갈래 하나는 축이 아니다")
-            varies = [
-                d["key"]
-                for f in template["facets"]
-                for d in f["fields"]
-                if d.get("varies")
-            ]
-            self.assertTrue(varies, f"{folder.name}: 갈리는 필드가 없으면 축이 하는 일이 없다")
-            steady = [
-                d["key"]
-                for f in template["facets"]
-                for d in f["fields"]
-                if not d.get("varies")
-            ]
-            self.assertTrue(steady, f"{folder.name}: 갈리지 않는 필드도 있어야 축이 무엇인지 보인다")
+            declared = {c["id"] for c in template["choices"]}
+            for choice in template["choices"]:
+                self.assertGreaterEqual(len(choice["options"]), 2, "고를 것 하나는 고르는 것이 아니다")
+            fields = [d for f in template["facets"] for d in f["fields"]]
+            rides = [d["key"] for d in fields if d.get("choice")]
+            self.assertTrue(rides, f"{folder.name}: 타는 필드가 없으면 고르는 자리가 하는 일이 없다")
+            steady = [d["key"] for d in fields if not d.get("choice")]
+            self.assertTrue(steady, f"{folder.name}: 안 타는 필드도 있어야 무엇이 바뀌는지 보인다")
+            for decl in fields:
+                if "choice" in decl:
+                    self.assertIn(decl["choice"], declared, f"{folder.name}/{decl['key']}")
 
     def test_sample_metadata_carries_a_render_args_document(self) -> None:
         """화면 상태는 뷰어가 지어낸 모양이 아니라 발행한 계약이다.
@@ -173,13 +169,13 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
 def _entries(doc: dict) -> list[dict]:
     """값 한 벌의 모든 값 자리. **갈래로 쪼갠 자리도 펴서 센다.**
 
-    축이 들어오면서 한 필드가 값 하나일 수도 갈래마다 하나일 수도 있게 됐다. 펴지 않으면
-    「빈 값이 샘플에 있는가」 같은 물음이 갈래 쪽을 못 보고 지나간다.
+    고르는 자리가 들어오면서 한 필드가 값 하나일 수도 고를 것마다 하나일 수도 있게 됐다.
+    펴지 않으면 「빈 값이 샘플에 있는가」 같은 물음이 그쪽을 못 보고 지나간다.
     """
     out = []
     for facet in doc["facets"].values():
         for slot in facet["fields"].values():
-            out.extend(slot["byVariant"].values() if "byVariant" in slot else [slot])
+            out.extend(slot["byOption"].values() if "byOption" in slot else [slot])
     return out
 
 

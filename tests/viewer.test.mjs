@@ -96,7 +96,7 @@ function sectionOf(html, element) {
   return end < 0 ? html.slice(at) : html.slice(at, end);
 }
 
-test("primitive element 다섯이 전부 그려진다", () => {
+test("primitive element 가 전부 그려진다", () => {
   const { html } = fix();
   for (const element of Object.keys(ELEMENTS)) assert.match(html, new RegExp(`element-${element}`));
   assert.match(sectionOf(html, "stat"), /class="big"/); // 값 하나를 크게
@@ -111,8 +111,12 @@ const NAMES = { "proposal-a": "가 제안서", "proposal-b": "나 제안서", "p
 test("비교하는 법이 primitive element 마다 다르다", () => {
   // 겹칠 자리가 있는 것만 겹친다. 나머지는 focus 가 무엇을 그릴지 고른다.
   assert.deepEqual(COMPARE, {
-    stat: "focus", facts: "focus", bars: "focus", line: "overlay", list: "overlay",
+    stat: "focus", facts: "focus", bars: "focus", rows: "focus",
+    line: "overlay", list: "overlay",
   });
+  // **겹치는 표와 고른 것만 내는 표는 다른 이름이다.** 한 이름이 화면마다 다르게 굴면
+  // 이름만 보고 알 수 없다 — 그래서 템플릿이 고르게 하지 않고 primitive 를 갈랐다.
+  assert.notEqual(COMPARE.list, COMPARE.rows);
   assert.deepEqual(Object.keys(COMPARE).sort(), Object.keys(ELEMENTS).sort());
 });
 
@@ -398,7 +402,7 @@ test("골격은 subject 가 하나일 때와 여럿일 때 같다", () => {
   }
 });
 
-test("subject 가 하나여도 primitive element 다섯이 다 선다", () => {
+test("subject 가 하나여도 primitive element 가 다 선다", () => {
   const { html } = renderView({ template: FIX.template, values: [FIX.filled] });
   for (const element of Object.keys(ELEMENTS)) assert.ok(html.includes(`element-${element}`), element);
 });
@@ -427,16 +431,18 @@ test("렌더 결과에 아직 분석 중이라는 상태가 없다", () => {
   }
 });
 
-test("축은 값을 바꾸고 골격은 바꾸지 않는다", () => {
-  // 축이 있는 샘플로 본다 — 말로만 설명하면 실제로 도는지 아무도 안 본다.
-  const name = sampleNames.find((one) => sample(one).template.variants?.length);
-  assert.ok(name, "축을 보여 주는 샘플이 없다");
+test("고르는 자리는 값을 바꾸고 골격은 바꾸지 않는다", () => {
+  // 고르는 자리가 있는 샘플로 본다 — 말로만 설명하면 실제로 도는지 아무도 안 본다.
+  const name = sampleNames.find((one) => sample(one).template.choices?.length);
+  assert.ok(name, "고르는 자리를 보여 주는 샘플이 없다");
   const { template, values } = sample(name);
-  const variants = template.variants.map((one) => one.id);
-  assert.ok(variants.length >= 2, "갈래 하나는 축이 아니다");
+  const pick = template.choices[0];
+  const options = pick.options.map((one) => one.id);
+  assert.ok(options.length >= 2, "고를 것 하나는 고르는 것이 아니다");
 
-  const draw = (variant) => renderView({ template, values, focus: values[0].subjectId, variant });
-  const shots = variants.map(draw);
+  const draw = (option) =>
+    renderView({ template, values, focus: values[0].subjectId, choices: { [pick.id]: option } });
+  const shots = options.map(draw);
 
   // **골격은 그대로다.** 어떤 facet 이 어떤 element 로 어떤 차례에 서는지가 달라지지 않는다.
   const bones = (html) => [...html.matchAll(/class="facet element-([a-z]+)"/g)].map((m) => m[1]).join(",");
@@ -445,31 +451,48 @@ test("축은 값을 바꾸고 골격은 바꾸지 않는다", () => {
     assert.equal(bones(shot.html), bones(shots[0].html), "축이 facet 구성을 바꾼다");
     assert.equal(titles(shot.html), titles(shots[0].html), "축이 facet 차례를 바꾼다");
   }
-  // **값은 바뀐다.** 안 바뀌면 축이 하는 일이 없다.
-  assert.ok(new Set(shots.map((one) => one.html)).size > 1, "축을 옮겨도 그림이 그대로다");
-  // 갈리지 않는 필드는 어느 갈래에서나 같은 값이다.
+  // **값은 바뀐다.** 안 바뀌면 고르는 자리가 하는 일이 없다.
+  assert.ok(new Set(shots.map((one) => one.html)).size > 1, "골라도 그림이 그대로다");
+  // 타지 않는 필드는 무엇을 골라도 같은 값이다.
   const steady = template.facets
-    .flatMap((f) => f.fields.filter((d) => !d.varies).map((d) => ({ facet: f, decl: d })))
-    .find(Boolean);
-  assert.ok(steady, "갈리지 않는 필드도 있어야 축이 무엇인지 보인다");
+    .flatMap((f) => f.fields.filter((d) => !d.choice).map((d) => ({ facet: f, decl: d })))
+    .find(({ decl }) => decl.shape === "single");
+  assert.ok(steady, "안 타는 필드도 있어야 무엇이 바뀌는지 보인다");
   const slot = values[0].facets[steady.facet.id].fields[steady.decl.key];
-  assert.ok(!("byVariant" in slot), "갈리지 않는 필드가 갈래로 쪼개져 있다");
+  assert.ok(!("byOption" in slot), "안 타는 필드가 고를 것마다 쪼개져 있다");
   const said = formatScalar(steady.decl.type, slot.value);
-  for (const shot of shots) assert.ok(textOf(shot.html).includes(said), "안 갈리는 값이 갈래를 탄다");
+  for (const shot of shots) assert.ok(textOf(shot.html).includes(said), "안 타는 값이 고른 것을 탄다");
 
-  // **없는 갈래거나 안 주면 첫 갈래다.** 빈 화면을 내지 않는다 — focus 와 같은 규칙이다.
-  assert.equal(draw("아무개").view.variant, variants[0]);
-  assert.equal(draw(null).view.variant, variants[0]);
+  // **없는 id 거나 안 주면 첫 option 이다.** 빈 화면을 내지 않는다 — focus 와 같은 규칙이다.
+  assert.equal(draw("아무개").view.chosen[pick.id], options[0]);
+  assert.equal(renderView({ template, values, focus: values[0].subjectId }).view.chosen[pick.id], options[0]);
   assert.equal(draw("아무개").html, shots[0].html);
-  assert.deepEqual(draw(null).view.variants, template.variants);
+  assert.deepEqual(draw(null).view.choices, template.choices);
 
-  // **축이 없는 템플릿이 기본이다.** 지금 있는 샘플과 소비자가 그대로 돈다.
-  for (const other of sampleNames.filter((one) => !sample(one).template.variants)) {
+  // **여럿 선언할 수 있다.** 자리마다 따로 골라지고 서로 섞이지 않는다.
+  const two = structuredClone(template);
+  two.choices = [...two.choices, { id: "spare", label: "또 하나", options: [{ id: "x", label: "엑스" }, { id: "y", label: "와이" }] }];
+  const twice = renderView({ template: two, values, focus: values[0].subjectId, choices: { spare: "y" } });
+  assert.deepEqual(twice.view.chosen, { [pick.id]: options[0], spare: "y" });
+
+  // **고르는 자리가 없는 템플릿이 기본이다.** 지금 있는 샘플과 소비자가 그대로 돈다.
+  for (const other of sampleNames.filter((one) => !sample(one).template.choices)) {
     const plain = drawSample(sample(other));
-    assert.equal(plain.view.variant, null, `${other}: 축이 없는데 갈래가 생겼다`);
-    assert.deepEqual(plain.view.variants, [], other);
-    assert.equal(plain.html, renderView({ ...sample(other), variant: "아무개" }).html,
-      `${other}: 축이 없는데 인자가 그림을 바꾼다`);
+    assert.deepEqual(plain.view.chosen, {}, `${other}: 선언이 없는데 고른 것이 생겼다`);
+    assert.deepEqual(plain.view.choices, [], other);
+    // **인자가 자리를 만들지 못한다.** 무엇을 고를 수 있는지는 템플릿만 말한다 —
+    // 그림뿐 아니라 **화면 상태**까지 그대로여야 한다.
+    const pushed = renderView({ ...sample(other), choices: { 아무개: "아무거나" } });
+    assert.equal(pushed.html, plain.html, `${other}: 선언이 없는데 인자가 그림을 바꾼다`);
+    assert.deepEqual(pushed.view.choices, [], `${other}: 인자가 고를 자리를 만들었다`);
+    assert.deepEqual(pushed.view.chosen, {}, `${other}: 인자가 고른 것을 만들었다`);
+  }
+
+  // **모양은 언어가 말하지 않는다.** 렌더 출력에는 고르는 자리가 통째로 안 나온다.
+  for (const shot of shots) {
+    for (const option of pick.options) {
+      assert.ok(!shot.html.includes(`>${option.label}<`), `고르는 자리를 분석뷰가 그린다: ${option.label}`);
+    }
   }
 });
 
@@ -478,15 +501,15 @@ test("렌더 인자는 값이 말할 수 없는 것뿐이다", () => {
   // 명단은 값 한 벌들이 갖고 있어 뺐고, focus 와 직전 focus 는 **앱만 아는 상호작용
   // 이력**이라 값에서 유도할 수가 없다. 그것이 여기 설 수 있는 유일한 자격이다.
   const args = read("schema/weave-render-args.schema.json");
-  assert.deepEqual(Object.keys(args.properties), ["focus", "previousFocus", "variant"]);
+  assert.deepEqual(Object.keys(args.properties), ["focus", "previousFocus", "choices"]);
   assert.equal(args.additionalProperties, false);
   assert.ok(!("$defs" in args), "자리(Seat) 정의가 남아 있다");
   // **고를 수 있는 것은 여기 서지 않는다.** 명단도 갈래 목록도 이미 다른 곳이 안다.
-  assert.ok(!("subjects" in args.properties) && !("variants" in args.properties));
-  assert.ok("variants" in read("schema/weave-template.schema.json").properties,
-    "갈래 목록이 템플릿에 없다 — 그러면 subject 마다 골격이 달라진다");
-  // 셋이 같은 규칙이다 — id 이거나 null 이다.
-  for (const name of ["focus", "previousFocus", "variant"]) {
+  assert.ok(!("subjects" in args.properties));
+  assert.ok("choices" in read("schema/weave-template.schema.json").properties,
+    "고를 것의 목록이 템플릿에 없다 — 그러면 subject 마다 골격이 달라진다");
+  // subject 를 가리키는 둘은 같은 규칙이다 — id 이거나 null 이다.
+  for (const name of ["focus", "previousFocus"]) {
     assert.deepEqual(args.properties[name].anyOf.map((one) => Object.keys(one)[0]), ["$ref", "type"]);
     assert.equal(args.properties[name].anyOf[1].type, "null");
   }
@@ -1261,15 +1284,73 @@ test("템플릿이 없으면 빈 판을 내고 던지지 않는다", () => {
 
 // ---------------------------------------------------------------- 표시 단위
 
-test("타입 여덟이 저마다 표시 단위를 갖는다", () => {
+test("타입마다 표시 단위가 있다", () => {
   const cases = [
     ["number", 3.5, "3.5"], ["money", 50000000, "50,000,000원"],
     ["ratio", 0.5, "50%"], ["ratio", 0.0725, "7.25%"],
+    // 배수는 비율이 아니다 — 같은 4.9 가 한쪽에선 490% 고 다른 쪽에선 4.9 배다.
+    ["multiple", 4.9, "4.9배"], ["multiple", 1, "1배"],
     ["duration", 240, "240개월"], ["age", 100, "100세"],
     ["boolean", true, "예"], ["boolean", false, "아니오"],
     ["text", "종신", "종신"], ["date", "2026-10-01", "2026-10-01"],
   ];
   for (const [type, value, shown] of cases) assert.equal(formatScalar(type, value), shown, `${type} ${value}`);
+  // **어휘가 닫혀 있다.** 표시 단위를 자유 글로 열면 「1위」·「A등급」이 들어온다 —
+  // 그래서 단위가 필요하면 타입을 더한다. 스키마의 여덟 아닌 것이 여기 서면 걸린다.
+  const enums = read("schema/weave-common.schema.json").$defs.Type.enum;
+  assert.deepEqual([...new Set(cases.map((one) => one[0]))].sort(), [...enums].sort());
+  assert.notEqual(formatScalar("multiple", 4.9), formatScalar("ratio", 4.9));
+});
+
+test("읽는 사람에게 주는 한 줄은 늘 보인다", () => {
+  // **`hint` 와 `description` 은 받는 사람이 다르다.** 앞의 것은 읽는 사람에게 늘 보이고,
+  // 뒤의 것은 분석에게 주는 추출 지시라 화면에 나오지 않는다.
+  const field = read("schema/weave-template.schema.json").$defs.Field.properties;
+  assert.ok(field.hint && field.description, "둘 다 있어야 한다");
+  assert.equal(field.hint.maxLength, 80, "한 줄을 넘길 수 있으면 혼자 서는 글이 된다");
+  assert.match(field.hint.pattern, /\\n/, "줄바꿈을 막지 않는다");
+
+  // 여섯 element 모두에서 **늘 보인다** — 표시 뒤로 숨지 않는다.
+  const said = "이 값이 무엇인지 한 줄로 말합니다.";
+  const template = structuredClone(FIX.template);
+  for (const facet of template.facets) facet.fields[0].hint = `${facet.id} — ${said}`;
+  const { html } = renderView({ template, values: FIX.values, focus: "proposal-a" });
+  for (const facet of template.facets) {
+    const part = sectionOf(html, facet.element);
+    const at = textOf(part).indexOf(`${facet.id} — ${said}`);
+    assert.ok(at > 0, `${facet.id}: 한 줄이 안 보인다`);
+    // 표시(툴팁) 안이 아니라 본문에 선다.
+    const raw = part.indexOf(`${facet.id} — ${said}`);
+    assert.ok(!pops(part).some(([from, to]) => raw > from && raw < to), `${facet.id}: 표시 뒤로 숨었다`);
+  }
+  // **추출 지시는 화면에 나오지 않는다.** 둘이 헷갈리면 쓰는 쪽이 매번 고민한다.
+  for (const facet of FIX.template.facets) {
+    for (const decl of facet.fields) {
+      assert.ok(!textOf(html).includes(decl.description.slice(0, 20)),
+        `${facet.id}/${decl.key}: 분석에게 준 지시가 화면에 났다`);
+    }
+  }
+});
+
+test("겹치는 표와 고른 것만 내는 표가 이름으로 갈린다", () => {
+  const { html } = fix({ focus: "proposal-a" });
+  const list = sectionOf(html, "list");
+  const rows = sectionOf(html, "rows");
+  // list 는 subject 를 열로 겹친다 — 명단 전부가 표 안에 선다.
+  for (const doc of FIX.values) assert.ok(list.includes(NAMES[doc.subjectId]), `list: ${doc.subjectId}`);
+  // rows 는 고른 하나만 편다 — 다른 subject 의 이름이 표에 없다.
+  for (const doc of FIX.values) {
+    if (doc.subjectId === "proposal-a") continue;
+    assert.ok(!rows.includes(NAMES[doc.subjectId]), `rows 에 ${doc.subjectId} 가 섰다`);
+  }
+  // 고른 것을 옮기면 rows 는 바뀌고 list 의 골격(열)은 그대로다.
+  const other = fix({ focus: "proposal-c" }).html;
+  assert.notEqual(sectionOf(other, "rows"), rows, "rows 가 focus 를 안 따른다");
+  const cols = (part) => (part.match(/<col( class="is-focus")?>/g) ?? []).length;
+  assert.equal(cols(sectionOf(other, "list")), cols(list), "list 의 열이 focus 를 탄다");
+  // 값의 모양은 같다 — 같은 items 를 받는다.
+  const of = (element) => FIX.template.facets.find((f) => f.element === element).fields[0].shape;
+  assert.equal(of("rows"), of("list"));
 });
 
 test("값에서 온 글은 escape 된다", () => {
@@ -1290,12 +1371,18 @@ test("샘플은 서로 다른 템플릿 짜임으로 갈린다", () => {
     return JSON.stringify(t.facets.map((f) => f.element));
   });
   assert.equal(new Set(shapes).size, shapes.length, `짜임이 겹친다: ${shapes.join(" / ")}`);
-  // 값 상태가 아니라 짜임이 축이다. facet 수도 서로 달라야 한 눈에 갈린다.
-  const counts = sampleNames.map((name) => sample(name).template.facets.length);
-  assert.equal(new Set(counts).size, counts.length, `facet 수가 겹친다: ${counts.join(", ")}`);
+  // 값 상태가 아니라 짜임이 축이다. **차례를 바꾼 것도 같은 짜임이다** — element 를
+  // 몇 개씩 쓰는지의 묶음으로 잰다. 예전엔 facet 수로 갈랐는데, 수가 같아도 짜임이
+  // 다를 수 있어 늘어날수록 억지가 된다.
+  const mix = sampleNames.map((name) => {
+    const count = new Map();
+    for (const f of sample(name).template.facets) count.set(f.element, (count.get(f.element) ?? 0) + 1);
+    return JSON.stringify([...count].sort());
+  });
+  assert.equal(new Set(mix).size, mix.length, `element 묶음이 겹친다: ${mix.join(" / ")}`);
 });
 
-test("맨 처음 띄우는 샘플이 primitive element 다섯을 전부 쓴다", () => {
+test("맨 처음 띄우는 샘플이 primitive element 를 전부 쓴다", () => {
   const first = sample(sampleNames[0]);
   assert.deepEqual([...new Set(first.template.facets.map((f) => f.element))].sort(), Object.keys(ELEMENTS).sort());
 });

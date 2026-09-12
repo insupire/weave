@@ -57,17 +57,13 @@
         "source": {
           "state": "filled",
           "value": "설계사 제안"
-        },
-        "estimated": {
-          "state": "filled",
-          "value": false
         }
       }
     },
     "payback": {
       "fields": {
         "payback-curve": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": [
@@ -162,7 +158,7 @@
     "covered-total": {
       "fields": {
         "covered-amount": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": 50000000
@@ -182,7 +178,7 @@
     "covered-items": {
       "fields": {
         "covered-list": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": [

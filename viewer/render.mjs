@@ -75,15 +75,18 @@ export function esc(text) {
 /**
  * 값 한 자리를 읽는다.
  *
- * **축이 있으면 고른 갈래의 것을 읽는다.** 갈래가 바뀌어도 읽는 자리는 그대로이고 값만
- * 달라진다 — 이 한 줄이 「축은 facet 구성을 바꾸지 않는다」를 구조로 지킨다.
+ * **고르는 자리를 타는 필드면 고른 것의 값을 읽는다.** 고른 것이 바뀌어도 읽는 자리는
+ * 그대로이고 값만 달라진다 — 이 한 줄이 「고르는 자리는 facet 구성을 바꾸지 않는다」를
+ * 구조로 지킨다. 어느 자리를 타는지는 **템플릿의 필드 선언**이 말한다.
  */
-function cell(valueset, facetId, key, variant) {
+function cell(valueset, facetId, decl, chosen) {
+  const key = typeof decl === "string" ? decl : decl?.key;
   if (!valueset) return { state: "empty", entry: null };
   const facet = valueset.facets?.[facetId];
   if (!facet) return { state: "empty", entry: null };
   const slot = facet.fields?.[key];
-  const entry = slot?.byVariant ? (variant === null ? null : slot.byVariant[variant]) : slot;
+  const rides = typeof decl === "string" ? null : decl?.choice;
+  const entry = slot?.byOption ? (rides ? slot.byOption[chosen?.[rides]] : null) : slot;
   if (!entry || entry.state !== "filled") return { state: "empty", entry: entry ?? null };
   return { state: "filled", entry };
 }
@@ -105,6 +108,8 @@ export function formatScalar(type, value) {
   if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
   if (type === "money") return `${grouped(value)}원`;
   if (type === "ratio") return `${grouped(Math.round(value * 1e10) / 1e8)}%`;
+  // 배수는 비율이 아니다 — 0.049 가 4.9% 이고 4.9 가 4.9 배다. 단위를 글로 열지 않고 타입을 하나 둔다.
+  if (type === "multiple") return `${grouped(value)}배`;
   if (type === "duration") return `${grouped(value)}개월`;
   if (type === "age") return `${grouped(value)}세`;
   return grouped(value);
@@ -175,6 +180,11 @@ function notePop(notes) {
  * 그 사실을 두 번 말하고, 두 묶음을 가르는 일은 짧은 선이 맡는다. 자리를 남겨 둔 것은
  * **되돌리기 쉽게** 하려는 것이다: subject 것을 내는 호출에 이름을 둘째 인자로 주면 된다.
  */
+/** 읽는 사람에게 **늘 보이는 한 줄.** 표시 뒤로 숨지 않는다 — 값이 무엇인지 그 자리에서 말한다. */
+function hintHtml(decl) {
+  return decl?.hint ? `<div class="hint">${esc(decl.hint)}</div>` : "";
+}
+
 function notesHtml(notes, where = "") {
   if (!Array.isArray(notes) || notes.length === 0) return "";
   const rows = notes.map((note) => {
@@ -226,7 +236,10 @@ function drawCell(report, where, decl, value) {
 //
 // **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
 // 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
-export const COMPARE = { stat: "focus", facts: "focus", bars: "focus", line: "overlay", list: "overlay" };
+export const COMPARE = {
+  stat: "focus", facts: "focus", bars: "focus", rows: "focus",
+  line: "overlay", list: "overlay",
+};
 
 /**
  * 겹치는 쪽에서 **고른 subject** 가 자리에 못 섰다는 말.
@@ -245,7 +258,7 @@ function blankRow(missing, ctx) {
 function readsOf(ctx, facet, decl) {
   return ctx.subjects.map((subject) => ({
     subject: { ...subject, focused: subject.id === ctx.focus },
-    ...cell(ctx.byId.get(subject.id), facet.id, decl.key, ctx.variant),
+    ...cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen),
   }));
 }
 
@@ -258,7 +271,7 @@ function readsOf(ctx, facet, decl) {
  * 고른 subject 것만 낸다 — 말의 규칙도 하나다.
  */
 function fieldMark(ctx, facet, decl) {
-  const { entry } = cell(ctx.byId.get(ctx.shown), facet.id, decl.key, ctx.variant);
+  const { entry } = cell(ctx.byId.get(ctx.shown), facet.id, decl, ctx.chosen);
   return notePop(entry?.notes);
 }
 
@@ -268,7 +281,7 @@ function shownOf(ctx) {
 }
 
 function oneRead(ctx, facet, decl, subject) {
-  return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl.key, ctx.variant) };
+  return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen) };
 }
 
 // ---------------------------------------------------------------- primitive element 다섯
@@ -283,7 +296,7 @@ function stat(ctx, facet) {
   const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-    `<div class="big">${value}${notePop(entry?.notes)}</div>`
+    `<div class="big">${value}${notePop(entry?.notes)}</div>${hintHtml(decl)}`
   );
 }
 
@@ -297,7 +310,7 @@ function facts(ctx, facet) {
     const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
     return (
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
-      `<dd>${value}${notePop(entry?.notes)}</dd></div>`
+      `<dd>${value}${notePop(entry?.notes)}</dd>${hintHtml(decl)}</div>`
     );
   });
   return `<dl class="facts">${rows.join("")}</dl>`;
@@ -330,7 +343,8 @@ function bars(ctx, facet) {
       // **표시는 라벨 옆에 선다.** 오른쪽 끝 값에 붙이면 막대 길이에 눈이 가는 자리와
       // 겹치고, 좁은 화면에서 값이 먼저 줄어드는 자리라 표시가 밀린다.
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}` +
-      `${notePop(entry?.notes)}</span>${mark}<span class="val">${text}</span></div>`
+      `${notePop(entry?.notes)}</span>${mark}<span class="val">${text}</span>` +
+      `${hintHtml(decl)}</div>`
     );
   });
   return rows.join("");
@@ -343,7 +357,7 @@ function line(ctx, facet) {
   const missing = []; // 값이 없어 못 그린 subject — 줄 머리가 한 번 말한다
   const broken = []; // 값은 있으나 그리지 못한 것 — 저마다 까닭을 적는다
   for (const subject of ctx.subjects) {
-    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl.key, ctx.variant);
+    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen);
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     if (state !== "filled") {
       missing.push({ ...subject, mark: notePop(entry?.notes) });
@@ -380,7 +394,8 @@ function line(ctx, facet) {
     : `<div class="blank">${missMark()}</div>`;
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
-    `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>${body}` +
+    `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
+    hintHtml(decl) + body +
     // 선 끝에 이름이 붙으므로 **아래에 범례를 두지 않는다.** 고른 것이 못 섰을 때만 말한다.
     blankRow(missing, ctx) +
     // 어긋난 값은 범례가 아니라 결함 신호다. 누구 것인지 적어야 고칠 수 있어 전원을 낸다.
@@ -463,7 +478,8 @@ function list(ctx, facet) {
   const blanks = reads
     .filter(({ subject }) => unread.has(subject.id))
     .map(({ subject }) => ({ ...subject }));
-  const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>`;
+  const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
+    hintHtml(decl);
   if (rows.size === 0) {
     return label +
       // 목록 **전체**가 비었다는 말은 값 하나의 자리가 아니라 표가 설 자리다. 글로 선다.
@@ -505,16 +521,59 @@ function list(ctx, facet) {
   );
 }
 
-export const ELEMENTS = { stat, facts, bars, line, list };
+/**
+ * **고른 subject 의 항목을 행으로 편다.** `list` 와 같은 값(항목 배열)을 받지만 비교하는
+ * 법이 다르다 — `list` 는 여럿을 한 표에 겹치고, `rows` 는 지금 보고 있는 하나만 편다.
+ *
+ * 둘을 한 element 로 두고 템플릿이 고르게 하면 「비교 방법은 primitive element 가 정한다」가
+ * 깨진다. 같은 이름이 화면마다 다르게 굴면 이름만 보고 알 수 없다. 그래서 이름을 가른다.
+ */
+function rows(ctx, facet) {
+  const decl = facet.fields[0];
+  const columns = Array.isArray(decl.columns) ? decl.columns : [];
+  if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
+  const subject = shownOf(ctx);
+  const label = `<div class="field-label">${esc(decl.label ?? decl.key)}` +
+    `${fieldMark(ctx, facet, decl)}</div>` + hintHtml(decl);
+  if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
+
+  const { state, entry } = oneRead(ctx, facet, decl, subject);
+  if (state !== "filled" || !Array.isArray(entry.value)) {
+    return `${label}<div class="blank">${missMark()}</div>`;
+  }
+  if (entry.value.length === 0) {
+    return `${label}<div class="blank"><span class="miss">${NO_ITEMS}</span></div>`;
+  }
+  const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
+  const body = entry.value.map((item, index) => {
+    const extra = Object.keys(item ?? {}).filter((k) => !columns.some((c) => c.key === k));
+    if (extra.length) ctx.report.push(`${facet.id}[${index}]: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
+    const cells = columns.map((column) =>
+      column.key in (item ?? {})
+        ? `<td>${esc(formatScalar(column.type, item[column.key]))}</td>`
+        : `<td>${missMark()}</td>`,
+    );
+    return `<tr>${cells.join("")}</tr>`;
+  });
+  return (
+    label +
+    // 표는 자기 상자에서 굴러간다. 열이 늘어도 페이지가 밀리지 않는다.
+    `<div class="table-scroll"><table class="items"><thead><tr>${head}</tr></thead>` +
+    `<tbody>${body.join("")}</tbody></table></div>`
+  );
+}
+
+export const ELEMENTS = { stat, facts, bars, line, list, rows };
 
 // ---------------------------------------------------------------- 페이지
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
-function viewState(seats, focus, prior, shown, wanted, axis) {
+function viewState(seats, focus, prior, shown, wanted, picks) {
   return {
     seats,
-    // 고를 수 있는 갈래와 고른 갈래. 앱이 축을 그릴 자리 — 분석뷰에는 들어가지 않는다.
-    ...axis,
+    // 고를 수 있는 것과 고른 것. **앱이 그 자리를 그린다** — 모양은 언어가 말하지 않고
+    // 분석뷰에도 들어가지 않는다. 우리가 내는 것은 무엇을 고를 수 있는가뿐이다.
+    ...picks,
     shown, // focus 를 따라 바뀌는 element 가 지금 그리는 subject
 
     focus,
@@ -533,8 +592,8 @@ function viewState(seats, focus, prior, shown, wanted, axis) {
  *     focus 를 따라 바뀌는 element 는 **첫 subject** 를 그린다.
  *   - previousFocus 는 바로 전에 보고 있던 subject. **값에서 유도할 수 없어** 인자로 받는다.
  *     같은 규칙이다 — 없는 id 면 그 상태만 사라지고, focus 와 같으면 직전이 없는 것으로 본다.
- *   - variant 는 고른 축의 갈래. 없거나 없는 id 면 **첫 갈래**를 그린다.
- *     축이 바뀌면 값이 바뀔 뿐 **어떤 facet 이 서는지는 달라지지 않는다.**
+ *   - choices 는 고르는 자리마다 무엇을 골랐는지의 지도. 빠졌거나 없는 id 면 **첫 option**.
+ *     고른 것이 바뀌면 값이 바뀔 뿐 **어떤 facet 이 서는지는 달라지지 않는다.**
  * @returns {{html: string, report: string[], view: object|null}}
  *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
  *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
@@ -544,7 +603,7 @@ export function renderView({
   values = [],
   focus = null,
   previousFocus = null,
-  variant = null,
+  choices = null,
 } = {}) {
   const report = [];
   if (!template || typeof template !== "object" || Array.isArray(template)) {
@@ -564,10 +623,16 @@ export function renderView({
   // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 무늬다.
   const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
 
-  // **축.** 고를 수 있는 갈래는 템플릿이 말한다 — 골격이라 subject 마다 달라서는 안 된다.
-  // 고른 갈래만 사람이 누른 것이라 인자로 온다. 없거나 없는 id 면 첫 갈래다.
-  const variants = Array.isArray(template.variants) ? template.variants : [];
-  const picked = variants.find((v) => v?.id === variant)?.id ?? variants[0]?.id ?? null;
+  // **고르는 자리.** 무엇을 고를 수 있는지는 템플릿이 말한다 — 골격이라 subject 마다
+  // 달라서는 안 된다. **고른 것만** 사람이 누른 것이라 인자로 온다.
+  // 빠졌거나 없는 id 면 첫 option 이다 — 빈 화면을 내지 않는다.
+  const picks = Array.isArray(template.choices) ? template.choices.filter((c) => c?.id) : [];
+  const chosen = {};
+  for (const one of picks) {
+    const options = Array.isArray(one.options) ? one.options : [];
+    const wantedOption = choices?.[one.id];
+    chosen[one.id] = options.find((o) => o?.id === wantedOption)?.id ?? options[0]?.id ?? null;
+  }
 
   const wanted = focus;
   const seated = seats.some((s) => s.id === wanted) ? wanted : null;
@@ -578,7 +643,7 @@ export function renderView({
   const prior = seats.some((s) => s.id === previousFocus) && previousFocus !== seated
     ? previousFocus
     : null;
-  const ctx = { subjects: seats, byId, focus: seated, prior, shown, variant: picked, report };
+  const ctx = { subjects: seats, byId, focus: seated, prior, shown, chosen, report };
 
   for (const [id, doc] of byId) {
     const known = new Set((template.facets ?? []).map((f) => f?.id));
@@ -612,7 +677,7 @@ export function renderView({
       if (facetNotes(doc, facet.id).length > 0) return true;
       for (const decl of facet.fields ?? []) {
         if (!decl || typeof decl.key !== "string") return true; // 그리지 못하는 것은 말해야 한다
-        const { state, entry } = cell(doc, facet.id, decl.key, picked);
+        const { state, entry } = cell(doc, facet.id, decl, chosen);
         if (state === "filled" || (entry?.notes ?? []).length > 0) return true;
       }
     }
@@ -673,6 +738,6 @@ export function renderView({
   return {
     html,
     report,
-    view: viewState(seats, seated, prior, shown, wanted, { variants, variant: picked, dropped }),
+    view: viewState(seats, seated, prior, shown, wanted, { choices: picks, chosen, dropped }),
   };
 }

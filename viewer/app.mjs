@@ -31,8 +31,8 @@ const state = {
   // **바로 전에 보던 subject.** 값에서 유도할 수 없는 상호작용 이력이라 앱이 갖는다 —
   // 겹치는 선은 이것으로 「지금 보는 것 · 직전에 보던 것 · 나머지」를 가른다.
   previousFocus: null,
-  // 고른 축의 갈래. 사람이 누른 것이라 값이 아니라 여기 산다.
-  variant: null,
+  // 고르는 자리마다 무엇을 골랐는지. 사람이 누른 것이라 값이 아니라 여기 산다.
+  choices: {},
   seq: 0,
   showElements: false, // primitive element 이름. 분석뷰의 것이 아니라 설명서의 것이라 기본은 끔
 };
@@ -122,7 +122,7 @@ function loadSample(key) {
   state.values = sample.values.map((v) => v.text);
   state.focus = sample.args.focus ?? null;
   state.previousFocus = sample.args.previousFocus ?? null;
-  state.variant = sample.args.variant ?? null;
+  state.choices = { ...(sample.args.choices ?? {}) };
   state.active = 0;
   state.seq = state.values.length;
   // 플레이그라운드의 DOM 은 쪽을 보고 있지 않아도 채워 둔다 — 옮겨 가도 편집 중인 글이 산다.
@@ -228,22 +228,32 @@ function drawFocus(seats) {
   for (const seat of seats) add(seat.name, seat.id, seat.id);
 }
 
-/** 축의 갈래를 나열한다. **축이 없는 템플릿에서는 아무것도 세우지 않는다.** */
-function drawVariants(variants, picked) {
+/**
+ * 고르는 자리를 나열한다. **선언이 없으면 아무것도 세우지 않는다.**
+ *
+ * 모양은 언어가 말하지 않는다 — 참조 뷰어는 단추로 그리지만 앱은 드롭다운이든 무엇이든
+ * 제 것을 쓴다. 여기서 읽는 것은 「무엇을 고를 수 있고 지금 무엇이 골라져 있나」뿐이다.
+ */
+function drawChoices(picks, chosen) {
   const box = $("variant-buttons");
   box.innerHTML = "";
-  if (!variants || variants.length === 0) return;
-  for (const one of variants) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "pick";
-    button.textContent = one.label || one.id;
-    button.setAttribute("aria-pressed", String(one.id === picked));
-    button.addEventListener("click", () => {
-      state.variant = one.id;
-      refresh();
-    });
-    box.appendChild(button);
+  for (const pick of picks ?? []) {
+    const row = document.createElement("span");
+    row.className = "pick-row";
+    row.title = pick.label || pick.id;
+    for (const option of pick.options ?? []) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "pick";
+      button.textContent = option.label || option.id;
+      button.setAttribute("aria-pressed", String(option.id === chosen?.[pick.id]));
+      button.addEventListener("click", () => {
+        state.choices = { ...state.choices, [pick.id]: option.id };
+        refresh();
+      });
+      row.appendChild(button);
+    }
+    box.appendChild(row);
   }
 }
 
@@ -254,13 +264,13 @@ function refresh() {
     values,
     focus: state.focus,
     previousFocus: state.previousFocus,
-    variant: state.variant,
+    choices: state.choices,
   });
   // 오른쪽 판은 분석뷰뿐이다. 이름표는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
   drawFocus(view?.seats ?? []);
-  drawVariants(view?.variants ?? [], view?.variant ?? null);
+  drawChoices(view?.choices ?? [], view?.chosen ?? {});
   // 무엇을 보고 있는지는 화면에 한 번. 고른 것이 있으면 눌린 버튼이 이미 말하므로,
   // 말해 주지 못할 때(고른 것 없음)만 적는다.
   const watching = (view?.seats ?? []).find((s) => s.id === view?.shown);

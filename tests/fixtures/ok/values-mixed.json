@@ -84,6 +84,23 @@
           "text": "특약 없이 주계약 하나로만 된 설계입니다."
         }
       ]
+    },
+    "payments": {
+      "fields": {
+        "plan": {
+          "state": "filled",
+          "value": [
+            {
+              "phase": "처음 10년",
+              "monthly": 62000
+            },
+            {
+              "phase": "갱신 뒤",
+              "monthly": 88000
+            }
+          ]
+        }
+      }
     }
   }
 }

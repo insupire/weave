@@ -20,12 +20,16 @@
         { "type": "null" }
       ]
     },
-    "variant": {
-      "description": "고른 축의 갈래. 사람이 누른 것이라 값에서 유도할 수 없다. 무엇을 고를 수 있는지는 템플릿의 variants 가 이미 말하므로 여기 서지 않는다. null 이거나 없는 id 면 렌더가 첫 갈래를 그린다 — 늘어놓기로 돌아가지도, 빈 화면을 내지도 않는다.",
-      "anyOf": [
-        { "$ref": "weave-common.schema.json#/$defs/Key" },
-        { "type": "null" }
-      ]
+    "choices": {
+      "description": "고르는 자리마다 무엇을 골랐는지. 키는 템플릿 choices 의 id 이고 값은 그 자리의 option id 다. 사람이 누른 것이라 값에서 유도할 수 없다. 무엇을 고를 수 있는지는 템플릿이 이미 말하므로 여기 서지 않는다. 빠진 자리나 없는 id 는 렌더가 **첫 option** 으로 본다 — 늘어놓기로 돌아가지도, 빈 화면을 내지도 않는다.",
+      "type": "object",
+      "propertyNames": { "$ref": "weave-common.schema.json#/$defs/Key" },
+      "additionalProperties": {
+        "anyOf": [
+          { "$ref": "weave-common.schema.json#/$defs/Key" },
+          { "type": "null" }
+        ]
+      }
     }
   }
 }

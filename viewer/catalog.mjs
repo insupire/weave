@@ -32,6 +32,7 @@ export const PAGES = [
       "number",
       "money",
       "ratio",
+      "multiple",
       "duration",
       "age",
       "boolean",
@@ -132,6 +133,7 @@ export const PAGES = [
       "number",
       "money",
       "ratio",
+      "multiple",
       "duration",
       "age",
       "boolean",
@@ -258,6 +260,7 @@ export const PAGES = [
       "number",
       "money",
       "ratio",
+      "multiple",
       "duration",
       "age"
     ],
@@ -363,6 +366,7 @@ export const PAGES = [
       "number",
       "money",
       "ratio",
+      "multiple",
       "duration",
       "age"
     ],
@@ -466,7 +470,7 @@ export const PAGES = [
     "compare": "overlay",
     "compareSaid": "겹친다",
     "draws": "반복되는 항목을 하나로 합친다. 같은 항목이 한 줄에 서고 subject 가 그 줄에서 갈린다",
-    "note": "누가 그 항목을 갖고 누가 안 갖는지가 한 줄에서 읽힌다. 목록을 못 읽어 모르는 것은 표기(—)로, 읽었고 그 항목이 없다는 아는 사실은 글(없음)로 선다",
+    "note": "누가 그 항목을 갖고 누가 안 갖는지가 한 줄에서 읽힌다. 겹치지 않고 고른 것만 펴려면 rows 다. 목록을 못 읽어 모르는 것은 표기(—)로, 읽었고 그 항목이 없다는 아는 사실은 글(없음)로 선다",
     "fields": "1",
     "shapes": [
       "items"
@@ -475,6 +479,7 @@ export const PAGES = [
       "number",
       "money",
       "ratio",
+      "multiple",
       "duration",
       "age",
       "boolean",
@@ -576,6 +581,135 @@ export const PAGES = [
                     {
                       "kind": "tip",
                       "text": "특약 없이 주계약 하나로만 된 설계입니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rows",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "rows",
+    "compare": "focus",
+    "compareSaid": "focus 를 따라 바뀐다",
+    "draws": "고른 subject 의 항목을 행으로 편다. 겹치지 않는다",
+    "note": "list 와 같은 값을 받지만 비교하는 법이 다르다 — list 는 여럿을 한 표에 겹치고 rows 는 지금 보고 있는 하나만 편다. 이름만 보고 어느 쪽인지 알 수 있게 갈라 두었다",
+    "fields": "1",
+    "shapes": [
+      "items"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-rows",
+        "title": "rows 보기",
+        "facets": [
+          {
+            "id": "riders",
+            "title": "담보",
+            "element": "rows",
+            "fields": [
+              {
+                "key": "rider-list",
+                "label": "담보 목록",
+                "shape": "items",
+                "hint": "설계안에 적힌 순서 그대로예요.",
+                "description": "보장내역 표에 적힌 담보를 적힌 순서 그대로 하나씩 담는다.",
+                "columns": [
+                  {
+                    "key": "name",
+                    "label": "담보",
+                    "type": "text",
+                    "description": "설계안에 적힌 이름 그대로 담는다."
+                  },
+                  {
+                    "key": "amount",
+                    "label": "가입금액",
+                    "type": "money",
+                    "description": "그 담보의 가입금액을 원 단위 정수로 담는다."
+                  },
+                  {
+                    "key": "premium",
+                    "label": "월 보험료",
+                    "type": "money",
+                    "description": "그 담보 몫의 월 보험료를 원 단위 정수로 담는다."
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              {
+                "kind": "note",
+                "text": "고른 제안서의 것만 폅니다. 나란히 견주려면 list 를 씁니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-rows",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "name": "암진단비(유사암제외)",
+                      "amount": 30000000,
+                      "premium": 31200
+                    },
+                    {
+                      "name": "질병입원일당",
+                      "amount": 30000,
+                      "premium": 4400
+                    },
+                    {
+                      "name": "상해수술비",
+                      "amount": 300000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-rows",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "보장내역 표가 사진에 담기지 않았습니다."
                     }
                   ]
                 }

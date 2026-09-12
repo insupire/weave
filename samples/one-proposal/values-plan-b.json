@@ -42,13 +42,13 @@
         "source": {
           "state": "filled",
           "value": "직접 업로드"
-        },
-        "estimated": {
-          "state": "filled",
-          "value": true
         }
       },
       "notes": [
+        {
+          "kind": "caution",
+          "text": "설계안에 없어 계산으로 메운 값이 섞여 있습니다."
+        },
         {
           "kind": "caution",
           "text": "직접 올린 사진이라 표가 잘려 있어 상품명과 납입 조건을 읽지 못했습니다."
@@ -58,7 +58,7 @@
     "payback": {
       "fields": {
         "payback-curve": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "empty"
             },
@@ -81,7 +81,7 @@
     "covered-total": {
       "fields": {
         "covered-amount": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "empty"
             },
@@ -98,7 +98,7 @@
     "covered-items": {
       "fields": {
         "covered-list": {
-          "byVariant": {
+          "byOption": {
             "cancer": {
               "state": "filled",
               "value": []

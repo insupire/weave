@@ -140,6 +140,19 @@
           "text": "보장내역 표에서 특약만 골라 옮겼습니다."
         }
       ]
+    },
+    "payments": {
+      "fields": {
+        "plan": {
+          "state": "filled",
+          "value": [
+            {
+              "phase": "처음",
+              "monthly": 87400
+            }
+          ]
+        }
+      }
     }
   }
 }

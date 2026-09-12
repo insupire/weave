@@ -10,12 +10,12 @@
     "weave": { "$ref": "weave-common.schema.json#/$defs/Version" },
     "id": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
     "title": { "type": "string", "minLength": 1, "maxLength": 120 },
-    "variants": {
-      "description": "같은 분석을 여러 갈래로 나눠 보는 축. 한 템플릿에 하나뿐이고, 없으면 축이 없다. 갈래가 바뀌어도 **어떤 facet 이 서는지는 달라지지 않는다** — 달라지는 것은 varies 를 단 필드의 값뿐이다. 무엇을 뜻하는지는 라벨이 말하고 언어는 그 뜻을 모른다. 골격이므로 값 한 벌이 아니라 여기 선다: subject 마다 갈래가 다르면 견줄 수가 없다.",
+    "choices": {
+      "description": "고르는 자리. 사람이 하나를 고르면 그것을 타는 필드의 값이 바뀐다. 무엇을 고를 수 있는지만 말하고 **어떻게 생겼는지는 말하지 않는다** — 칩인지 드롭다운인지는 앱이 정한다. 골격이므로 값 한 벌이 아니라 여기 선다: subject 마다 고를 것이 다르면 견줄 수가 없다. 고른 것이 바뀌어도 **어떤 facet 이 서는지는 달라지지 않는다** — 달라지는 것은 그것을 타는 필드의 값뿐이다. 여럿 선언할 수 있으나 선언한 만큼 값을 채워야 한다.",
       "type": "array",
-      "minItems": 2,
-      "maxItems": 12,
-      "items": { "$ref": "#/$defs/Variant" }
+      "minItems": 1,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/Choice" }
     },
     "facets": {
       "description": "그리는 순서대로. 순서는 배치일 뿐 우열이 아니다.",
@@ -26,8 +26,24 @@
     }
   },
   "$defs": {
-    "Variant": {
-      "description": "축의 한 갈래. 하나뿐인 갈래는 축이 아니므로 둘부터 선다.",
+    "Choice": {
+      "description": "고르는 자리 하나. 고를 것이 하나뿐이면 고르는 것이 아니므로 둘부터 선다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "options"],
+      "properties": {
+        "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "options": {
+          "description": "고를 수 있는 것들. 값 한 벌은 이 id 마다 값을 하나씩 채운다.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/Option" }
+        }
+      }
+    },
+    "Option": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "label"],
@@ -121,6 +137,17 @@
               }
             }
           }
+        },
+        {
+          "if": { "properties": { "element": { "const": "rows" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": { "properties": { "shape": { "const": "items" } } }
+              }
+            }
+          }
         }
       ]
     },
@@ -135,9 +162,24 @@
         "shape": { "$ref": "weave-common.schema.json#/$defs/Shape" },
         "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
         "axis": { "$ref": "weave-common.schema.json#/$defs/AxisType" },
-        "varies": {
-          "description": "축의 갈래마다 값이 따로 있다. 있으면 그렇다는 뜻이고 false 를 적지 않는다. 템플릿에 variants 가 없으면 쓸 수 없다.",
-          "const": true
+        "choice": {
+          "description": "이 필드가 타는 고르는 자리의 id. 있으면 그 자리의 고를 것마다 값이 따로 있다. 템플릿이 선언하지 않은 id 는 쓸 수 없다. 한 필드는 한 자리만 탄다 — 둘을 타면 값이 곱해진다.",
+          "$ref": "weave-common.schema.json#/$defs/Key"
+        },
+        "hint": {
+          "description": "읽는 사람에게 **늘 보이는 한 줄**. 이 값이 무엇인지 그 자리에서 말한다. description 과 다르다 — 그쪽은 분석에게 주는 추출 지시이고 화면에 나오지 않는다. 한 줄이고 필드에 매인다: 값과 무관한 자유 문장을 여기 두지 않는다.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[^\\n\\r]+$"
+        },
+        "allowed": {
+          "description": "값이 이 목록 안에 있어야 한다. 자유 글에서 오타와 변종을 막는 자리다. text 를 담는 single 필드에만 쓴다.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
         },
         "columns": {
           "type": "array",
@@ -181,6 +223,13 @@
           "then": {
             "required": ["columns"],
             "not": { "anyOf": [{ "required": ["type"] }, { "required": ["axis"] }] }
+          }
+        },
+        {
+          "if": { "required": ["allowed"] },
+          "then": {
+            "properties": { "shape": { "const": "single" }, "type": { "const": "text" } },
+            "required": ["shape", "type"]
           }
         }
       ]

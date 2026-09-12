@@ -96,6 +96,19 @@
           "text": "아직 분석하지 않았습니다. 제안서는 받았지만 읽어 내지 못했습니다."
         }
       ]
+    },
+    "payment-plan": {
+      "fields": {
+        "plan": {
+          "state": "empty",
+          "notes": [
+            {
+              "kind": "caution",
+              "text": "제안서를 아직 읽지 못했습니다."
+            }
+          ]
+        }
+      }
     }
   }
 }

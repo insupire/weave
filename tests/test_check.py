@@ -37,8 +37,11 @@ class TemplatePasses(unittest.TestCase):
         self.assertTrue(result.ok, [str(p) for p in result.problems])
 
     def test_every_element_is_exercised(self) -> None:
+        """고정 케이스가 **어휘 전부**를 쓴다. 수를 손으로 적지 않는다 —
+        element 가 늘면 여기가 자동으로 따라오고, 안 쓰는 것이 생기면 걸린다.
+        """
         used = {f["element"] for f in TEMPLATE["facets"]}
-        self.assertEqual(used, {"stat", "facts", "bars", "line", "list"})
+        self.assertEqual(used, set(documents()["weave-common.schema.json"]["$defs"]["Element"]["enum"]))
 
     def test_template_author_notes_use_the_same_four_kinds(self) -> None:
         # subject 무관 지식의 자리. 아직 분석된 subject 가 하나도 없어도 남는다.
@@ -255,32 +258,38 @@ class RenderArgs(unittest.TestCase):
         없다. 명단처럼 값이 이미 갖고 있는 것은 여기 서지 않는다.
         """
         args = documents()["weave-render-args.schema.json"]
-        self.assertEqual(list(args["properties"]), ["focus", "previousFocus", "variant"])
+        self.assertEqual(list(args["properties"]), ["focus", "previousFocus", "choices"])
         self.assertNotIn("$defs", args, "자리(Seat) 정의가 남아 있다")
-        # 셋이 같은 규칙을 따른다 — id 이거나 null 이고, 없는 id 는 결함이 아니다.
-        for name in ("focus", "previousFocus", "variant"):
+        # subject 를 가리키는 둘은 같은 규칙이다 — id 이거나 null.
+        for name in ("focus", "previousFocus"):
             self.assertEqual(
                 [list(one)[0] for one in args["properties"][name]["anyOf"]],
                 ["$ref", "type"],
                 f"{name} 이 focus 와 다른 규칙을 쓴다",
             )
+        # 고르는 자리는 **여럿일 수 있어** 지도로 온다. 값 하나하나는 같은 규칙이다.
+        picked = args["properties"]["choices"]
+        self.assertEqual(picked["type"], "object")
+        self.assertEqual([list(one)[0] for one in picked["additionalProperties"]["anyOf"]], ["$ref", "type"])
 
-    def test_the_axis_binds_template_and_values(self) -> None:
-        """축이 들어오면 **값 쪽도 바뀐다.** 인자만 늘리고 끝나지 않는다.
+    def test_a_choice_binds_template_and_values(self) -> None:
+        """고르는 자리가 들어오면 **값 쪽도 바뀐다.** 인자만 늘리고 끝나지 않는다.
 
-        갈리는 필드는 갈래마다 값을 갖고, 그 갈래는 템플릿이 선언한 것과 **빠짐도 덤도
-        없이** 같아야 한다. 어느 모양이어야 하는지는 템플릿이 정하므로 검사기가 가른다.
+        타는 필드는 고를 것마다 값을 갖고, 그 목록은 템플릿이 선언한 것과 **빠짐도 덤도
+        없이** 같아야 한다 — 선언한 만큼 채워야 하는 값이 여기서 드러난다.
+        어느 모양이어야 하는지는 템플릿이 정하므로 검사기가 가른다.
         """
         template = {
             "weave": "1", "id": "t", "title": "t",
-            "variants": [{"id": "a", "label": "가"}, {"id": "b", "label": "나"}],
+            "choices": [{"id": "d", "label": "무엇을 고르나",
+                         "options": [{"id": "a", "label": "가"}, {"id": "b", "label": "나"}]}],
             "facets": [{
                 "id": "f", "title": "f", "element": "facts",
                 "fields": [
-                    {"key": "moves", "label": "갈린다", "shape": "single", "type": "money",
-                     "varies": True, "description": "갈래마다 다른 금액을 원 단위로."},
-                    {"key": "stays", "label": "안 갈린다", "shape": "single", "type": "money",
-                     "description": "갈래와 무관한 금액을 원 단위로."},
+                    {"key": "moves", "label": "탄다", "shape": "single", "type": "money",
+                     "choice": "d", "description": "고른 것마다 다른 금액을 원 단위로."},
+                    {"key": "stays", "label": "안 탄다", "shape": "single", "type": "money",
+                     "description": "고른 것과 무관한 금액을 원 단위로."},
                 ],
             }],
         }
@@ -290,19 +299,19 @@ class RenderArgs(unittest.TestCase):
             return {"weave": "1", "templateId": "t", "subjectId": "s",
                     "facets": {"f": {"fields": {"moves": moves, "stays": stays}}}}
 
-        full = {"byVariant": {"a": {"state": "filled", "value": 1}, "b": {"state": "empty"}}}
+        full = {"byOption": {"a": {"state": "filled", "value": 1}, "b": {"state": "empty"}}}
         one = {"state": "filled", "value": 2}
         self.assertTrue(check_valueset(values(full, one), template).ok)
 
         for why, moves, stays, expected in [
-            ("갈리는 필드에 값 하나만 준다", one, one, "값이 하나다"),
-            ("안 갈리는 필드를 갈래로 쪼갠다", full, full, "갈래가 없는 필드인데"),
-            ("갈래를 빠뜨린다", {"byVariant": {"a": {"state": "empty"}}}, one, "선언한 갈래 이 빠졌다"),
-            ("없는 갈래를 덤으로 준다",
-             {"byVariant": {"a": {"state": "empty"}, "b": {"state": "empty"}, "c": {"state": "empty"}}},
-             one, "템플릿에 없는 갈래"),
-            ("갈래 값의 타입이 어긋난다",
-             {"byVariant": {"a": {"state": "filled", "value": "많이"}, "b": {"state": "empty"}}},
+            ("타는 필드에 값 하나만 준다", one, one, "값이 하나다"),
+            ("안 타는 필드를 쪼갠다", full, full, "타지 않는 필드인데"),
+            ("고를 것을 빠뜨린다", {"byOption": {"a": {"state": "empty"}}}, one, "선언한 고를 것 이 빠졌다"),
+            ("없는 것을 덤으로 준다",
+             {"byOption": {"a": {"state": "empty"}, "b": {"state": "empty"}, "c": {"state": "empty"}}},
+             one, "템플릿에 없는 고를 것"),
+            ("고른 값의 타입이 어긋난다",
+             {"byOption": {"a": {"state": "filled", "value": "많이"}, "b": {"state": "empty"}}},
              one, "money 타입이 아니다"),
         ]:
             with self.subTest(why):
@@ -310,25 +319,61 @@ class RenderArgs(unittest.TestCase):
                 self.assertFalse(result.ok, f"막히지 않았다: {why}")
                 self.assertIn(expected, " | ".join(str(p) for p in result.problems))
 
-        # 축이 없는데 갈리는 필드를 두면 가리킬 갈래가 없다.
-        no_axis = {k: v for k, v in template.items() if k != "variants"}
-        result = check_template(no_axis)
+        # 선언하지 않은 자리를 타면 가리킬 것이 없다.
+        astray = {k: v for k, v in template.items() if k != "choices"}
+        result = check_template(astray)
         self.assertFalse(result.ok)
-        self.assertIn("varies", " | ".join(str(p) for p in result.problems))
+        self.assertIn("선언하지 않은 고르는 자리", " | ".join(str(p) for p in result.problems))
 
-    def test_the_axis_choice_is_an_arg_and_the_axis_itself_is_not(self) -> None:
+        # **한 자리 안의 것끼리는 닫힌 목록이다.** 자유 글에서 오타를 막는 자리도 같다.
+        closed = {
+            "weave": "1", "id": "t", "title": "t",
+            "facets": [{"id": "f", "title": "f", "element": "facts", "fields": [
+                {"key": "src", "label": "출처", "shape": "single", "type": "text",
+                 "allowed": ["설계사 제안", "직접 업로드"], "description": "어디서 왔는지 그대로."}]}],
+        }
+        self.assertTrue(check_template(closed).ok)
+        good = {"weave": "1", "templateId": "t", "subjectId": "s",
+                "facets": {"f": {"fields": {"src": {"state": "filled", "value": "설계사 제안"}}}}}
+        self.assertTrue(check_valueset(good, closed).ok)
+        bad = {"weave": "1", "templateId": "t", "subjectId": "s",
+               "facets": {"f": {"fields": {"src": {"state": "filled", "value": "설계사제안"}}}}}
+        self.assertIn("허용한 값이 아니다", " | ".join(str(p) for p in check_valueset(bad, closed).problems))
+
+    def test_what_can_be_chosen_is_the_skeleton_not_an_arg(self) -> None:
         """**고른 것은 인자, 고를 수 있는 것은 골격이다.**
 
-        갈래 목록은 템플릿이 갖는다 — subject 마다 갈래가 다르면 견줄 수가 없어서,
-        facet 을 템플릿이 갖는 것과 같은 까닭이다. 인자에는 **고른 하나**만 온다.
+        고를 것의 목록은 템플릿이 갖는다 — subject 마다 고를 것이 다르면 견줄 수가 없어서,
+        facet 을 템플릿이 갖는 것과 같은 까닭이다. 인자에는 **무엇을 골랐는지**만 온다.
+        모양(칩·드롭다운)은 어느 쪽에도 없다 — 앱의 것이다.
         """
         args = documents()["weave-render-args.schema.json"]
-        self.assertNotIn("variants", args["properties"], "갈래 목록이 인자로 섰다")
-        self.assertIn("variants", documents()["weave-template.schema.json"]["properties"])
-        self.assertTrue(check_render_args({"variant": "cancer"}).ok)
-        self.assertTrue(check_render_args({"variant": None}).ok)
-        self.assertFalse(check_render_args({"variant": ["cancer"]}).ok)
-        self.assertFalse(check_render_args({"variants": ["cancer"]}).ok)
+        template = documents()["weave-template.schema.json"]
+        self.assertIn("choices", template["properties"], "고를 것의 목록이 템플릿에 없다")
+        self.assertIn("options", template["$defs"]["Choice"]["properties"])
+        self.assertTrue(check_render_args({"choices": {"illness": "cancer"}}).ok)
+        self.assertTrue(check_render_args({"choices": {"illness": None}}).ok)
+        self.assertTrue(check_render_args({"choices": {}}).ok)
+        self.assertFalse(check_render_args({"choices": {"illness": ["cancer"]}}).ok)
+        self.assertFalse(check_render_args({"choices": [{"id": "illness"}]}).ok)
+        # **언어는 모양을 선언하지 않는다.** 산문이 아니라 **이름과 어휘**를 본다 —
+        # 「드롭다운인지는 앱이 정한다」고 적는 것은 괜찮고, 그런 이름의 자리를 두는 것이 안 된다.
+        names = set()
+
+        def walk(node: object) -> None:
+            if isinstance(node, dict):
+                names.update(node.get("properties", {}))
+                names.update(str(one) for one in node.get("enum", []))
+                for value in node.values():
+                    walk(value)
+            elif isinstance(node, list):
+                for one in node:
+                    walk(one)
+
+        walk(args)
+        walk(template)
+        for ui in ("widget", "dropdown", "chip", "segment", "tab", "toggle", "layout", "style"):
+            self.assertNotIn(ui, {n.lower() for n in names}, f"모양을 선언한다: {ui}")
 
     def test_previous_focus_is_a_render_arg(self) -> None:
         """직전 focus 는 **값에서 유도할 수 없다.** 앱만 아는 상호작용 이력이다."""

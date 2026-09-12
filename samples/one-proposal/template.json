@@ -2,20 +2,6 @@
   "weave": "1",
   "id": "one-proposal-1",
   "title": "이 제안서를 뜯어봅니다",
-  "variants": [
-    {
-      "id": "cancer",
-      "label": "암"
-    },
-    {
-      "id": "brain",
-      "label": "뇌혈관"
-    },
-    {
-      "id": "heart",
-      "label": "허혈성심장"
-    }
-  ],
   "facets": [
     {
       "id": "premium",
@@ -27,7 +13,8 @@
           "label": "월 납입료",
           "shape": "single",
           "description": "이 제안서의 월 납입 보험료 총액을 원 단위 정수로. 특약을 포함한 합계다.",
-          "type": "money"
+          "type": "money",
+          "hint": "이 제안서에서 매달 빠져나가는 돈이에요."
         }
       ],
       "notes": [
@@ -51,56 +38,60 @@
           "label": "보험사",
           "shape": "single",
           "description": "설계안 표지에 적힌 보험사 이름을 그대로.",
-          "type": "text"
+          "type": "text",
+          "hint": "설계안을 낸 보험사예요."
         },
         {
           "key": "product",
           "label": "상품명",
           "shape": "single",
           "description": "설계안 표지에 적힌 상품명을 그대로.",
-          "type": "text"
+          "type": "text",
+          "hint": "설계안에 적힌 상품 이름이에요."
         },
         {
           "key": "pay-period",
           "label": "납입기간",
           "shape": "single",
           "description": "납입기간을 사람이 읽는 표시 그대로. 보기: 30년납 · 20년납 · 전기납.",
-          "type": "text"
+          "type": "text",
+          "hint": "보험료를 내는 기간이에요."
         },
         {
           "key": "cover-period",
           "label": "보장기간",
           "shape": "single",
           "description": "보장기간을 사람이 읽는 표시 그대로. 보기: 90세만기 · 종신.",
-          "type": "text"
+          "type": "text",
+          "hint": "보장을 받는 기간이에요."
         },
         {
           "key": "renewal",
           "label": "갱신",
           "shape": "single",
           "description": "갱신 주기를 사람이 읽는 표시 그대로. 보기: 갱신 없음 · 10년 갱신.",
-          "type": "text"
+          "type": "text",
+          "hint": "몇 년마다 보험료가 다시 매겨지는지예요."
         },
         {
           "key": "refund",
           "label": "납입 중 환급",
           "shape": "single",
           "description": "납입 도중 해지해도 환급금이 있으면 참. 순수보장형이면 거짓.",
-          "type": "boolean"
+          "type": "boolean",
+          "hint": "납입 도중 해지해도 돌려받을 돈이 있는지예요."
         },
         {
           "key": "source",
           "label": "출처",
           "shape": "single",
           "description": "이 설계안이 어디서 왔는지. 설계사 제안 또는 직접 업로드.",
-          "type": "text"
-        },
-        {
-          "key": "estimated",
-          "label": "추정값 포함",
-          "shape": "single",
-          "description": "설계안에 없어 계산으로 메운 값이 하나라도 있으면 참.",
-          "type": "boolean"
+          "type": "text",
+          "hint": "이 설계안이 어디서 왔는지예요.",
+          "allowed": [
+            "설계사 제안",
+            "직접 업로드"
+          ]
         }
       ],
       "notes": [
@@ -128,9 +119,10 @@
           "label": "누적 회수 배율",
           "shape": "series",
           "description": "그 나이까지 낸 보험료 대비 받게 되는 누적 금액의 배수. 1이면 낸 만큼, 2면 두 배다. 고른 갈래로 진단받았을 때를 가정한다.",
-          "type": "number",
+          "type": "multiple",
           "axis": "age",
-          "varies": true
+          "choice": "illness",
+          "hint": "낸 보험료 대비 받게 되는 누적 금액의 배수예요."
         }
       ],
       "notes": [
@@ -155,7 +147,8 @@
           "shape": "single",
           "description": "고른 갈래의 진단·수술·입원 담보 가입금액 합계를 원 단위 정수로. 그 갈래를 보장하지 않으면 0.",
           "type": "money",
-          "varies": true
+          "choice": "illness",
+          "hint": "고른 병으로 받을 수 있는 금액을 다 더한 값이에요."
         }
       ],
       "notes": [
@@ -179,7 +172,6 @@
           "label": "담보별 가입금액",
           "shape": "items",
           "description": "고른 갈래의 보장 총액을 이루는 담보를 하나씩. 그 갈래를 보장하지 않으면 빈 목록.",
-          "varies": true,
           "columns": [
             {
               "key": "name",
@@ -193,7 +185,9 @@
               "type": "money",
               "description": "그 담보의 가입금액을 원 단위 정수로."
             }
-          ]
+          ],
+          "choice": "illness",
+          "hint": "위 금액을 이루는 담보들이에요."
         }
       ],
       "notes": [
@@ -214,7 +208,8 @@
           "shape": "series",
           "description": "그 나이에 해지했을 때, 그때까지 낸 보험료에서 환급금을 뺀 금액을 납입 개월로 나눈 월평균 부담액을 원 단위 정수로.",
           "type": "money",
-          "axis": "age"
+          "axis": "age",
+          "hint": "그 나이에 그만뒀을 때 한 달치로 친 손해예요."
         }
       ],
       "notes": [
@@ -231,7 +226,7 @@
     {
       "id": "riders",
       "title": "붙어 있는 담보 전부",
-      "element": "list",
+      "element": "rows",
       "fields": [
         {
           "key": "rider-list",
@@ -275,7 +270,8 @@
               "type": "text",
               "description": "그 담보의 갱신 주기 표시 그대로. 보기: 갱신 없음."
             }
-          ]
+          ],
+          "hint": "설계안에 적힌 담보를 순서 그대로 옮긴 것이에요."
         }
       ],
       "notes": [
@@ -286,6 +282,30 @@
         {
           "kind": "caution",
           "text": "여기 없는 담보는 이 설계안에 적혀 있지 않은 것이지, 보장하지 않는다는 뜻은 아닙니다."
+        },
+        {
+          "kind": "note",
+          "text": "지금 고른 제안서의 담보만 폅니다. 나란히 견주려면 위의 담보별 가입금액을 봅니다."
+        }
+      ]
+    }
+  ],
+  "choices": [
+    {
+      "id": "illness",
+      "label": "무엇에 걸렸을 때",
+      "options": [
+        {
+          "id": "cancer",
+          "label": "암"
+        },
+        {
+          "id": "brain",
+          "label": "뇌혈관"
+        },
+        {
+          "id": "heart",
+          "label": "허혈성심장"
         }
       ]
     }
