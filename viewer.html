@@ -755,6 +755,28 @@ function blankRow(missing, ctx) {
   return `<div class="offs"><span class="off-said">${esc(NO_VALUE)}</span>${mine.mark ?? ""}</div>`;
 }
 
+/**
+ * **자를 잴 때 보는 값 전부.** 그 필드의 모든 subject × 모든 고를 것.
+ *
+ * `cell` 은 **지금 고른 것**을 읽지만 자는 그것만 보면 안 된다 — 무엇을 누르든 자가
+ * 안 움직여야 길이가 뜻을 지킨다. focus 를 옮겨도 자가 안 움직이게 subject 전체로
+ * 잰 것과 같은 까닭이고, 고르는 자리가 들어오면서 잴 것이 한 겹 늘었을 뿐이다.
+ */
+function everyValue(ctx, facet, decl) {
+  const out = [];
+  for (const subject of ctx.subjects) {
+    const slot = ctx.byId.get(subject.id)?.facets?.[facet.id]?.fields?.[decl.key];
+    if (!slot) continue;
+    for (const entry of slot.byOption ? Object.values(slot.byOption) : [slot]) {
+      if (entry?.state === "filled") out.push(entry.value);
+    }
+  }
+  return out;
+}
+
+/** 자가 0 이 아닌 값을 길이 0 으로 지우지 않게 두는 바닥. 「값이 없다」와 구별되어야 한다. */
+const FLOOR = 0.8;
+
 function readsOf(ctx, facet, decl) {
   return ctx.subjects.map((subject) => ({
     subject: { ...subject, focused: subject.id === ctx.focus },
@@ -817,15 +839,26 @@ function facts(ctx, facet) {
 }
 
 /** 크기 비교. **자는 subject 전체의 최대값으로 고정한다** — focus 를 옮겨도 길이를 견줄 수 있어야 한다. */
+/**
+ * 크기 비교. **자는 facet 하나에 하나다.**
+ *
+ * 필드마다 따로 재면 3등급 1,000만이 1등급 3,000만보다 길어진다 — 그림이 거짓말을 한다.
+ * 「한 facet 은 비교 축 하나여야 한다」가 이미 언어의 규칙이니 같은 축이면 같은 자를
+ * 쓰는 것이 맞고, 그래야 그 규칙이 **시각으로 강제된다.**
+ *
+ * 자는 이 facet 의 **모든 필드 × 모든 subject × 모든 고를 것**을 덮는다. 무엇을 누르든
+ * 자가 안 움직인다. 범위가 크게 다른 필드가 섞이면 작은 것이 짧아지는데, 그것이
+ * **「이 facet 은 축이 둘이다」라는 신호**다 — 감추지 않는다.
+ */
 function bars(ctx, facet) {
   const subject = shownOf(ctx);
   if (!subject) return `<div class="blank">${missMark()}</div>`;
-  const rows = facet.fields.map((decl) => {
-    const all = readsOf(ctx, facet, decl)
-      .filter((r) => r.state === "filled" && typeof r.entry.value === "number" && Number.isFinite(r.entry.value))
-      .map((r) => r.entry.value);
-    const top = all.length ? Math.max(...all) : 0;
+  const numbers = facet.fields
+    .flatMap((decl) => everyValue(ctx, facet, decl))
+    .filter((value) => typeof value === "number" && Number.isFinite(value));
+  const top = numbers.length ? Math.max(...numbers) : 0;
 
+  const rows = facet.fields.map((decl) => {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     const { state, entry } = oneRead(ctx, facet, decl, subject);
     let mark = '<span class="track"></span>';
@@ -833,7 +866,10 @@ function bars(ctx, facet) {
     if (state !== "filled") {
       text = missMark();
     } else if (typeof entry.value === "number" && Number.isFinite(entry.value)) {
-      const width = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
+      // 0 은 길이 0 이다 — 진짜 0 이니까. 0 이 아닌 값은 바닥을 둔다: 길이 0 으로
+      // 사라지면 「값이 없다」와 구별이 안 된다. 정확한 수는 옆에 늘 적혀 있다.
+      const share = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
+      const width = share > 0 ? Math.max(share, FLOOR) : 0;
       mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
       text = esc(formatScalar(decl.type, entry.value));
     } else {
@@ -887,8 +923,18 @@ function line(ctx, facet) {
   }
   // **그림도 표처럼 자기 상자에서 굴러간다.** 좁은 화면에서 통째로 줄이면 축 라벨과 선 끝
   // 이름이 읽을 수 없게 작아진다 — 그림은 제 크기를 지키고 상자가 굴러간다.
+  // **자는 고를 것까지 덮는다.** 축을 옮겨도 그림의 자가 안 움직여야 앞뒤를 견줄 수 있다.
+  const span = { x: [], y: [] };
+  for (const value of everyValue(ctx, facet, decl)) {
+    if (!Array.isArray(value)) continue;
+    for (const point of value) {
+      const x = axisNumber(axis, point?.at);
+      const y = typeof point?.value === "number" && Number.isFinite(point.value) ? point.value : null;
+      if (x !== null && y !== null) { span.x.push({ x, at: point.at }); span.y.push(y); }
+    }
+  }
   const body = series.length
-    ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior)}</div>`
+    ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
     : `<div class="blank">${missMark()}</div>`;
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
@@ -903,10 +949,12 @@ function line(ctx, facet) {
   );
 }
 
-function lineSvg(series, axis, type, focus, prior) {
+function lineSvg(series, axis, type, focus, prior, span) {
   const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
-  const xs = series.flatMap((s) => s.points.map((p) => p.x));
-  const ys = series.flatMap((s) => s.points.map((p) => p.y));
+  // **그린 것이 아니라 잴 것 전부로 자를 잡는다** — 무엇을 눌러도 축이 안 움직인다.
+  const edge = span.x.length ? span.x : series.flatMap((s) => s.points.map((p) => ({ x: p.x, at: p.at })));
+  const xs = edge.map((one) => one.x);
+  const ys = span.y.length ? span.y : series.flatMap((s) => s.points.map((p) => p.y));
   const xmin = Math.min(...xs), xmax = Math.max(...xs);
   const ymin = Math.min(...ys, 0), ymax = Math.max(...ys);
   const xspan = xmax - xmin || 1;
@@ -914,8 +962,9 @@ function lineSvg(series, axis, type, focus, prior) {
   const px = (x) => L + ((x - xmin) / xspan) * (W - L - R);
   const py = (y) => H - B - ((y - ymin) / yspan) * (H - T - B);
 
-  const firstAt = series.flatMap((s) => s.points).reduce((a, p) => (p.x < a.x ? p : a)).at;
-  const lastAt = series.flatMap((s) => s.points).reduce((a, p) => (p.x > a.x ? p : a)).at;
+  // 축 양끝의 글도 자에서 온다 — 그린 것만 보면 눌렀을 때 눈금이 달라진다.
+  const firstAt = edge.reduce((a, p) => (p.x < a.x ? p : a), edge[0]).at;
+  const lastAt = edge.reduce((a, p) => (p.x > a.x ? p : a), edge[0]).at;
 
   const parts = [
     `<line class="axis" x1="${L}" y1="${py(ymin).toFixed(1)}" x2="${W - R}" y2="${py(ymin).toFixed(1)}"/>`,
@@ -1094,24 +1143,32 @@ function parts(ctx, facet) {
   if (state !== "filled" || !Array.isArray(entry.value)) {
     return `${label}<div class="blank">${missMark()}</div>`;
   }
-  const slices = entry.value
+  // **0 인 조각도 목록에 남는다.** 띠에서 사라진다고 값까지 사라지면 안 된다 —
+  // 「0 원이다」와 「그런 조각이 없다」는 다른 말이다.
+  const all = entry.value
     .map((item) => ({ said: item?.[name.key], size: item?.[share.key] }))
-    .filter((one) => typeof one.size === "number" && Number.isFinite(one.size) && one.size > 0);
-  if (slices.length === 0) {
+    .filter((one) => typeof one.size === "number" && Number.isFinite(one.size));
+  const slices = all.filter((one) => one.size > 0);
+  if (all.length === 0) {
     return `${label}<div class="blank"><span class="miss">${NO_ITEMS}</span></div>`;
   }
   const whole = slices.reduce((sum, one) => sum + one.size, 0);
   const band = slices
     .map((one) =>
-      `<span class="slice" style="width:${((one.size / whole) * 100).toFixed(4)}%" ` +
+      // 조각도 바닥을 둔다 — 0 이 아닌 몫이 길이 0 으로 사라지면 없는 것과 같아진다.
+      `<span class="slice" style="width:${Math.max((one.size / whole) * 100, FLOOR).toFixed(4)}%" ` +
       `title="${esc(one.said ?? "")}"></span>`)
     .join("");
-  const rows = slices
+  const rows = all
     .map((one) =>
       `<div class="slice-row"><span class="who">${esc(one.said ?? "")}</span>` +
       `<span class="val">${esc(formatScalar(share.type, one.size))}</span></div>`)
     .join("");
-  return `${label}<div class="band">${band}</div><div class="slices">${rows}</div>`;
+  return (
+    label +
+    (slices.length ? `<div class="band">${band}</div>` : "") +
+    `<div class="slices">${rows}</div>`
+  );
 }
 
 const ELEMENTS = { stat, facts, bars, line, list, rows, parts };
@@ -1406,7 +1463,7 @@ const SAMPLES = {
   },
   "when-care-is-needed": {
     "name": "간병·요양 보장",
-    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"care-1\",\n  \"title\": \"간병·요양 보장\",\n  \"facets\": [\n    {\n      \"id\": \"daily\",\n      \"title\": \"간병인 일당\",\n      \"hint\": \"간병인을 쓴 하루마다 나오는 금액입니다.\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"care-daily\",\n          \"label\": \"간병인 사용 일당\",\n          \"shape\": \"range\",\n          \"description\": \"간병인을 쓴 하루마다 나오는 금액을 원 단위 정수로. 구간으로 적혀 있으면 최솟값과 최댓값을 함께 담는다.\",\n          \"type\": \"money\",\n          \"hint\": \"간병인을 쓴 하루마다 나오는 돈이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"간병인을 실제로 쓴 날에만 나옵니다. 입원했다고 자동으로 나오지 않습니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"구간으로 적힌 것은 조건에 따라 금액이 달라진다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"by-grade\",\n      \"title\": \"장기요양 등급별 금액\",\n      \"hint\": \"장기요양 등급 판정을 받았을 때 나오는 금액입니다.\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"grade-1\",\n          \"label\": \"1등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 1등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"가장 무거운 등급이에요.\"\n        },\n        {\n          \"key\": \"grade-2\",\n          \"label\": \"2등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 2등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-3\",\n          \"label\": \"3등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 3등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-4\",\n          \"label\": \"4등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 4등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-5\",\n          \"label\": \"5등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 5등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"가장 가벼운 등급이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"등급은 장기요양 판정의 이름이고 이 화면이 매기는 것이 아닙니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"막대 길이는 항목마다 따로 잽니다. 서로 다른 항목의 길이를 견주면 안 됩니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"terms\",\n      \"title\": \"보장 조건\",\n      \"hint\": \"언제까지, 며칠까지, 언제부터 보장되는지입니다.\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"cover-period\",\n          \"label\": \"보장기간\",\n          \"shape\": \"single\",\n          \"description\": \"보장기간을 사람이 읽는 표시 그대로. 보기: 100세만기.\",\n          \"type\": \"text\",\n          \"hint\": \"보장을 받는 기간이에요.\"\n        },\n        {\n          \"key\": \"day-limit\",\n          \"label\": \"지급일수 한도\",\n          \"shape\": \"single\",\n          \"description\": \"간병 일당을 최대 며칠까지 주는지 일 수를 정수로. 한도가 없으면 비운다.\",\n          \"type\": \"number\",\n          \"hint\": \"일당이 나오는 날의 최대 수예요.\"\n        },\n        {\n          \"key\": \"waiting\",\n          \"label\": \"면책기간\",\n          \"shape\": \"single\",\n          \"description\": \"가입 뒤 보장이 시작되기까지 기다리는 기간을 개월로.\",\n          \"type\": \"duration\",\n          \"hint\": \"가입하고 이만큼 지나야 보장이 시작돼요.\"\n        },\n        {\n          \"key\": \"integrated\",\n          \"label\": \"간호간병통합서비스\",\n          \"shape\": \"single\",\n          \"description\": \"간호간병통합서비스 병동 입원 담보가 있으면 참.\",\n          \"type\": \"boolean\",\n          \"hint\": \"간병인 대신 병원이 돌보는 병동이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"면책기간 안에 진단받으면 나오지 않습니다. 가입 시점이 중요합니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covers\",\n      \"title\": \"보장하는 상태\",\n      \"hint\": \"고른 설계가 보장하는 상태와 그때 나오는 금액입니다.\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"state-list\",\n          \"label\": \"보장하는 상태\",\n          \"shape\": \"items\",\n          \"description\": \"이 설계가 보장하는 상태를 설계안에 적힌 순서 그대로 하나씩. 상태 이름과 그때 나오는 금액을 담는다.\",\n          \"hint\": \"고른 설계가 보장하는 상태만 폅니다.\",\n          \"columns\": [\n            {\n              \"key\": \"state\",\n              \"label\": \"상태\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 상태 이름 그대로 담는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"금액\",\n              \"type\": \"money\",\n              \"description\": \"그 상태로 판정받으면 나오는 금액을 원 단위 정수로 담는다.\"\n            },\n            {\n              \"key\": \"once\",\n              \"label\": \"한 번만\",\n              \"type\": \"boolean\",\n              \"description\": \"한 번 받으면 끝나는 담보면 참으로 담는다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"여기 없는 상태는 이 설계안에 적혀 있지 않은 것입니다.\"\n        }\n      ]\n    }\n  ]\n}\n",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"care-1\",\n  \"title\": \"간병·요양 보장\",\n  \"facets\": [\n    {\n      \"id\": \"daily\",\n      \"title\": \"간병인 일당\",\n      \"hint\": \"간병인을 쓴 하루마다 나오는 금액입니다.\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"care-daily\",\n          \"label\": \"간병인 사용 일당\",\n          \"shape\": \"range\",\n          \"description\": \"간병인을 쓴 하루마다 나오는 금액을 원 단위 정수로. 구간으로 적혀 있으면 최솟값과 최댓값을 함께 담는다.\",\n          \"type\": \"money\",\n          \"hint\": \"간병인을 쓴 하루마다 나오는 돈이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"간병인을 실제로 쓴 날에만 나옵니다. 입원했다고 자동으로 나오지 않습니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"구간으로 적힌 것은 조건에 따라 금액이 달라진다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"by-grade\",\n      \"title\": \"장기요양 등급별 금액\",\n      \"hint\": \"장기요양 등급 판정을 받았을 때 나오는 금액입니다.\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"grade-1\",\n          \"label\": \"1등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 1등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"가장 무거운 등급이에요.\"\n        },\n        {\n          \"key\": \"grade-2\",\n          \"label\": \"2등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 2등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-3\",\n          \"label\": \"3등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 3등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-4\",\n          \"label\": \"4등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 4등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-5\",\n          \"label\": \"5등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 5등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"가장 가벼운 등급이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"등급은 장기요양 판정의 이름이고 이 화면이 매기는 것이 아닙니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"terms\",\n      \"title\": \"보장 조건\",\n      \"hint\": \"언제까지, 며칠까지, 언제부터 보장되는지입니다.\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"cover-period\",\n          \"label\": \"보장기간\",\n          \"shape\": \"single\",\n          \"description\": \"보장기간을 사람이 읽는 표시 그대로. 보기: 100세만기.\",\n          \"type\": \"text\",\n          \"hint\": \"보장을 받는 기간이에요.\"\n        },\n        {\n          \"key\": \"day-limit\",\n          \"label\": \"지급일수 한도\",\n          \"shape\": \"single\",\n          \"description\": \"간병 일당을 최대 며칠까지 주는지 일 수를 정수로. 한도가 없으면 비운다.\",\n          \"type\": \"number\",\n          \"hint\": \"일당이 나오는 날의 최대 수예요.\"\n        },\n        {\n          \"key\": \"waiting\",\n          \"label\": \"면책기간\",\n          \"shape\": \"single\",\n          \"description\": \"가입 뒤 보장이 시작되기까지 기다리는 기간을 개월로.\",\n          \"type\": \"duration\",\n          \"hint\": \"가입하고 이만큼 지나야 보장이 시작돼요.\"\n        },\n        {\n          \"key\": \"integrated\",\n          \"label\": \"간호간병통합서비스\",\n          \"shape\": \"single\",\n          \"description\": \"간호간병통합서비스 병동 입원 담보가 있으면 참.\",\n          \"type\": \"boolean\",\n          \"hint\": \"간병인 대신 병원이 돌보는 병동이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"면책기간 안에 진단받으면 나오지 않습니다. 가입 시점이 중요합니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covers\",\n      \"title\": \"보장하는 상태\",\n      \"hint\": \"고른 설계가 보장하는 상태와 그때 나오는 금액입니다.\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"state-list\",\n          \"label\": \"보장하는 상태\",\n          \"shape\": \"items\",\n          \"description\": \"이 설계가 보장하는 상태를 설계안에 적힌 순서 그대로 하나씩. 상태 이름과 그때 나오는 금액을 담는다.\",\n          \"hint\": \"고른 설계가 보장하는 상태만 폅니다.\",\n          \"columns\": [\n            {\n              \"key\": \"state\",\n              \"label\": \"상태\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 상태 이름 그대로 담는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"금액\",\n              \"type\": \"money\",\n              \"description\": \"그 상태로 판정받으면 나오는 금액을 원 단위 정수로 담는다.\"\n            },\n            {\n              \"key\": \"once\",\n              \"label\": \"한 번만\",\n              \"type\": \"boolean\",\n              \"description\": \"한 번 받으면 끝나는 담보면 참으로 담는다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"여기 없는 상태는 이 설계안에 적혀 있지 않은 것입니다.\"\n        }\n      ]\n    }\n  ]\n}\n",
     "values": [
       {
         "id": "plan-a",
@@ -1683,7 +1740,7 @@ const PAGES = [
     "compare": "focus",
     "compareSaid": "focus 를 따라 바뀐다",
     "draws": "크기 비교. 고른 subject 의 막대를 그린다",
-    "note": "라벨·가로 막대·값이 한 줄로 눕고 붙은 말은 맨 앞 라벨 옆에 선다. 자는 subject 전체의 최대값으로 고정한다 — focus 를 옮겨도 길이를 견줄 수 있어야 하기 때문이다",
+    "note": "라벨·가로 막대·값이 한 줄로 눕고 붙은 말은 맨 앞 라벨 옆에 선다. 자는 facet 하나에 하나다 — 모든 필드·subject·고를 것을 덮으므로 무엇을 눌러도 자가 안 움직이고 한 facet 안의 막대끼리 길이를 견줄 수 있다. 범위가 크게 다른 필드를 한 facet 에 섞으면 작은 것이 짧아지는데, 그것이 축이 둘이라는 신호다",
     "fields": "1–6",
     "shapes": [
       "single"

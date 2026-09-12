@@ -253,7 +253,7 @@ export const PAGES = [
     "compare": "focus",
     "compareSaid": "focus 를 따라 바뀐다",
     "draws": "크기 비교. 고른 subject 의 막대를 그린다",
-    "note": "라벨·가로 막대·값이 한 줄로 눕고 붙은 말은 맨 앞 라벨 옆에 선다. 자는 subject 전체의 최대값으로 고정한다 — focus 를 옮겨도 길이를 견줄 수 있어야 하기 때문이다",
+    "note": "라벨·가로 막대·값이 한 줄로 눕고 붙은 말은 맨 앞 라벨 옆에 선다. 자는 facet 하나에 하나다 — 모든 필드·subject·고를 것을 덮으므로 무엇을 눌러도 자가 안 움직이고 한 facet 안의 막대끼리 길이를 견줄 수 있다. 범위가 크게 다른 필드를 한 facet 에 섞으면 작은 것이 짧아지는데, 그것이 축이 둘이라는 신호다",
     "fields": "1–6",
     "shapes": [
       "single"

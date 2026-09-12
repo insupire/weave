@@ -1460,6 +1460,97 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   }
 });
 
+test("그림이 값과 같은 자로 재어진다", () => {
+  // **길이가 값을 뜻하면 그 자는 무엇을 눌러도 안 움직여야 한다.** 글로 「견주면 안
+  // 됩니다」라고 쓰는 것은 고치는 것이 아니다 — 그림이 거짓말하는 것은 그대로다.
+  const width = (html) => [...html.matchAll(/style="width:([\d.]+)%"/g)].map((m) => Number(m[1]));
+
+  // ── bars: **자가 facet 하나에 하나다.** 큰 값이 반드시 더 길다.
+  const facet = FIX.template.facets.find((f) => f.element === "bars");
+  const part = sectionOf(fix({ focus: "proposal-a" }).html, "bars");
+  const shown = facet.fields.map((decl) => {
+    const slot = FIX.filled.facets[facet.id].fields[decl.key];
+    return slot.state === "filled" ? slot.value : null;
+  });
+  const drawn = width(part);
+  assert.equal(drawn.length, shown.filter((v) => v !== null).length, "막대 수가 값과 다르다");
+  const pairs = shown.filter((v) => v !== null).map((v, i) => ({ v, w: drawn[i] }));
+  assert.ok(pairs.length >= 2, "막대가 둘 이상이어야 자를 가를 수 있다");
+  for (const a of pairs) {
+    for (const b of pairs) {
+      if (a.v > b.v) assert.ok(a.w > b.w, `값이 큰데 짧다: ${a.v}(${a.w}%) vs ${b.v}(${b.w}%)`);
+      if (a.v === b.v) assert.equal(a.w, b.w, "같은 값인데 길이가 다르다");
+    }
+  }
+
+  // ── **자가 subject 를 따라 움직이지 않는다.** focus 를 옮겨도 같은 값은 같은 길이다.
+  //    **같은 값을 두 subject 에 심어 두고 본다** — 겹치는 값이 없으면 볼 것이 없다.
+  const shared = structuredClone(FIX.values);
+  shared[0].facets[facet.id].fields[facet.fields[0].key] = { state: "filled", value: 50000000 };
+  shared[0].facets[facet.id].fields[facet.fields[1].key] = { state: "filled", value: 10000000 };
+  //    **두 subject 의 최댓값이 달라야** 한다 — 같으면 자를 따로 재도 티가 안 난다.
+  shared[2].facets[facet.id].fields[facet.fields[0].key] = { state: "filled", value: 10000000 };
+  shared[2].facets[facet.id].fields[facet.fields[1].key] = { state: "filled", value: 20000000 };
+  const here = new Map();
+  let compared = 0;
+  for (const doc of [shared[0], shared[2]]) {
+    const page = sectionOf(fix({ values: shared, focus: doc.subjectId }).html, "bars");
+    for (const [i, row] of page.split('<div class="bar-row">').slice(1).entries()) {
+      const w = Number((row.match(/style="width:([\d.]+)%"/) ?? [])[1]);
+      const slot = doc.facets[facet.id]?.fields?.[facet.fields[i].key];
+      if (slot?.state !== "filled" || !Number.isFinite(w)) continue;
+      const seen = here.get(slot.value);
+      if (seen !== undefined) { assert.equal(w, seen, `같은 값 ${slot.value} 이 길이가 둘이다`); compared += 1; }
+      here.set(slot.value, w);
+    }
+  }
+  assert.ok(compared >= 1, `견줄 짝이 없다: ${compared}`);
+
+  // ── **0 이 아닌 값은 사라지지 않고, 0 은 길이 0 이다.**
+  const tiny = structuredClone(FIX.values);
+  const [big, small] = facet.fields;
+  tiny[0].facets[facet.id].fields[big.key] = { state: "filled", value: 100000000 };
+  tiny[0].facets[facet.id].fields[small.key] = { state: "filled", value: 1 };
+  const zeroed = structuredClone(tiny);
+  zeroed[0].facets[facet.id].fields[small.key] = { state: "filled", value: 0 };
+  const [, thin] = width(sectionOf(fix({ values: tiny, focus: "proposal-a" }).html, "bars"));
+  const [, none] = width(sectionOf(fix({ values: zeroed, focus: "proposal-a" }).html, "bars"));
+  assert.ok(thin > 0, "0 이 아닌 값이 길이 0 으로 사라졌다");
+  assert.equal(none, 0, "0 인데 길이가 있다");
+
+  // ── line: **두 축이 고른 것을 따라 움직이지 않는다.**
+  //    고를 것마다 범위가 다른 값을 심는다 — 같으면 움직여도 티가 안 난다.
+  const lineFacet = FIX.template.facets.find((f) => f.element === "line");
+  const axedTemplate = structuredClone(FIX.template);
+  const axed = axedTemplate.facets.find((f) => f.id === lineFacet.id);
+  axedTemplate.choices = [{ id: "case", label: "갈래",
+    options: [{ id: "one", label: "하나" }, { id: "two", label: "둘" }] }];
+  axed.fields[0].choice = "case";
+  const axedValues = structuredClone(FIX.values);
+  axedValues[0].facets[lineFacet.id].fields[axed.fields[0].key] = { byOption: {
+    one: { state: "filled", value: [{ at: 40, value: 10000 }, { at: 50, value: 20000 }] },
+    two: { state: "filled", value: [{ at: 45, value: 300000 }, { at: 80, value: 900000 }] } } };
+  for (const doc of axedValues.slice(1)) {
+    doc.facets[lineFacet.id].fields[axed.fields[0].key] = { byOption: {
+      one: { state: "empty" }, two: { state: "empty" } } };
+  }
+  const axisOf = (option) => {
+    const html = renderView({ template: axedTemplate, values: axedValues,
+      focus: "proposal-a", choices: { case: option } }).html;
+    // 눈금의 **글과 자리**를 함께 본다 — 글만 보면 자가 움직여도 같아 보일 수 있다.
+    return [...sectionOf(html, "line").matchAll(/<text class="tick[^"]*"[^>]*>[^<]*<\/text>/g)].map((m) => m[0]);
+  };
+  const first = axisOf("one");
+  assert.ok(first.length >= 4, "눈금이 넷은 서야 축을 볼 수 있다");
+  assert.deepEqual(axisOf("two"), first, "고른 것을 옮기니 축이 움직인다");
+
+  // ── 길이로 말하지 않는 element 는 inline style 을 아예 내지 않는다.
+  for (const element of ["stat", "facts", "list", "rows"]) {
+    const flat = sectionOf(fix({ focus: "proposal-a" }).html, element);
+    assert.equal(width(flat).length, 0, `${element}: 길이가 값을 말한다`);
+  }
+});
+
 test("하나를 쪼갠 것은 합이 전체다", () => {
   // **`bars` 와 다른 자리다.** 막대는 서로 다른 것들의 크기를 견주고, 조각은 한 덩어리의
   // 안쪽이다 — 합이 전체라는 사실이 `bars` 로는 보이지 않는다.
@@ -1487,6 +1578,17 @@ test("하나를 쪼갠 것은 합이 전체다", () => {
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   assert.match(css, /\.slice:nth-child\(even\)/, "자리 차례가 아니라 다른 것으로 가른다");
   assert.ok(!/\.slice[^{]*\{[^}]*var\(--(kind|trace|subject)/.test(css), "조각이 갈래·상태 색을 받는다");
+
+  // **0 인 조각도 목록에 남는다.** 띠에서 사라진다고 값까지 사라지면 안 된다 —
+  // 「0 원이다」와 「그런 조각이 없다」는 다른 말이다.
+  const zero = structuredClone(FIX.values);
+  const slot = zero[0].facets[facet.id].fields[facet.fields[0].key];
+  slot.value = [...slot.value, { [facet.fields[0].columns[0].key]: "쓰지 않은 몫",
+                                 [share.key]: 0 }];
+  const withZero = sectionOf(fix({ values: zero, focus: "proposal-a" }).html, "parts");
+  assert.ok(textOf(withZero).includes("쓰지 않은 몫"), "0 인 조각이 목록에서 사라졌다");
+  assert.equal((withZero.match(/class="slice"/g) ?? []).length, slot.value.length - 1,
+    "0 인 조각이 띠에 섰다");
 
   // **쪼갤 것이 없으면 띠를 그리지 않는다.** 값이 아예 없을 때와, 목록이 비었을 때 둘 다.
   const blank = sectionOf(renderView({ template: FIX.template, values: [FIX.empty] }).html, "parts");

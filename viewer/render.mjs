@@ -267,6 +267,28 @@ function blankRow(missing, ctx) {
   return `<div class="offs"><span class="off-said">${esc(NO_VALUE)}</span>${mine.mark ?? ""}</div>`;
 }
 
+/**
+ * **자를 잴 때 보는 값 전부.** 그 필드의 모든 subject × 모든 고를 것.
+ *
+ * `cell` 은 **지금 고른 것**을 읽지만 자는 그것만 보면 안 된다 — 무엇을 누르든 자가
+ * 안 움직여야 길이가 뜻을 지킨다. focus 를 옮겨도 자가 안 움직이게 subject 전체로
+ * 잰 것과 같은 까닭이고, 고르는 자리가 들어오면서 잴 것이 한 겹 늘었을 뿐이다.
+ */
+function everyValue(ctx, facet, decl) {
+  const out = [];
+  for (const subject of ctx.subjects) {
+    const slot = ctx.byId.get(subject.id)?.facets?.[facet.id]?.fields?.[decl.key];
+    if (!slot) continue;
+    for (const entry of slot.byOption ? Object.values(slot.byOption) : [slot]) {
+      if (entry?.state === "filled") out.push(entry.value);
+    }
+  }
+  return out;
+}
+
+/** 자가 0 이 아닌 값을 길이 0 으로 지우지 않게 두는 바닥. 「값이 없다」와 구별되어야 한다. */
+const FLOOR = 0.8;
+
 function readsOf(ctx, facet, decl) {
   return ctx.subjects.map((subject) => ({
     subject: { ...subject, focused: subject.id === ctx.focus },
@@ -329,15 +351,26 @@ function facts(ctx, facet) {
 }
 
 /** 크기 비교. **자는 subject 전체의 최대값으로 고정한다** — focus 를 옮겨도 길이를 견줄 수 있어야 한다. */
+/**
+ * 크기 비교. **자는 facet 하나에 하나다.**
+ *
+ * 필드마다 따로 재면 3등급 1,000만이 1등급 3,000만보다 길어진다 — 그림이 거짓말을 한다.
+ * 「한 facet 은 비교 축 하나여야 한다」가 이미 언어의 규칙이니 같은 축이면 같은 자를
+ * 쓰는 것이 맞고, 그래야 그 규칙이 **시각으로 강제된다.**
+ *
+ * 자는 이 facet 의 **모든 필드 × 모든 subject × 모든 고를 것**을 덮는다. 무엇을 누르든
+ * 자가 안 움직인다. 범위가 크게 다른 필드가 섞이면 작은 것이 짧아지는데, 그것이
+ * **「이 facet 은 축이 둘이다」라는 신호**다 — 감추지 않는다.
+ */
 function bars(ctx, facet) {
   const subject = shownOf(ctx);
   if (!subject) return `<div class="blank">${missMark()}</div>`;
-  const rows = facet.fields.map((decl) => {
-    const all = readsOf(ctx, facet, decl)
-      .filter((r) => r.state === "filled" && typeof r.entry.value === "number" && Number.isFinite(r.entry.value))
-      .map((r) => r.entry.value);
-    const top = all.length ? Math.max(...all) : 0;
+  const numbers = facet.fields
+    .flatMap((decl) => everyValue(ctx, facet, decl))
+    .filter((value) => typeof value === "number" && Number.isFinite(value));
+  const top = numbers.length ? Math.max(...numbers) : 0;
 
+  const rows = facet.fields.map((decl) => {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     const { state, entry } = oneRead(ctx, facet, decl, subject);
     let mark = '<span class="track"></span>';
@@ -345,7 +378,10 @@ function bars(ctx, facet) {
     if (state !== "filled") {
       text = missMark();
     } else if (typeof entry.value === "number" && Number.isFinite(entry.value)) {
-      const width = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
+      // 0 은 길이 0 이다 — 진짜 0 이니까. 0 이 아닌 값은 바닥을 둔다: 길이 0 으로
+      // 사라지면 「값이 없다」와 구별이 안 된다. 정확한 수는 옆에 늘 적혀 있다.
+      const share = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
+      const width = share > 0 ? Math.max(share, FLOOR) : 0;
       mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
       text = esc(formatScalar(decl.type, entry.value));
     } else {
@@ -399,8 +435,18 @@ function line(ctx, facet) {
   }
   // **그림도 표처럼 자기 상자에서 굴러간다.** 좁은 화면에서 통째로 줄이면 축 라벨과 선 끝
   // 이름이 읽을 수 없게 작아진다 — 그림은 제 크기를 지키고 상자가 굴러간다.
+  // **자는 고를 것까지 덮는다.** 축을 옮겨도 그림의 자가 안 움직여야 앞뒤를 견줄 수 있다.
+  const span = { x: [], y: [] };
+  for (const value of everyValue(ctx, facet, decl)) {
+    if (!Array.isArray(value)) continue;
+    for (const point of value) {
+      const x = axisNumber(axis, point?.at);
+      const y = typeof point?.value === "number" && Number.isFinite(point.value) ? point.value : null;
+      if (x !== null && y !== null) { span.x.push({ x, at: point.at }); span.y.push(y); }
+    }
+  }
   const body = series.length
-    ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior)}</div>`
+    ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
     : `<div class="blank">${missMark()}</div>`;
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
@@ -415,10 +461,12 @@ function line(ctx, facet) {
   );
 }
 
-function lineSvg(series, axis, type, focus, prior) {
+function lineSvg(series, axis, type, focus, prior, span) {
   const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
-  const xs = series.flatMap((s) => s.points.map((p) => p.x));
-  const ys = series.flatMap((s) => s.points.map((p) => p.y));
+  // **그린 것이 아니라 잴 것 전부로 자를 잡는다** — 무엇을 눌러도 축이 안 움직인다.
+  const edge = span.x.length ? span.x : series.flatMap((s) => s.points.map((p) => ({ x: p.x, at: p.at })));
+  const xs = edge.map((one) => one.x);
+  const ys = span.y.length ? span.y : series.flatMap((s) => s.points.map((p) => p.y));
   const xmin = Math.min(...xs), xmax = Math.max(...xs);
   const ymin = Math.min(...ys, 0), ymax = Math.max(...ys);
   const xspan = xmax - xmin || 1;
@@ -426,8 +474,9 @@ function lineSvg(series, axis, type, focus, prior) {
   const px = (x) => L + ((x - xmin) / xspan) * (W - L - R);
   const py = (y) => H - B - ((y - ymin) / yspan) * (H - T - B);
 
-  const firstAt = series.flatMap((s) => s.points).reduce((a, p) => (p.x < a.x ? p : a)).at;
-  const lastAt = series.flatMap((s) => s.points).reduce((a, p) => (p.x > a.x ? p : a)).at;
+  // 축 양끝의 글도 자에서 온다 — 그린 것만 보면 눌렀을 때 눈금이 달라진다.
+  const firstAt = edge.reduce((a, p) => (p.x < a.x ? p : a), edge[0]).at;
+  const lastAt = edge.reduce((a, p) => (p.x > a.x ? p : a), edge[0]).at;
 
   const parts = [
     `<line class="axis" x1="${L}" y1="${py(ymin).toFixed(1)}" x2="${W - R}" y2="${py(ymin).toFixed(1)}"/>`,
@@ -606,24 +655,32 @@ function parts(ctx, facet) {
   if (state !== "filled" || !Array.isArray(entry.value)) {
     return `${label}<div class="blank">${missMark()}</div>`;
   }
-  const slices = entry.value
+  // **0 인 조각도 목록에 남는다.** 띠에서 사라진다고 값까지 사라지면 안 된다 —
+  // 「0 원이다」와 「그런 조각이 없다」는 다른 말이다.
+  const all = entry.value
     .map((item) => ({ said: item?.[name.key], size: item?.[share.key] }))
-    .filter((one) => typeof one.size === "number" && Number.isFinite(one.size) && one.size > 0);
-  if (slices.length === 0) {
+    .filter((one) => typeof one.size === "number" && Number.isFinite(one.size));
+  const slices = all.filter((one) => one.size > 0);
+  if (all.length === 0) {
     return `${label}<div class="blank"><span class="miss">${NO_ITEMS}</span></div>`;
   }
   const whole = slices.reduce((sum, one) => sum + one.size, 0);
   const band = slices
     .map((one) =>
-      `<span class="slice" style="width:${((one.size / whole) * 100).toFixed(4)}%" ` +
+      // 조각도 바닥을 둔다 — 0 이 아닌 몫이 길이 0 으로 사라지면 없는 것과 같아진다.
+      `<span class="slice" style="width:${Math.max((one.size / whole) * 100, FLOOR).toFixed(4)}%" ` +
       `title="${esc(one.said ?? "")}"></span>`)
     .join("");
-  const rows = slices
+  const rows = all
     .map((one) =>
       `<div class="slice-row"><span class="who">${esc(one.said ?? "")}</span>` +
       `<span class="val">${esc(formatScalar(share.type, one.size))}</span></div>`)
     .join("");
-  return `${label}<div class="band">${band}</div><div class="slices">${rows}</div>`;
+  return (
+    label +
+    (slices.length ? `<div class="band">${band}</div>` : "") +
+    `<div class="slices">${rows}</div>`
+  );
 }
 
 export const ELEMENTS = { stat, facts, bars, line, list, rows, parts };
