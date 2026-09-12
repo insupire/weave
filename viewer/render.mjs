@@ -180,9 +180,15 @@ function notePop(notes) {
  * 그 사실을 두 번 말하고, 두 묶음을 가르는 일은 짧은 선이 맡는다. 자리를 남겨 둔 것은
  * **되돌리기 쉽게** 하려는 것이다: subject 것을 내는 호출에 이름을 둘째 인자로 주면 된다.
  */
-/** 읽는 사람에게 **늘 보이는 한 줄.** 표시 뒤로 숨지 않는다 — 값이 무엇인지 그 자리에서 말한다. */
-function hintHtml(decl) {
-  return decl?.hint ? `<div class="hint">${esc(decl.hint)}</div>` : "";
+/**
+ * **템플릿이 필드에 단 말.** 늘 보인다 — 표시 뒤로 숨지 않는다.
+ *
+ * 값 한 벌의 필드 주석과 갈래는 같고 **붙은 자리가 다르다.** 템플릿의 것은 모든 subject 에
+ * 같은 말이라 숨길 이유가 없고, 값 한 벌의 것은 subject 마다 달라서 모아 둔다.
+ * **갈래가 아니라 자리가 동작을 정한다** — 갈래 넷은 뜻만 가른다.
+ */
+function fieldSaid(decl) {
+  return decl?.notes?.length ? `<div class="field-notes">${notesHtml(decl.notes)}</div>` : "";
 }
 
 function notesHtml(notes, where = "") {
@@ -296,7 +302,7 @@ function stat(ctx, facet) {
   const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-    `<div class="big">${value}${notePop(entry?.notes)}</div>${hintHtml(decl)}`
+    `<div class="big">${value}${notePop(entry?.notes)}</div>${fieldSaid(decl)}`
   );
 }
 
@@ -310,7 +316,7 @@ function facts(ctx, facet) {
     const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
     return (
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
-      `<dd>${value}${notePop(entry?.notes)}</dd>${hintHtml(decl)}</div>`
+      `<dd>${value}${notePop(entry?.notes)}</dd>${fieldSaid(decl)}</div>`
     );
   });
   return `<dl class="facts">${rows.join("")}</dl>`;
@@ -344,7 +350,7 @@ function bars(ctx, facet) {
       // 겹치고, 좁은 화면에서 값이 먼저 줄어드는 자리라 표시가 밀린다.
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}` +
       `${notePop(entry?.notes)}</span>${mark}<span class="val">${text}</span>` +
-      `${hintHtml(decl)}</div>`
+      `${fieldSaid(decl)}</div>`
     );
   });
   return rows.join("");
@@ -395,7 +401,7 @@ function line(ctx, facet) {
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
     `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
-    hintHtml(decl) + body +
+    fieldSaid(decl) + body +
     // 선 끝에 이름이 붙으므로 **아래에 범례를 두지 않는다.** 고른 것이 못 섰을 때만 말한다.
     blankRow(missing, ctx) +
     // 어긋난 값은 범례가 아니라 결함 신호다. 누구 것인지 적어야 고칠 수 있어 전원을 낸다.
@@ -479,7 +485,7 @@ function list(ctx, facet) {
     .filter(({ subject }) => unread.has(subject.id))
     .map(({ subject }) => ({ ...subject }));
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
-    hintHtml(decl);
+    fieldSaid(decl);
   if (rows.size === 0) {
     return label +
       // 목록 **전체**가 비었다는 말은 값 하나의 자리가 아니라 표가 설 자리다. 글로 선다.
@@ -534,7 +540,7 @@ function rows(ctx, facet) {
   if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
   const subject = shownOf(ctx);
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}` +
-    `${fieldMark(ctx, facet, decl)}</div>` + hintHtml(decl);
+    `${fieldMark(ctx, facet, decl)}</div>` + fieldSaid(decl);
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 
   const { state, entry } = oneRead(ctx, facet, decl, subject);
@@ -566,6 +572,42 @@ function rows(ctx, facet) {
 export const ELEMENTS = { stat, facts, bars, line, list, rows };
 
 // ---------------------------------------------------------------- 페이지
+
+/**
+ * **facet 이 타는 축의 선택자가 설 자리.**
+ *
+ * 축은 그 facet 이 **무엇에 대한 값인지**를 말한다 — 그래서 facet 의 내용이고 렌더가 낸다.
+ * 화면 전체에 걸리는 것(focus·명단·상태 줄)은 여전히 껍데기라 밖에 남는다. 선이 거기다.
+ *
+ * **어느 축을 타는지는 facet 이 제 필드로 말한다** — 따로 적지 않는다. 두 군데 적으면
+ * 어긋날 수 있고, 필드가 이미 말한 것을 되풀이하는 것뿐이다.
+ *
+ * **모양은 말하지 않는다.** 고를 것과 고른 것을 자리로 낼 뿐, 칩인지 드롭다운인지는 앱이
+ * 제 것으로 갈아 끼운다 — 꼴을 가리키는 이름을 붙이지 않는다.
+ *
+ * 타는 facet 마다 제 선택자를 낸다. 첫 facet 에만 두면 나머지 둘이 까닭 없이 바뀌고
+ * facet 차례가 뜻을 지게 된다 — 그러면 차례가 배치일 뿐이라는 규칙이 깨진다.
+ */
+function choiceSlots(facet, picks, chosen) {
+  const rides = [];
+  for (const decl of facet.fields ?? []) {
+    if (decl?.choice && !rides.includes(decl.choice)) rides.push(decl.choice);
+  }
+  return rides
+    .map((id) => picks.find((one) => one.id === id))
+    .filter(Boolean)
+    .map((pick) => {
+      const buttons = (pick.options ?? []).map((option) =>
+        `<button type="button" data-option="${esc(option.id)}" ` +
+        `aria-pressed="${option.id === chosen[pick.id]}">${esc(option.label ?? option.id)}</button>`,
+      );
+      return (
+        `<div class="choice" data-choice="${esc(pick.id)}" role="group" ` +
+        `aria-label="${esc(pick.label ?? pick.id)}">${buttons.join("")}</div>`
+      );
+    })
+    .join("");
+}
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
 function viewState(seats, focus, prior, shown, wanted, picks) {
@@ -726,6 +768,8 @@ export function renderView({
     const said = ours + cut + yours;
     return (
       `<section class="facet element-${esc(facet.element ?? "unknown")}">${head}` +
+      // 축은 제목 바로 아래 — 이 facet 이 무엇에 대한 값인지를 먼저 말하고 그 값을 그린다.
+      choiceSlots(facet, picks, chosen) +
       `<div class="body">${body}</div>` +
       (said ? `<div class="said">${said}</div>` : "") +
       "</section>"

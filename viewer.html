@@ -115,14 +115,7 @@ button { cursor:pointer; }
 button:hover { background:var(--surface); }
 button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
 /* focus 나열. 항목에 none 이 있어 무엇을 고르는 줄인지 스스로 읽힌다 — 라벨을 두지 않는다. */
-#focus-buttons, #variant-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-/* 축이 없으면 자리도 먹지 않는다 — 없는 템플릿이 기본이다. */
-#variant-buttons:empty { display:none; }
-/* 고르는 줄 사이는 자리가 가른다. 이름을 붙이지 않는다 — 무엇을 고르는 줄인지 항목이 말한다. */
-#variant-buttons:not(:empty) { margin-left:10px; }
-/* 고르는 자리가 여럿이면 줄도 여럿이다. 한 자리 안의 것끼리 더 붙어 선다. */
-.pick-row { display:flex; flex-wrap:wrap; gap:6px; }
-#variant-buttons { gap:6px 16px; }
+#focus-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 button.pick { padding:3px 10px; font-size:12.5px; }
 label { font-size:12px; color:var(--mute); }
 label:has(input) { display:inline-flex; align-items:center; gap:5px; }
@@ -162,6 +155,11 @@ h2 { font-size:17px; margin:0 0 10px; display:flex; align-items:baseline; gap:8p
    읽히지 않는다. 열 선언에 준 테두리는 `border-collapse` 가 머리부터 끝까지 한 상자로 잇는다. */
 col.is-focus { border:2px solid var(--ink); }
 .is-focus > .who { font-weight:700; }
+/* **facet 이 타는 축의 선택자.** 렌더가 자리를 내고 앱이 제 것으로 갈아 끼운다 —
+   참조 뷰어는 단추로 그린다. 꼴을 가리키는 이름을 붙이지 않는다. */
+.choice { display:flex; flex-wrap:wrap; gap:6px; margin-top:var(--step); }
+.choice button { font-size:12.5px; padding:4px 10px; }
+
 /* **선은 두 facet 의 한가운데 선다.** 위 여백은 앞 facet 의 아래 여백이고 아래 여백은
    이 facet 의 위 여백이라, 둘이 같아야 선이 가운데로 온다 — 그래서 한 자로 적는다. */
 .facet { border-top:1px solid var(--line); padding:var(--gap) 0; }
@@ -172,9 +170,10 @@ col.is-focus { border:2px solid var(--ink); }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 /* **늘 보이는 한 줄.** 값이 무엇인지 그 자리에서 말한다 — 표시 뒤로 숨지 않는다.
    딸린 말이라 작고 흐리게 서고, 값보다 앞에 나서지 않는다. */
-.hint { font-size:12px; color:var(--mute); margin-top:var(--row); max-width:60ch; }
-.fact .hint { grid-column:2 / -1; }
-.bar-row .hint { grid-column:1 / -1; margin-top:0; }
+.field-notes { font-size:12px; color:var(--mute); margin-top:var(--row); max-width:60ch; }
+/* facts 는 줄이 촘촘해 딸린 말이 다음 줄 것처럼 읽히기 쉽다 — 값에 붙이고 아래를 띄운다. */
+.fact .field-notes { grid-column:2 / -1; margin-top:2px; margin-bottom:6px; }
+.bar-row .field-notes { grid-column:1 / -1; margin-top:0; }
 .who { font-size:12.5px; color:var(--mute); }
 /* 없다는 **표기**. 값이 설 자리에 서서 「여기에 값이 없다」를 말한다 —
    빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
@@ -325,7 +324,9 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
   label:has(input) { min-height:44px; }
   input[type="checkbox"] { width:20px; height:20px; }
   button.pick { padding:0 14px; font-size:13.5px; }
-  #focus-buttons, #variant-buttons { gap:8px; }
+  #focus-buttons { gap:8px; }
+  .choice { gap:8px; }
+  .choice button { padding:0 14px; }
   .tabs { gap:6px; }
   .tab { min-height:44px; padding:0 12px; }
   .toc-link { display:flex; align-items:center; padding:0 18px; }
@@ -415,8 +416,6 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
         <div class="pane view">
           <div class="bar">
             <span id="focus-buttons"></span>
-            <!-- 축이 있는 템플릿에서만 선다. 없으면 비어 있고 자리도 먹지 않는다. -->
-            <span id="variant-buttons"></span>
             <span class="watching" id="watching"></span>
             <label class="push"><input type="checkbox" id="show-elements"> primitive element 이름</label>
           </div>
@@ -649,9 +648,15 @@ function notePop(notes) {
  * 그 사실을 두 번 말하고, 두 묶음을 가르는 일은 짧은 선이 맡는다. 자리를 남겨 둔 것은
  * **되돌리기 쉽게** 하려는 것이다: subject 것을 내는 호출에 이름을 둘째 인자로 주면 된다.
  */
-/** 읽는 사람에게 **늘 보이는 한 줄.** 표시 뒤로 숨지 않는다 — 값이 무엇인지 그 자리에서 말한다. */
-function hintHtml(decl) {
-  return decl?.hint ? `<div class="hint">${esc(decl.hint)}</div>` : "";
+/**
+ * **템플릿이 필드에 단 말.** 늘 보인다 — 표시 뒤로 숨지 않는다.
+ *
+ * 값 한 벌의 필드 주석과 갈래는 같고 **붙은 자리가 다르다.** 템플릿의 것은 모든 subject 에
+ * 같은 말이라 숨길 이유가 없고, 값 한 벌의 것은 subject 마다 달라서 모아 둔다.
+ * **갈래가 아니라 자리가 동작을 정한다** — 갈래 넷은 뜻만 가른다.
+ */
+function fieldSaid(decl) {
+  return decl?.notes?.length ? `<div class="field-notes">${notesHtml(decl.notes)}</div>` : "";
 }
 
 function notesHtml(notes, where = "") {
@@ -765,7 +770,7 @@ function stat(ctx, facet) {
   const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
   return (
     `<div class="field-label">${esc(decl.label ?? decl.key)}</div>` +
-    `<div class="big">${value}${notePop(entry?.notes)}</div>${hintHtml(decl)}`
+    `<div class="big">${value}${notePop(entry?.notes)}</div>${fieldSaid(decl)}`
   );
 }
 
@@ -779,7 +784,7 @@ function facts(ctx, facet) {
     const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
     return (
       `<div class="fact"><dt>${esc(decl.label ?? decl.key)}</dt>` +
-      `<dd>${value}${notePop(entry?.notes)}</dd>${hintHtml(decl)}</div>`
+      `<dd>${value}${notePop(entry?.notes)}</dd>${fieldSaid(decl)}</div>`
     );
   });
   return `<dl class="facts">${rows.join("")}</dl>`;
@@ -813,7 +818,7 @@ function bars(ctx, facet) {
       // 겹치고, 좁은 화면에서 값이 먼저 줄어드는 자리라 표시가 밀린다.
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}` +
       `${notePop(entry?.notes)}</span>${mark}<span class="val">${text}</span>` +
-      `${hintHtml(decl)}</div>`
+      `${fieldSaid(decl)}</div>`
     );
   });
   return rows.join("");
@@ -864,7 +869,7 @@ function line(ctx, facet) {
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
     `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
-    hintHtml(decl) + body +
+    fieldSaid(decl) + body +
     // 선 끝에 이름이 붙으므로 **아래에 범례를 두지 않는다.** 고른 것이 못 섰을 때만 말한다.
     blankRow(missing, ctx) +
     // 어긋난 값은 범례가 아니라 결함 신호다. 누구 것인지 적어야 고칠 수 있어 전원을 낸다.
@@ -948,7 +953,7 @@ function list(ctx, facet) {
     .filter(({ subject }) => unread.has(subject.id))
     .map(({ subject }) => ({ ...subject }));
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${fieldMark(ctx, facet, decl)}</div>` +
-    hintHtml(decl);
+    fieldSaid(decl);
   if (rows.size === 0) {
     return label +
       // 목록 **전체**가 비었다는 말은 값 하나의 자리가 아니라 표가 설 자리다. 글로 선다.
@@ -1003,7 +1008,7 @@ function rows(ctx, facet) {
   if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
   const subject = shownOf(ctx);
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}` +
-    `${fieldMark(ctx, facet, decl)}</div>` + hintHtml(decl);
+    `${fieldMark(ctx, facet, decl)}</div>` + fieldSaid(decl);
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 
   const { state, entry } = oneRead(ctx, facet, decl, subject);
@@ -1035,6 +1040,42 @@ function rows(ctx, facet) {
 const ELEMENTS = { stat, facts, bars, line, list, rows };
 
 // ---------------------------------------------------------------- 페이지
+
+/**
+ * **facet 이 타는 축의 선택자가 설 자리.**
+ *
+ * 축은 그 facet 이 **무엇에 대한 값인지**를 말한다 — 그래서 facet 의 내용이고 렌더가 낸다.
+ * 화면 전체에 걸리는 것(focus·명단·상태 줄)은 여전히 껍데기라 밖에 남는다. 선이 거기다.
+ *
+ * **어느 축을 타는지는 facet 이 제 필드로 말한다** — 따로 적지 않는다. 두 군데 적으면
+ * 어긋날 수 있고, 필드가 이미 말한 것을 되풀이하는 것뿐이다.
+ *
+ * **모양은 말하지 않는다.** 고를 것과 고른 것을 자리로 낼 뿐, 칩인지 드롭다운인지는 앱이
+ * 제 것으로 갈아 끼운다 — 꼴을 가리키는 이름을 붙이지 않는다.
+ *
+ * 타는 facet 마다 제 선택자를 낸다. 첫 facet 에만 두면 나머지 둘이 까닭 없이 바뀌고
+ * facet 차례가 뜻을 지게 된다 — 그러면 차례가 배치일 뿐이라는 규칙이 깨진다.
+ */
+function choiceSlots(facet, picks, chosen) {
+  const rides = [];
+  for (const decl of facet.fields ?? []) {
+    if (decl?.choice && !rides.includes(decl.choice)) rides.push(decl.choice);
+  }
+  return rides
+    .map((id) => picks.find((one) => one.id === id))
+    .filter(Boolean)
+    .map((pick) => {
+      const buttons = (pick.options ?? []).map((option) =>
+        `<button type="button" data-option="${esc(option.id)}" ` +
+        `aria-pressed="${option.id === chosen[pick.id]}">${esc(option.label ?? option.id)}</button>`,
+      );
+      return (
+        `<div class="choice" data-choice="${esc(pick.id)}" role="group" ` +
+        `aria-label="${esc(pick.label ?? pick.id)}">${buttons.join("")}</div>`
+      );
+    })
+    .join("");
+}
 
 /** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
 function viewState(seats, focus, prior, shown, wanted, picks) {
@@ -1195,6 +1236,8 @@ function renderView({
     const said = ours + cut + yours;
     return (
       `<section class="facet element-${esc(facet.element ?? "unknown")}">${head}` +
+      // 축은 제목 바로 아래 — 이 facet 이 무엇에 대한 값인지를 먼저 말하고 그 값을 그린다.
+      choiceSlots(facet, picks, chosen) +
       `<div class="body">${body}</div>` +
       (said ? `<div class="said">${said}</div>` : "") +
       "</section>"
@@ -1217,7 +1260,7 @@ function renderView({
 const SAMPLES = {
   "all-elements": {
     "name": "다섯 가지로 훑어보기",
-    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"proposal-compare-1\",\n  \"title\": \"제안서 나란히 보기\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"초회 보험료\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 회에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 합계보험료에 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"처음 한 번 내는 금액이 아니라 첫 달에 내는 월 보험료입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"갱신형은 이 금액이 갱신할 때마다 달라집니다. 지금 금액만으로 견주면 안 됩니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"contract-terms\",\n      \"title\": \"얼마나 내고 언제까지 받나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240, 10년납이면 120. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다.\"\n        },\n        {\n          \"key\": \"entry-age\",\n          \"label\": \"가입나이\",\n          \"shape\": \"range\",\n          \"type\": \"age\",\n          \"description\": \"가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"tip\",\n          \"text\": \"납입기간이 짧으면 월 보험료는 비싸지지만 내는 총액은 대체로 적습니다.\"\n        },\n        {\n          \"kind\": \"tip\",\n          \"text\": \"만기나이가 비어 있고 종신이라고 적혀 있으면 죽을 때까지 보장한다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신되나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다. 일부 특약만 갱신형이면 거짓으로 두고 주의 주석을 단다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"tip\",\n          \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 나이에 맞춰 오릅니다. 비갱신형은 처음이 비싼 대신 끝까지 그대로입니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"갱신 여부는 보험료가 앞으로 어떻게 될지를 가르는 자리라 따로 봅니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"coverage-amounts\",\n      \"title\": \"주요 보장의 가입금액\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"death\",\n          \"label\": \"일반사망\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반사망 보험금 가입금액을 원 단위 정수로. 재해사망과 상해사망은 빼고 일반사망만.\"\n        },\n        {\n          \"key\": \"cancer\",\n          \"label\": \"암진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반암 진단비 가입금액을 원 단위 정수로. 유사암(갑상선암·기타피부암·제자리암·경계성종양)은 빼고 일반암만.\"\n        },\n        {\n          \"key\": \"brain\",\n          \"label\": \"뇌혈관질환진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"뇌혈관질환 진단비 가입금액을 원 단위 정수로. 뇌졸중이나 뇌출혈만 보장하는 담보는 범위가 다르니 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"가입금액은 받을 수 있는 최대 금액이고 실제 지급 조건은 약관이 정합니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"막대 길이는 항목마다 따로 잽니다. 서로 다른 항목의 길이를 견주면 안 됩니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"갱신 시점별 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"어떤 특약이 붙었나\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"특약 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표에 적힌 특약을 하나씩. 주계약은 빼고 특약만 담는다. 특약이 하나도 없으면 빈 목록으로 둔다.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"특약명\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 특약 이름 그대로. 줄이거나 고쳐 쓰지 않는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 특약의 가입금액을 원 단위 정수로. 일당처럼 하루 금액이면 하루 금액 그대로.\"\n            },\n            {\n              \"key\": \"renews\",\n              \"label\": \"갱신\",\n              \"type\": \"boolean\",\n              \"description\": \"그 특약이 갱신형이면 참, 비갱신형이면 거짓.\"\n            },\n            {\n              \"key\": \"maturity-age\",\n              \"label\": \"만기\",\n              \"type\": \"age\",\n              \"description\": \"그 특약이 끝나는 나이를 세로. 표에 적혀 있지 않으면 비운다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"주계약은 빼고 특약만 담습니다. 특약이 없으면 빈 목록입니다.\"\n        },\n        {\n          \"kind\": \"tip\",\n          \"text\": \"특약 하나하나의 만기와 갱신 여부가 주계약과 다를 수 있습니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"payment-plan\",\n      \"title\": \"언제 얼마씩 내나\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"plan\",\n          \"label\": \"납입 계획\",\n          \"shape\": \"items\",\n          \"hint\": \"고른 제안서의 것만 폅니다.\",\n          \"description\": \"설계안에 적힌 납입 구간을 적힌 순서 그대로 하나씩 담는다.\",\n          \"columns\": [\n            {\n              \"key\": \"phase\",\n              \"label\": \"구간\",\n              \"type\": \"text\",\n              \"description\": \"그 구간을 부르는 말 그대로 담는다.\"\n            },\n            {\n              \"key\": \"monthly\",\n              \"label\": \"월 보험료\",\n              \"type\": \"money\",\n              \"description\": \"그 구간의 월 보험료를 원 단위 정수로 담는다.\"\n            },\n            {\n              \"key\": \"until\",\n              \"label\": \"언제까지\",\n              \"type\": \"age\",\n              \"description\": \"그 구간이 끝나는 나이를 정수로 담는다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"지금 고른 제안서의 납입 계획만 폅니다. 나란히 견주는 자리가 아닙니다.\"\n        }\n      ]\n    }\n  ]\n}\n",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"proposal-compare-1\",\n  \"title\": \"제안서 나란히 보기\",\n  \"facets\": [\n    {\n      \"id\": \"first-premium\",\n      \"title\": \"초회 보험료\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"first-premium\",\n          \"label\": \"초회 보험료\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"첫 회에 실제로 빠져나가는 월 보험료 총액을 원 단위 정수로. 합계보험료에 적립보험료가 섞여 있으면 빼고 보장보험료만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"처음 한 번 내는 금액이 아니라 첫 달에 내는 월 보험료입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"갱신형은 이 금액이 갱신할 때마다 달라집니다. 지금 금액만으로 견주면 안 됩니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"contract-terms\",\n      \"title\": \"얼마나 내고 언제까지 받나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"payment-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"보험료를 내는 총 기간을 개월로. 20년납이면 240, 10년납이면 120. 전기납이면 만기까지의 개월 수로 환산한다.\"\n        },\n        {\n          \"key\": \"maturity-age\",\n          \"label\": \"만기나이\",\n          \"shape\": \"single\",\n          \"type\": \"age\",\n          \"description\": \"보장이 끝나는 나이를 세로. 종신이면 값을 비우고 종신이라고 주석에 적는다.\"\n        },\n        {\n          \"key\": \"entry-age\",\n          \"label\": \"가입나이\",\n          \"shape\": \"range\",\n          \"type\": \"age\",\n          \"description\": \"가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"tip\",\n          \"text\": \"납입기간이 짧으면 월 보험료는 비싸지지만 내는 총액은 대체로 적습니다.\"\n        },\n        {\n          \"kind\": \"tip\",\n          \"text\": \"만기나이가 비어 있고 종신이라고 적혀 있으면 죽을 때까지 보장한다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"renewal\",\n      \"title\": \"갱신되나\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"renews\",\n          \"label\": \"갱신 여부\",\n          \"shape\": \"single\",\n          \"type\": \"boolean\",\n          \"description\": \"갱신형이면 참, 비갱신형이면 거짓. 주계약 기준으로 본다. 일부 특약만 갱신형이면 거짓으로 두고 주의 주석을 단다.\"\n        },\n        {\n          \"key\": \"renewal-cycle\",\n          \"label\": \"갱신주기\",\n          \"shape\": \"single\",\n          \"type\": \"duration\",\n          \"description\": \"몇 개월마다 갱신되는지를 개월로. 10년 갱신이면 120, 5년 갱신이면 60. 비갱신형이면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"tip\",\n          \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 나이에 맞춰 오릅니다. 비갱신형은 처음이 비싼 대신 끝까지 그대로입니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"갱신 여부는 보험료가 앞으로 어떻게 될지를 가르는 자리라 따로 봅니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"coverage-amounts\",\n      \"title\": \"주요 보장의 가입금액\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"death\",\n          \"label\": \"일반사망\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반사망 보험금 가입금액을 원 단위 정수로. 재해사망과 상해사망은 빼고 일반사망만.\"\n        },\n        {\n          \"key\": \"cancer\",\n          \"label\": \"암진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"일반암 진단비 가입금액을 원 단위 정수로. 유사암(갑상선암·기타피부암·제자리암·경계성종양)은 빼고 일반암만.\"\n        },\n        {\n          \"key\": \"brain\",\n          \"label\": \"뇌혈관질환진단비\",\n          \"shape\": \"single\",\n          \"type\": \"money\",\n          \"description\": \"뇌혈관질환 진단비 가입금액을 원 단위 정수로. 뇌졸중이나 뇌출혈만 보장하는 담보는 범위가 다르니 주석에 적는다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"가입금액은 받을 수 있는 최대 금액이고 실제 지급 조건은 약관이 정합니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"막대 길이는 항목마다 따로 잽니다. 서로 다른 항목의 길이를 견주면 안 됩니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"renewal-premium\",\n      \"title\": \"갱신 시점별 예상 보험료\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"premium-curve\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"series\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"description\": \"설계안의 갱신 예시표에 적힌 나이별 예상 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 적힌 나이만 담고 사이를 채우지 않는다. 비갱신형이라 예시표가 없으면 값을 비운다.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"예시표의 금액은 지금 기준으로 계산한 예상치이고 실제 갱신 보험료는 그때 가서 정해집니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"어떤 특약이 붙었나\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"특약 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표에 적힌 특약을 하나씩. 주계약은 빼고 특약만 담는다. 특약이 하나도 없으면 빈 목록으로 둔다.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"특약명\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 특약 이름 그대로. 줄이거나 고쳐 쓰지 않는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 특약의 가입금액을 원 단위 정수로. 일당처럼 하루 금액이면 하루 금액 그대로.\"\n            },\n            {\n              \"key\": \"renews\",\n              \"label\": \"갱신\",\n              \"type\": \"boolean\",\n              \"description\": \"그 특약이 갱신형이면 참, 비갱신형이면 거짓.\"\n            },\n            {\n              \"key\": \"maturity-age\",\n              \"label\": \"만기\",\n              \"type\": \"age\",\n              \"description\": \"그 특약이 끝나는 나이를 세로. 표에 적혀 있지 않으면 비운다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"주계약은 빼고 특약만 담습니다. 특약이 없으면 빈 목록입니다.\"\n        },\n        {\n          \"kind\": \"tip\",\n          \"text\": \"특약 하나하나의 만기와 갱신 여부가 주계약과 다를 수 있습니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"payment-plan\",\n      \"title\": \"언제 얼마씩 내나\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"plan\",\n          \"label\": \"납입 계획\",\n          \"shape\": \"items\",\n          \"description\": \"설계안에 적힌 납입 구간을 적힌 순서 그대로 하나씩 담는다.\",\n          \"columns\": [\n            {\n              \"key\": \"phase\",\n              \"label\": \"구간\",\n              \"type\": \"text\",\n              \"description\": \"그 구간을 부르는 말 그대로 담는다.\"\n            },\n            {\n              \"key\": \"monthly\",\n              \"label\": \"월 보험료\",\n              \"type\": \"money\",\n              \"description\": \"그 구간의 월 보험료를 원 단위 정수로 담는다.\"\n            },\n            {\n              \"key\": \"until\",\n              \"label\": \"언제까지\",\n              \"type\": \"age\",\n              \"description\": \"그 구간이 끝나는 나이를 정수로 담는다.\"\n            }\n          ],\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"고른 제안서의 것만 폅니다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"지금 고른 제안서의 납입 계획만 폅니다. 나란히 견주는 자리가 아닙니다.\"\n        }\n      ]\n    }\n  ]\n}\n",
     "values": [
       {
         "id": "proposal-a",
@@ -1330,7 +1373,7 @@ const SAMPLES = {
   },
   "one-proposal": {
     "name": "지금 앱 화면을 그대로 옮겨 보기",
-    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"one-proposal-1\",\n  \"title\": \"이 제안서를 뜯어봅니다\",\n  \"facets\": [\n    {\n      \"id\": \"premium\",\n      \"title\": \"다달이 내는 돈\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"monthly-premium\",\n          \"label\": \"월 납입료\",\n          \"shape\": \"single\",\n          \"description\": \"이 제안서의 월 납입 보험료 총액을 원 단위 정수로. 특약을 포함한 합계다.\",\n          \"type\": \"money\",\n          \"hint\": \"이 제안서에서 매달 빠져나가는 돈이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"이 제안서에서 매달 빠져나가는 금액입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"갱신형 특약이 섞여 있으면 이 금액은 갱신할 때마다 달라집니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"overview\",\n      \"title\": \"어떤 계약인가\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"insurer\",\n          \"label\": \"보험사\",\n          \"shape\": \"single\",\n          \"description\": \"설계안 표지에 적힌 보험사 이름을 그대로.\",\n          \"type\": \"text\",\n          \"hint\": \"설계안을 낸 보험사예요.\"\n        },\n        {\n          \"key\": \"product\",\n          \"label\": \"상품명\",\n          \"shape\": \"single\",\n          \"description\": \"설계안 표지에 적힌 상품명을 그대로.\",\n          \"type\": \"text\",\n          \"hint\": \"설계안에 적힌 상품 이름이에요.\"\n        },\n        {\n          \"key\": \"pay-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"description\": \"납입기간을 사람이 읽는 표시 그대로. 보기: 30년납 · 20년납 · 전기납.\",\n          \"type\": \"text\",\n          \"hint\": \"보험료를 내는 기간이에요.\"\n        },\n        {\n          \"key\": \"cover-period\",\n          \"label\": \"보장기간\",\n          \"shape\": \"single\",\n          \"description\": \"보장기간을 사람이 읽는 표시 그대로. 보기: 90세만기 · 종신.\",\n          \"type\": \"text\",\n          \"hint\": \"보장을 받는 기간이에요.\"\n        },\n        {\n          \"key\": \"renewal\",\n          \"label\": \"갱신\",\n          \"shape\": \"single\",\n          \"description\": \"갱신 주기를 사람이 읽는 표시 그대로. 보기: 갱신 없음 · 10년 갱신.\",\n          \"type\": \"text\",\n          \"hint\": \"몇 년마다 보험료가 다시 매겨지는지예요.\"\n        },\n        {\n          \"key\": \"refund\",\n          \"label\": \"납입 중 환급\",\n          \"shape\": \"single\",\n          \"description\": \"납입 도중 해지해도 환급금이 있으면 참. 순수보장형이면 거짓.\",\n          \"type\": \"boolean\",\n          \"hint\": \"납입 도중 해지해도 돌려받을 돈이 있는지예요.\"\n        },\n        {\n          \"key\": \"source\",\n          \"label\": \"출처\",\n          \"shape\": \"single\",\n          \"description\": \"이 설계안이 어디서 왔는지. 설계사 제안 또는 직접 업로드.\",\n          \"type\": \"text\",\n          \"hint\": \"이 설계안이 어디서 왔는지예요.\",\n          \"allowed\": [\n            \"설계사 제안\",\n            \"직접 업로드\"\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"납입기간은 보험료를 내는 기간이고, 보장기간은 보장을 받는 기간입니다. 둘은 다를 수 있습니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 나이에 맞춰 오릅니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"출처가 직접 업로드이면 설계사가 확인하지 않은 문서입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"payback\",\n      \"title\": \"언제쯤 낸 만큼 돌려받나\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"payback-curve\",\n          \"label\": \"누적 회수 배율\",\n          \"shape\": \"series\",\n          \"description\": \"그 나이까지 낸 보험료 대비 받게 되는 누적 금액의 배수. 1이면 낸 만큼, 2면 두 배다. 고른 갈래로 진단받았을 때를 가정한다.\",\n          \"type\": \"multiple\",\n          \"axis\": \"age\",\n          \"choice\": \"illness\",\n          \"hint\": \"낸 보험료 대비 받게 되는 누적 금액의 배수예요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"1을 넘는 지점부터 낸 것보다 더 받는 구간입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"그 나이에 그 병으로 진단받는다는 가정 아래의 수치이고, 실제 지급은 약관이 정합니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covered-total\",\n      \"title\": \"이 병에 얼마가 나오나\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"covered-amount\",\n          \"label\": \"보장 총액\",\n          \"shape\": \"single\",\n          \"description\": \"고른 갈래의 진단·수술·입원 담보 가입금액 합계를 원 단위 정수로. 그 갈래를 보장하지 않으면 0.\",\n          \"type\": \"money\",\n          \"choice\": \"illness\",\n          \"hint\": \"고른 병으로 받을 수 있는 금액을 다 더한 값이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"가입금액은 받을 수 있는 최대이고 실제 지급 조건은 약관이 정합니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"0원이면 이 제안서가 그 병을 보장하지 않는다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covered-items\",\n      \"title\": \"무엇으로 그 금액이 되나\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"covered-list\",\n          \"label\": \"담보별 가입금액\",\n          \"shape\": \"items\",\n          \"description\": \"고른 갈래의 보장 총액을 이루는 담보를 하나씩. 그 갈래를 보장하지 않으면 빈 목록.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 담보명 그대로.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 담보의 가입금액을 원 단위 정수로.\"\n            }\n          ],\n          \"choice\": \"illness\",\n          \"hint\": \"위 금액을 이루는 담보들이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"위의 보장 총액을 이루는 담보들입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"surrender\",\n      \"title\": \"중간에 그만두면 얼마를 버리나\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"surrender-burden\",\n          \"label\": \"해지 시 월평균 부담\",\n          \"shape\": \"series\",\n          \"description\": \"그 나이에 해지했을 때, 그때까지 낸 보험료에서 환급금을 뺀 금액을 납입 개월로 나눈 월평균 부담액을 원 단위 정수로.\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"hint\": \"그 나이에 그만뒀을 때 한 달치로 친 손해예요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"낮을수록 중간에 그만둬도 덜 손해라는 뜻입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"병에 걸리는 것과 무관한 값이라 갈래를 바꿔도 달라지지 않습니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"붙어 있는 담보 전부\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"담보 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표의 담보를 적힌 순서 그대로 하나씩. 주계약도 포함한다.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 담보명 그대로.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 담보의 가입금액을 원 단위 정수로.\"\n            },\n            {\n              \"key\": \"premium\",\n              \"label\": \"월 보험료\",\n              \"type\": \"money\",\n              \"description\": \"그 담보 몫의 월 보험료를 원 단위 정수로.\"\n            },\n            {\n              \"key\": \"pay-period\",\n              \"label\": \"납입\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 납입기간 표시 그대로. 보기: 30년납.\"\n            },\n            {\n              \"key\": \"cover-period\",\n              \"label\": \"만기\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 보장기간 표시 그대로. 보기: 90세.\"\n            },\n            {\n              \"key\": \"renewal\",\n              \"label\": \"갱신\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 갱신 주기 표시 그대로. 보기: 갱신 없음.\"\n            }\n          ],\n          \"hint\": \"설계안에 적힌 담보를 순서 그대로 옮긴 것이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"설계안에 적힌 순서 그대로입니다. 정렬하거나 묶지 않습니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"여기 없는 담보는 이 설계안에 적혀 있지 않은 것이지, 보장하지 않는다는 뜻은 아닙니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"지금 고른 제안서의 담보만 폅니다. 나란히 견주려면 위의 담보별 가입금액을 봅니다.\"\n        }\n      ]\n    }\n  ],\n  \"choices\": [\n    {\n      \"id\": \"illness\",\n      \"label\": \"무엇에 걸렸을 때\",\n      \"options\": [\n        {\n          \"id\": \"cancer\",\n          \"label\": \"암\"\n        },\n        {\n          \"id\": \"brain\",\n          \"label\": \"뇌혈관\"\n        },\n        {\n          \"id\": \"heart\",\n          \"label\": \"허혈성심장\"\n        }\n      ]\n    }\n  ]\n}\n",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"one-proposal-1\",\n  \"title\": \"이 제안서를 뜯어봅니다\",\n  \"facets\": [\n    {\n      \"id\": \"premium\",\n      \"title\": \"다달이 내는 돈\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"monthly-premium\",\n          \"label\": \"월 납입료\",\n          \"shape\": \"single\",\n          \"description\": \"이 제안서의 월 납입 보험료 총액을 원 단위 정수로. 특약을 포함한 합계다.\",\n          \"type\": \"money\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"이 제안서에서 매달 빠져나가는 돈이에요.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"갱신형 특약이 섞여 있으면 이 금액은 갱신할 때마다 달라집니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"overview\",\n      \"title\": \"어떤 계약인가\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"insurer\",\n          \"label\": \"보험사\",\n          \"shape\": \"single\",\n          \"description\": \"설계안 표지에 적힌 보험사 이름을 그대로.\",\n          \"type\": \"text\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"설계안을 낸 보험사예요.\"\n            }\n          ]\n        },\n        {\n          \"key\": \"product\",\n          \"label\": \"상품명\",\n          \"shape\": \"single\",\n          \"description\": \"설계안 표지에 적힌 상품명을 그대로.\",\n          \"type\": \"text\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"설계안에 적힌 상품 이름이에요.\"\n            }\n          ]\n        },\n        {\n          \"key\": \"pay-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"description\": \"납입기간을 사람이 읽는 표시 그대로. 보기: 30년납 · 20년납 · 전기납.\",\n          \"type\": \"text\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"보험료를 내는 기간이에요.\"\n            }\n          ]\n        },\n        {\n          \"key\": \"cover-period\",\n          \"label\": \"보장기간\",\n          \"shape\": \"single\",\n          \"description\": \"보장기간을 사람이 읽는 표시 그대로. 보기: 90세만기 · 종신.\",\n          \"type\": \"text\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"보장을 받는 기간이에요.\"\n            }\n          ]\n        },\n        {\n          \"key\": \"renewal\",\n          \"label\": \"갱신\",\n          \"shape\": \"single\",\n          \"description\": \"갱신 주기를 사람이 읽는 표시 그대로. 보기: 갱신 없음 · 10년 갱신.\",\n          \"type\": \"text\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"몇 년마다 보험료가 다시 매겨지는지예요.\"\n            }\n          ]\n        },\n        {\n          \"key\": \"refund\",\n          \"label\": \"납입 중 환급\",\n          \"shape\": \"single\",\n          \"description\": \"납입 도중 해지해도 환급금이 있으면 참. 순수보장형이면 거짓.\",\n          \"type\": \"boolean\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"납입 도중 해지해도 돌려받을 돈이 있는지예요.\"\n            }\n          ]\n        },\n        {\n          \"key\": \"source\",\n          \"label\": \"출처\",\n          \"shape\": \"single\",\n          \"description\": \"이 설계안이 어디서 왔는지. 설계사 제안 또는 직접 업로드.\",\n          \"type\": \"text\",\n          \"allowed\": [\n            \"설계사 제안\",\n            \"직접 업로드\"\n          ],\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"이 설계안이 어디서 왔는지예요.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"납입기간은 보험료를 내는 기간이고, 보장기간은 보장을 받는 기간입니다. 둘은 다를 수 있습니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 나이에 맞춰 오릅니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"출처가 직접 업로드이면 설계사가 확인하지 않은 문서입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"payback\",\n      \"title\": \"언제쯤 낸 만큼 돌려받나\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"payback-curve\",\n          \"label\": \"누적 회수 배율\",\n          \"shape\": \"series\",\n          \"description\": \"그 나이까지 낸 보험료 대비 받게 되는 누적 금액의 배수. 1이면 낸 만큼, 2면 두 배다. 고른 갈래로 진단받았을 때를 가정한다.\",\n          \"type\": \"multiple\",\n          \"axis\": \"age\",\n          \"choice\": \"illness\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"낸 보험료 대비 받게 되는 누적 금액의 배수예요.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"1을 넘는 지점부터 낸 것보다 더 받는 구간입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"그 나이에 그 병으로 진단받는다는 가정 아래의 수치이고, 실제 지급은 약관이 정합니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covered-total\",\n      \"title\": \"이 병에 얼마가 나오나\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"covered-amount\",\n          \"label\": \"보장 총액\",\n          \"shape\": \"single\",\n          \"description\": \"고른 갈래의 진단·수술·입원 담보 가입금액 합계를 원 단위 정수로. 그 갈래를 보장하지 않으면 0.\",\n          \"type\": \"money\",\n          \"choice\": \"illness\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"고른 병으로 받을 수 있는 금액을 다 더한 값이에요.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"가입금액은 받을 수 있는 최대이고 실제 지급 조건은 약관이 정합니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"0원이면 이 제안서가 그 병을 보장하지 않는다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covered-items\",\n      \"title\": \"무엇으로 그 금액이 되나\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"covered-list\",\n          \"label\": \"담보별 가입금액\",\n          \"shape\": \"items\",\n          \"description\": \"고른 갈래의 보장 총액을 이루는 담보를 하나씩. 그 갈래를 보장하지 않으면 빈 목록.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 담보명 그대로.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 담보의 가입금액을 원 단위 정수로.\"\n            }\n          ],\n          \"choice\": \"illness\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"위의 보장 총액을 이루는 담보들입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"surrender\",\n      \"title\": \"중간에 그만두면 얼마를 버리나\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"surrender-burden\",\n          \"label\": \"해지 시 월평균 부담\",\n          \"shape\": \"series\",\n          \"description\": \"그 나이에 해지했을 때, 그때까지 낸 보험료에서 환급금을 뺀 금액을 납입 개월로 나눈 월평균 부담액을 원 단위 정수로.\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"그 나이에 그만뒀을 때 한 달치로 친 손해예요.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"낮을수록 중간에 그만둬도 덜 손해라는 뜻입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"병에 걸리는 것과 무관한 값이라 갈래를 바꿔도 달라지지 않습니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"붙어 있는 담보 전부\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"담보 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표의 담보를 적힌 순서 그대로 하나씩. 주계약도 포함한다.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 담보명 그대로.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 담보의 가입금액을 원 단위 정수로.\"\n            },\n            {\n              \"key\": \"premium\",\n              \"label\": \"월 보험료\",\n              \"type\": \"money\",\n              \"description\": \"그 담보 몫의 월 보험료를 원 단위 정수로.\"\n            },\n            {\n              \"key\": \"pay-period\",\n              \"label\": \"납입\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 납입기간 표시 그대로. 보기: 30년납.\"\n            },\n            {\n              \"key\": \"cover-period\",\n              \"label\": \"만기\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 보장기간 표시 그대로. 보기: 90세.\"\n            },\n            {\n              \"key\": \"renewal\",\n              \"label\": \"갱신\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 갱신 주기 표시 그대로. 보기: 갱신 없음.\"\n            }\n          ],\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"설계안에 적힌 담보를 순서 그대로 옮긴 것이에요.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"설계안에 적힌 순서 그대로입니다. 정렬하거나 묶지 않습니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"여기 없는 담보는 이 설계안에 적혀 있지 않은 것이지, 보장하지 않는다는 뜻은 아닙니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"지금 고른 제안서의 담보만 폅니다. 나란히 견주려면 위의 담보별 가입금액을 봅니다.\"\n        }\n      ]\n    }\n  ],\n  \"choices\": [\n    {\n      \"id\": \"illness\",\n      \"label\": \"무엇에 걸렸을 때\",\n      \"options\": [\n        {\n          \"id\": \"cancer\",\n          \"label\": \"암\"\n        },\n        {\n          \"id\": \"brain\",\n          \"label\": \"뇌혈관\"\n        },\n        {\n          \"id\": \"heart\",\n          \"label\": \"허혈성심장\"\n        }\n      ]\n    }\n  ]\n}\n",
     "values": [
       {
         "id": "plan-a",
@@ -1988,7 +2031,6 @@ const PAGES = [
                 "key": "rider-list",
                 "label": "담보 목록",
                 "shape": "items",
-                "hint": "설계안에 적힌 순서 그대로예요.",
                 "description": "보장내역 표에 적힌 담보를 적힌 순서 그대로 하나씩 담는다.",
                 "columns": [
                   {
@@ -2008,6 +2050,12 @@ const PAGES = [
                     "label": "월 보험료",
                     "type": "money",
                     "description": "그 담보 몫의 월 보험료를 원 단위 정수로 담는다."
+                  }
+                ],
+                "notes": [
+                  {
+                    "kind": "note",
+                    "text": "설계안에 적힌 순서 그대로예요."
                   }
                 ]
               }
@@ -2317,35 +2365,6 @@ function drawFocus(seats) {
   for (const seat of seats) add(seat.name, seat.id, seat.id);
 }
 
-/**
- * 고르는 자리를 나열한다. **선언이 없으면 아무것도 세우지 않는다.**
- *
- * 모양은 언어가 말하지 않는다 — 참조 뷰어는 단추로 그리지만 앱은 드롭다운이든 무엇이든
- * 제 것을 쓴다. 여기서 읽는 것은 「무엇을 고를 수 있고 지금 무엇이 골라져 있나」뿐이다.
- */
-function drawChoices(picks, chosen) {
-  const box = $("variant-buttons");
-  box.innerHTML = "";
-  for (const pick of picks ?? []) {
-    const row = document.createElement("span");
-    row.className = "pick-row";
-    row.title = pick.label || pick.id;
-    for (const option of pick.options ?? []) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "pick";
-      button.textContent = option.label || option.id;
-      button.setAttribute("aria-pressed", String(option.id === chosen?.[pick.id]));
-      button.addEventListener("click", () => {
-        state.choices = { ...state.choices, [pick.id]: option.id };
-        refresh();
-      });
-      row.appendChild(button);
-    }
-    box.appendChild(row);
-  }
-}
-
 function refresh() {
   const { template, values, problems } = read();
   const { html, report, view } = renderView({
@@ -2359,7 +2378,6 @@ function refresh() {
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
   drawFocus(view?.seats ?? []);
-  drawChoices(view?.choices ?? [], view?.chosen ?? {});
   // 무엇을 보고 있는지는 화면에 한 번. 고른 것이 있으면 눌린 버튼이 이미 말하므로,
   // 말해 주지 못할 때(고른 것 없음)만 적는다.
   const watching = (view?.seats ?? []).find((s) => s.id === view?.shown);
@@ -2472,6 +2490,15 @@ function start() {
     shut(document.activeElement?.closest?.(".note-mark"));
     shutAll();
   });
+  // **축은 분석뷰 안에 선다.** 렌더가 낸 자리를 눌러 고른다 — 앱은 상태만 갖는다.
+  $("view").addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-option]");
+    const slot = button?.closest?.("[data-choice]");
+    if (!slot) return;
+    state.choices = { ...state.choices, [slot.dataset.choice]: button.dataset.option };
+    refresh();
+  });
+
   // 전화기에서 어느 판을 세울지. 넓은 화면에서는 이 줄이 CSS 로 감춰져 뜻이 없다.
   $("pane-pick").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-pane]");

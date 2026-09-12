@@ -104,14 +104,7 @@ button { cursor:pointer; }
 button:hover { background:var(--surface); }
 button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
 /* focus 나열. 항목에 none 이 있어 무엇을 고르는 줄인지 스스로 읽힌다 — 라벨을 두지 않는다. */
-#focus-buttons, #variant-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-/* 축이 없으면 자리도 먹지 않는다 — 없는 템플릿이 기본이다. */
-#variant-buttons:empty { display:none; }
-/* 고르는 줄 사이는 자리가 가른다. 이름을 붙이지 않는다 — 무엇을 고르는 줄인지 항목이 말한다. */
-#variant-buttons:not(:empty) { margin-left:10px; }
-/* 고르는 자리가 여럿이면 줄도 여럿이다. 한 자리 안의 것끼리 더 붙어 선다. */
-.pick-row { display:flex; flex-wrap:wrap; gap:6px; }
-#variant-buttons { gap:6px 16px; }
+#focus-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 button.pick { padding:3px 10px; font-size:12.5px; }
 label { font-size:12px; color:var(--mute); }
 label:has(input) { display:inline-flex; align-items:center; gap:5px; }
@@ -151,6 +144,11 @@ h2 { font-size:17px; margin:0 0 10px; display:flex; align-items:baseline; gap:8p
    읽히지 않는다. 열 선언에 준 테두리는 `border-collapse` 가 머리부터 끝까지 한 상자로 잇는다. */
 col.is-focus { border:2px solid var(--ink); }
 .is-focus > .who { font-weight:700; }
+/* **facet 이 타는 축의 선택자.** 렌더가 자리를 내고 앱이 제 것으로 갈아 끼운다 —
+   참조 뷰어는 단추로 그린다. 꼴을 가리키는 이름을 붙이지 않는다. */
+.choice { display:flex; flex-wrap:wrap; gap:6px; margin-top:var(--step); }
+.choice button { font-size:12.5px; padding:4px 10px; }
+
 /* **선은 두 facet 의 한가운데 선다.** 위 여백은 앞 facet 의 아래 여백이고 아래 여백은
    이 facet 의 위 여백이라, 둘이 같아야 선이 가운데로 온다 — 그래서 한 자로 적는다. */
 .facet { border-top:1px solid var(--line); padding:var(--gap) 0; }
@@ -161,9 +159,10 @@ col.is-focus { border:2px solid var(--ink); }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 /* **늘 보이는 한 줄.** 값이 무엇인지 그 자리에서 말한다 — 표시 뒤로 숨지 않는다.
    딸린 말이라 작고 흐리게 서고, 값보다 앞에 나서지 않는다. */
-.hint { font-size:12px; color:var(--mute); margin-top:var(--row); max-width:60ch; }
-.fact .hint { grid-column:2 / -1; }
-.bar-row .hint { grid-column:1 / -1; margin-top:0; }
+.field-notes { font-size:12px; color:var(--mute); margin-top:var(--row); max-width:60ch; }
+/* facts 는 줄이 촘촘해 딸린 말이 다음 줄 것처럼 읽히기 쉽다 — 값에 붙이고 아래를 띄운다. */
+.fact .field-notes { grid-column:2 / -1; margin-top:2px; margin-bottom:6px; }
+.bar-row .field-notes { grid-column:1 / -1; margin-top:0; }
 .who { font-size:12.5px; color:var(--mute); }
 /* 없다는 **표기**. 값이 설 자리에 서서 「여기에 값이 없다」를 말한다 —
    빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
@@ -314,7 +313,9 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
   label:has(input) { min-height:44px; }
   input[type="checkbox"] { width:20px; height:20px; }
   button.pick { padding:0 14px; font-size:13.5px; }
-  #focus-buttons, #variant-buttons { gap:8px; }
+  #focus-buttons { gap:8px; }
+  .choice { gap:8px; }
+  .choice button { padding:0 14px; }
   .tabs { gap:6px; }
   .tab { min-height:44px; padding:0 12px; }
   .toc-link { display:flex; align-items:center; padding:0 18px; }

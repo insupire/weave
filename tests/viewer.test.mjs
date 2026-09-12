@@ -196,6 +196,10 @@ test("모르는 primitive element 는 조용히 넘어가지 않는다", () => {
 
 test("렌더 결과에 도구가 덧붙인 것이 없다", () => {
   // 오른쪽 판은 앱이 그대로 가져다 쓸 분석뷰다. 뷰어의 표시가 따라가면 안 된다.
+  //
+  // **선을 다시 그었다** — 화면 **전체**에 걸리는 조작은 껍데기라 밖에 남고(focus·명단·
+  // 상태 줄·샘플 고르기), **facet 에 걸리는 축**은 그 facet 이 무엇에 대한 값인지를
+  // 말하므로 내용이라 안에 선다. 아래가 막는 것은 전자이고, 전자는 하나도 새지 않는다.
   const pages = [fix({ focus: "proposal-a" }).html,
                  ...sampleNames.map((name) => drawSample(sample(name)).html)];
   for (const html of pages) {
@@ -216,6 +220,20 @@ test("렌더 결과에 도구가 덧붙인 것이 없다", () => {
     // primitive element 이름이 글로 찍히지 않는다. 구조(class·data 속성)로만 남는다.
     for (const element of Object.keys(ELEMENTS)) assert.ok(!html.includes(`>${element}<`), element);
     assert.ok(html.startsWith("<h1>")); // 남는 것은 템플릿 제목과 facet 들뿐
+
+    // **밖의 것은 밖에 남는다.** focus·명단은 렌더가 낸 글에 조작으로 서지 않는다.
+    for (const seat of drawSample(sample(sampleNames[0])).view.seats) {
+      assert.ok(!html.includes(`data-focus="${seat.id}"`), "focus 조작이 분석뷰에 들어왔다");
+    }
+    assert.ok(!/data-(sample|subject|pane|page)=/.test(html), "도구 조작이 분석뷰에 들어왔다");
+    // 누를 것은 **축의 선택자와 붙은 말을 닫는 것뿐**이다. 둘 다 그 자리의 내용이다.
+    for (const [, tag] of html.matchAll(/(<button[^>]*>)/g)) {
+      assert.ok(/data-option=|class="pop-close"/.test(tag), `분석뷰에 다른 단추가 섰다: ${tag}`);
+    }
+    for (const at of [...html.matchAll(/data-choice="/g)].map((m) => m.index)) {
+      assert.ok(html.lastIndexOf("<section", at) > html.lastIndexOf("</section>", at),
+        "축의 선택자가 facet 밖에 섰다");
+    }
   }
 });
 
@@ -433,8 +451,15 @@ test("렌더 결과에 아직 분석 중이라는 상태가 없다", () => {
 
 test("고르는 자리는 값을 바꾸고 골격은 바꾸지 않는다", () => {
   // 고르는 자리가 있는 샘플로 본다 — 말로만 설명하면 실제로 도는지 아무도 안 본다.
-  const name = sampleNames.find((one) => sample(one).template.choices?.length);
-  assert.ok(name, "고르는 자리를 보여 주는 샘플이 없다");
+  // **타는 facet 과 안 타는 facet 이 둘 다 있는 샘플로 본다** — 전부 타는 것으로 보면
+  // 「안 타는 facet 에는 안 선다」가 빈 반복문이 되어 초록으로 지나간다.
+  const name = sampleNames.find((one) => {
+    const t = sample(one).template;
+    if (!t.choices?.length) return false;
+    const rides = (f) => f.fields.some((d) => d.choice);
+    return t.facets.some(rides) && t.facets.some((f) => !rides(f));
+  });
+  assert.ok(name, "타는 facet 과 안 타는 facet 이 함께 있는 샘플이 없다");
   const { template, values } = sample(name);
   const pick = template.choices[0];
   const options = pick.options.map((one) => one.id);
@@ -488,12 +513,50 @@ test("고르는 자리는 값을 바꾸고 골격은 바꾸지 않는다", () =>
     assert.deepEqual(pushed.view.chosen, {}, `${other}: 인자가 고른 것을 만들었다`);
   }
 
-  // **모양은 언어가 말하지 않는다.** 렌더 출력에는 고르는 자리가 통째로 안 나온다.
+  // **축은 facet 안에 선다.** 그 facet 이 무엇에 대한 값인지를 말하므로 내용이다.
+  // 타는 facet **마다** 제 선택자를 낸다 — 첫 것에만 두면 나머지가 까닭 없이 바뀌고
+  // facet 차례가 뜻을 지게 된다.
+  const riding = template.facets.filter((f) => f.fields.some((d) => d.choice === pick.id));
+  assert.ok(riding.length >= 1, "타는 facet 이 있어야 한다");
+  // **element 로 찾지 않는다** — 같은 element 를 쓰는 facet 이 둘이면 엉뚱한 쪽을 본다.
+  const partOf = (html, facet) => {
+    const at = html.indexOf(`>${facet.title}<`);
+    assert.ok(at > 0, `${facet.id}: 제목이 없다`);
+    const from = html.lastIndexOf("<section", at);
+    return html.slice(from, html.indexOf("</section>", from));
+  };
   for (const shot of shots) {
-    for (const option of pick.options) {
-      assert.ok(!shot.html.includes(`>${option.label}<`), `고르는 자리를 분석뷰가 그린다: ${option.label}`);
+    const slots = [...shot.html.matchAll(new RegExp(`data-choice="${pick.id}"`, "g"))];
+    assert.equal(slots.length, riding.length, "타는 facet 마다 하나씩 서야 한다");
+    for (const facet of riding) {
+      assert.ok(partOf(shot.html, facet).includes(`data-choice="${pick.id}"`), `${facet.id}: 선택자가 없다`);
+    }
+    // **안 타는 facet 에는 서지 않는다.** 하나라도 있어야 가를 수 있다.
+    const idle = template.facets.filter((f) => !riding.includes(f));
+    assert.ok(idle.length > 0, "안 타는 facet 이 있어야 가를 수 있다");
+    for (const facet of idle) {
+      assert.ok(!partOf(shot.html, facet).includes("data-choice"), `${facet.id}: 안 타는데 섰다`);
     }
   }
+  // **한 번 고르면 전부 따라온다.** 축이 이름으로 선언되고 facet 이 그 이름을 타기 때문이다.
+  if (riding.length >= 2) {
+    const moved = draw(options[1]);
+    for (const facet of riding) {
+      assert.match(partOf(moved.html, facet),
+        new RegExp(`data-option="${options[1]}" aria-pressed="true"`), `${facet.id}: 안 따라왔다`);
+    }
+  }
+  // **모양은 여전히 말하지 않는다.** 고를 것과 고른 것을 자리로 낼 뿐이다.
+  // **이름을 본다** — `<table>` 안의 tab 같은 것에 걸리면 판정이 헛돈다.
+  const named = new Set();
+  for (const [, value] of shots[0].html.matchAll(/class="([^"]*)"/g)) {
+    for (const one of value.split(/\s+/)) named.add(one.toLowerCase());
+  }
+  for (const [, key] of shots[0].html.matchAll(/\b(data-[a-z-]+)=/g)) named.add(key.toLowerCase());
+  for (const bad of ["chip", "dropdown", "segment", "tab", "pill", "toggle", "data-widget"]) {
+    assert.ok(!named.has(bad), `모양을 말한다: ${bad}`);
+  }
+  assert.ok(named.has("choice") && named.has("data-choice") && named.has("data-option"));
 });
 
 test("렌더 인자는 값이 말할 수 없는 것뿐이다", () => {
@@ -1303,17 +1366,22 @@ test("타입마다 표시 단위가 있다", () => {
 });
 
 test("읽는 사람에게 주는 한 줄은 늘 보인다", () => {
-  // **`hint` 와 `description` 은 받는 사람이 다르다.** 앞의 것은 읽는 사람에게 늘 보이고,
+  // **템플릿 필드 주석과 `description` 은 받는 사람이 다르다.** 앞의 것은 읽는 사람에게 늘 보이고,
   // 뒤의 것은 분석에게 주는 추출 지시라 화면에 나오지 않는다.
-  const field = read("schema/weave-template.schema.json").$defs.Field.properties;
-  assert.ok(field.hint && field.description, "둘 다 있어야 한다");
-  assert.equal(field.hint.maxLength, 80, "한 줄을 넘길 수 있으면 혼자 서는 글이 된다");
-  assert.match(field.hint.pattern, /\\n/, "줄바꿈을 막지 않는다");
+  const schema = read("schema/weave-template.schema.json");
+  const field = schema.$defs.Field.properties;
+  assert.ok(field.notes && field.description, "둘 다 있어야 한다");
+  // **갈래를 늘리지 않았다.** 값 한 벌의 것과 같은 넷이다 — 갈래는 뜻만 가르고,
+  // 늘 보이느냐 표시 뒤냐는 **붙은 자리**가 정한다.
+  const said2 = schema.$defs.FieldNotes.items.properties;
+  assert.match(JSON.stringify(said2.kind), /AnnotationKind/, "갈래를 따로 만들었다");
+  assert.equal(said2.text.maxLength, 120, "길면 값 옆이 아니라 facet 의 말이 된다");
+  assert.match(said2.text.pattern, /\\n/, "줄바꿈을 막지 않는다");
 
   // 여섯 element 모두에서 **늘 보인다** — 표시 뒤로 숨지 않는다.
   const said = "이 값이 무엇인지 한 줄로 말합니다.";
   const template = structuredClone(FIX.template);
-  for (const facet of template.facets) facet.fields[0].hint = `${facet.id} — ${said}`;
+  for (const facet of template.facets) facet.fields[0].notes = [{ kind: "note", text: `${facet.id} — ${said}` }];
   const { html } = renderView({ template, values: FIX.values, focus: "proposal-a" });
   for (const facet of template.facets) {
     const part = sectionOf(html, facet.element);

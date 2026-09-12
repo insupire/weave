@@ -631,7 +631,6 @@ export const PAGES = [
                 "key": "rider-list",
                 "label": "담보 목록",
                 "shape": "items",
-                "hint": "설계안에 적힌 순서 그대로예요.",
                 "description": "보장내역 표에 적힌 담보를 적힌 순서 그대로 하나씩 담는다.",
                 "columns": [
                   {
@@ -651,6 +650,12 @@ export const PAGES = [
                     "label": "월 보험료",
                     "type": "money",
                     "description": "그 담보 몫의 월 보험료를 원 단위 정수로 담는다."
+                  }
+                ],
+                "notes": [
+                  {
+                    "kind": "note",
+                    "text": "설계안에 적힌 순서 그대로예요."
                   }
                 ]
               }

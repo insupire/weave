@@ -228,35 +228,6 @@ function drawFocus(seats) {
   for (const seat of seats) add(seat.name, seat.id, seat.id);
 }
 
-/**
- * 고르는 자리를 나열한다. **선언이 없으면 아무것도 세우지 않는다.**
- *
- * 모양은 언어가 말하지 않는다 — 참조 뷰어는 단추로 그리지만 앱은 드롭다운이든 무엇이든
- * 제 것을 쓴다. 여기서 읽는 것은 「무엇을 고를 수 있고 지금 무엇이 골라져 있나」뿐이다.
- */
-function drawChoices(picks, chosen) {
-  const box = $("variant-buttons");
-  box.innerHTML = "";
-  for (const pick of picks ?? []) {
-    const row = document.createElement("span");
-    row.className = "pick-row";
-    row.title = pick.label || pick.id;
-    for (const option of pick.options ?? []) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "pick";
-      button.textContent = option.label || option.id;
-      button.setAttribute("aria-pressed", String(option.id === chosen?.[pick.id]));
-      button.addEventListener("click", () => {
-        state.choices = { ...state.choices, [pick.id]: option.id };
-        refresh();
-      });
-      row.appendChild(button);
-    }
-    box.appendChild(row);
-  }
-}
-
 function refresh() {
   const { template, values, problems } = read();
   const { html, report, view } = renderView({
@@ -270,7 +241,6 @@ function refresh() {
   $("view").className = state.showElements ? "viewport show-elements" : "viewport";
   $("view").innerHTML = html;
   drawFocus(view?.seats ?? []);
-  drawChoices(view?.choices ?? [], view?.chosen ?? {});
   // 무엇을 보고 있는지는 화면에 한 번. 고른 것이 있으면 눌린 버튼이 이미 말하므로,
   // 말해 주지 못할 때(고른 것 없음)만 적는다.
   const watching = (view?.seats ?? []).find((s) => s.id === view?.shown);
@@ -383,6 +353,15 @@ export function start() {
     shut(document.activeElement?.closest?.(".note-mark"));
     shutAll();
   });
+  // **축은 분석뷰 안에 선다.** 렌더가 낸 자리를 눌러 고른다 — 앱은 상태만 갖는다.
+  $("view").addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-option]");
+    const slot = button?.closest?.("[data-choice]");
+    if (!slot) return;
+    state.choices = { ...state.choices, [slot.dataset.choice]: button.dataset.option };
+    refresh();
+  });
+
   // 전화기에서 어느 판을 세울지. 넓은 화면에서는 이 줄이 CSS 로 감춰져 뜻이 없다.
   $("pane-pick").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-pane]");
