@@ -15,7 +15,7 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEM, NO_ITEMS, NO_VALUE, NO_VALUE_MARK, TRACE, UNDRAWABLE,
+  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEM, NO_ITEMS, NO_VALUE, NO_VALUE_MARK, TRACE, UNDRAWABLE, esc,
   formatScalar, renderView, traceOf,
 } from "../viewer/render.mjs";
 import { ICON } from "../viewer/icons.mjs";
@@ -479,7 +479,9 @@ test("고르는 자리는 값을 바꾸고 골격은 바꾸지 않는다", () =>
     assert.equal(titles(shot.html), titles(shots[0].html), "축이 facet 차례를 바꾼다");
   }
   // **값은 바뀐다.** 안 바뀌면 고르는 자리가 하는 일이 없다.
-  assert.ok(new Set(shots.map((one) => one.html)).size > 1, "골라도 그림이 그대로다");
+  // **선택자 자체를 걷고 본다** — 눌린 표시(aria-pressed)만 달라도 그림이 달라 보인다.
+  const bodyOnly = (html) => html.replace(/<div class="choice"[\s\S]*?<\/div>/g, "");
+  assert.ok(new Set(shots.map((one) => bodyOnly(one.html))).size > 1, "골라도 값이 그대로다");
   // 타지 않는 필드는 무엇을 골라도 같은 값이다.
   const steady = template.facets
     .flatMap((f) => f.fields.filter((d) => !d.choice).map((d) => ({ facet: f, decl: d })))
@@ -530,6 +532,11 @@ test("고르는 자리는 값을 바꾸고 골격은 바꾸지 않는다", () =>
   for (const shot of shots) {
     const slots = [...shot.html.matchAll(new RegExp(`data-choice="${pick.id}"`, "g"))];
     assert.equal(slots.length, riding.length, "타는 facet 마다 하나씩 서야 한다");
+    // **한 자리에 눌린 것은 하나다.** 전부 눌린 것으로 보이면 무엇을 고른 줄 모른다.
+    for (const one of shot.html.match(/<div class="choice"[\s\S]*?<\/div>/g) ?? []) {
+      assert.equal((one.match(/aria-pressed="true"/g) ?? []).length, 1,
+        `한 자리에 눌린 것이 하나가 아니다: ${one.slice(0, 100)}`);
+    }
     for (const facet of riding) {
       assert.ok(partOf(shot.html, facet).includes(`data-choice="${pick.id}"`), `${facet.id}: 선택자가 없다`);
     }
@@ -548,6 +555,19 @@ test("고르는 자리는 값을 바꾸고 골격은 바꾸지 않는다", () =>
         new RegExp(`data-option="${options[1]}" aria-pressed="true"`), `${facet.id}: 안 따라왔다`);
     }
   }
+  // **한 facet 에 한 자리는 한 번 선다.** 필드 둘이 같은 자리를 타도 선택자는 하나다 —
+  // 고정 케이스에 그런 facet 이 없으니 여기서 만들어 본다.
+  {
+    const twice = structuredClone(FIX.template);
+    twice.choices = [{ id: "case", label: "갈래",
+      options: [{ id: "one", label: "하나" }, { id: "two", label: "둘" }] }];
+    const many = twice.facets.find((f) => f.fields.length >= 2);
+    assert.ok(many, "필드 둘인 facet 이 있어야 같은 자리를 두 번 타게 해 볼 수 있다");
+    for (const decl of many.fields.slice(0, 2)) decl.choice = "case";
+    const html = renderView({ template: twice, values: [], choices: { case: "one" } }).html;
+    assert.equal((html.match(/data-choice=/g) ?? []).length, 1, "한 자리가 여러 번 섰다");
+  }
+
   // **모양은 여전히 말하지 않는다.** 고를 것과 고른 것을 자리로 낼 뿐이다.
   // **이름을 본다** — `<table>` 안의 tab 같은 것에 걸리면 판정이 헛돈다.
   const named = new Set();
@@ -1047,7 +1067,17 @@ test("평가를 시각으로 말하지 않는다", () => {
   const icons = [...fix().html.matchAll(/<svg class="kind-icon note-([a-z]+)"/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(icons)].sort(), [...kinds].sort());
 
-  // 4. 순위·경고를 뜻하는 기호가 없다.
+  // 4. **혼자 서는 글이 없다.** 값에 매이지 않는 문장을 분석뷰가 내기 시작하면 그것이
+  //    판정이다 — 순위를 문장으로 말하지 않기로 한 자리와 같다. 글이 설 수 있는 자리는
+  //    정해져 있다: 제목 · facet 의 한 줄 · 필드의 한 줄 · 주석 줄 · 값.
+  for (const page of [fix({ focus: "proposal-a" }).html, ...sampleNames.map((n) => drawSample(sample(n)).html)]) {
+    for (const [, attrs] of page.matchAll(/<p\b([^>]*)>/g)) {
+      assert.match(attrs, /class="(facet-hint|hint)"/, `분석뷰에 혼자 서는 글이 섰다: <p${attrs}>`);
+    }
+    assert.ok(!/<h[3-6]\b/.test(page), "분석뷰에 새 머리글이 섰다");
+  }
+
+  // 5. 순위·경고를 뜻하는 기호가 없다.
   const shown = fix({ focus: "proposal-a" }).html;
   for (const sign of ["⚠", "★", "☆", "▲", "!", "1위", "best", "worst"]) {
     assert.ok(!shown.includes(sign), `평가 기호: ${sign}`);
@@ -1283,6 +1313,8 @@ test("선은 보는 상태로 갈린다 — 색을 빼도 갈린다", () => {
   assert.equal(traceOf("proposal-a", "proposal-a", "proposal-b"), "now");
   assert.equal(traceOf("proposal-a", "proposal-b", "proposal-a"), "prior");
   assert.equal(traceOf("proposal-a", "proposal-c", "proposal-b"), "rest");
+  // **직전이 현재와 같을 수는 없다.** 같은 id 가 오면 직전이 없는 것으로 본다.
+  assert.equal(traceOf("proposal-a", "proposal-a", "proposal-a"), "now");
   assert.notEqual(svg, moved, "focus 를 옮겨도 그림이 그대로다");
   // 차례를 바꿔도 갈래는 그대로다 — id 나 자리에서 나오지 않는다.
   const swapped = renderView({
@@ -1447,7 +1479,17 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
     const valueAt = part.indexOf('class="note-mark" ');
     if (valueAt > 0) assert.ok(at < valueAt, `${facet.id}: 값 주석이 이름 옆보다 앞에 선다`);
   }
-  // 4. **hint 없는 필드에는 표시가 없다.** 빈 표시를 세우지 않는다.
+  // 4. **hint 에는 갈래가 없다.** 갈래는 주석의 것이다 — hint 는 이 필드가 무엇인지일 뿐,
+  //    인용도 팁도 주의도 아니다.
+  for (const facet of template.facets) {
+    const part = sectionOf(page, facet.element);
+    const mark = part.slice(part.indexOf("hint-mark"));
+    const pop = mark.slice(0, mark.indexOf("</span></span>"));
+    assert.ok(!/class="kind"|note-(quote|tip|note|caution)/.test(pop),
+      `${facet.id}: hint 에 갈래가 붙었다`);
+  }
+
+  // 5. **hint 없는 필드에는 표시가 없다.** 빈 표시를 세우지 않는다.
   const bare = structuredClone(FIX.template);
   for (const facet of bare.facets) for (const decl of facet.fields) delete decl.hint;
   assert.ok(!renderView({ template: bare, values: FIX.values }).html.includes("hint-mark"));
@@ -1544,6 +1586,41 @@ test("그림이 값과 같은 자로 재어진다", () => {
   assert.ok(first.length >= 4, "눈금이 넷은 서야 축을 볼 수 있다");
   assert.deepEqual(axisOf("two"), first, "고른 것을 옮기니 축이 움직인다");
 
+  // ── **bars 의 자도 고를 것을 덮는다.** 고른 것을 옮겨도 같은 값은 같은 길이다.
+  {
+    const barsFacet = FIX.template.facets.find((f) => f.element === "bars");
+    const two = structuredClone(FIX.template);
+    const axedBars = two.facets.find((f) => f.id === barsFacet.id);
+    two.choices = [{ id: "case", label: "갈래",
+      options: [{ id: "one", label: "하나" }, { id: "two", label: "둘" }] }];
+    axedBars.fields[0].choice = "case";
+    const vals = structuredClone(FIX.values);
+    for (const [i, doc] of vals.entries()) {
+      doc.facets[barsFacet.id].fields[axedBars.fields[0].key] = i === 0
+        ? { byOption: { one: { state: "filled", value: 10000000 }, two: { state: "filled", value: 90000000 } } }
+        : { byOption: { one: { state: "empty" }, two: { state: "empty" } } };
+    }
+    const barWidth = (option) =>
+      width(sectionOf(renderView({ template: two, values: vals, focus: "proposal-a",
+        choices: { case: option } }).html, "bars"))[0];
+    // **자를 넘는 길이가 없다.** 고른 것만 보고 재면 다른 갈래의 큰 값이 자를 넘어선다.
+    for (const option of ["one", "two"]) {
+      assert.ok(barWidth(option) <= 100, `길이가 자를 넘는다: ${option} ${barWidth(option)}%`);
+    }
+    assert.ok(barWidth("one") < barWidth("two") - 1,
+      `고른 것을 옮겼는데 자가 따라 움직인다: ${barWidth("one")} vs ${barWidth("two")}`);
+  }
+
+  // ── **바닥은 바닥이다.** 크면 작은 값이 실제보다 길어져 그림이 다시 거짓말한다.
+  // ── **line 의 y 축은 0 에서 시작한다.** 0 에서 자르면 작은 차이가 크게 보인다 —
+  //    읽기 좋게 하려고 자를 왜곡하는 것이고 그 판단은 우리 것이 아니다.
+  {
+    const src = fs.readFileSync(path.join(ROOT, "viewer/render.mjs"), "utf-8");
+    const floor = Number(src.match(/const FLOOR = ([\d.]+);/)?.[1]);
+    assert.ok(Number.isFinite(floor) && floor > 0 && floor <= 2, `바닥이 자를 흔든다: ${floor}`);
+    assert.match(src, /const ymin = Math\.min\(\.\.\.ys, 0\)/, "y 축이 0 에서 떨어졌다");
+  }
+
   // ── 길이로 말하지 않는 element 는 inline style 을 아예 내지 않는다.
   for (const element of ["stat", "facts", "list", "rows"]) {
     const flat = sectionOf(fix({ focus: "proposal-a" }).html, element);
@@ -1622,6 +1699,11 @@ test("겹치는 표와 고른 것만 내는 표가 이름으로 갈린다", () =
 });
 
 test("값에서 온 글은 escape 된다", () => {
+  // **다섯 글자를 전부 본다.** 하나라도 새면 값이 마크업이 된다 — 홑따옴표는 속성값을
+  // 닫는 글자라 빠뜨리기 쉽고, 빠뜨려도 나머지 넷이 통과해 초록으로 지나간다.
+  for (const [raw, want] of [["&", "&amp;"], ["<", "&lt;"], [">", "&gt;"], ['"', "&quot;"], ["'", "&#x27;"]]) {
+    assert.equal(esc(raw), want, `escape 가 ${raw} 를 흘린다`);
+  }
   const doc = structuredClone(FIX.filled);
   doc.subjectLabel = '<script>alert("x")</script>';
   const { html } = renderView({ template: FIX.template, values: [doc] });
