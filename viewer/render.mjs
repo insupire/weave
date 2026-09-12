@@ -211,6 +211,20 @@ function notesHtml(notes, where = "") {
   return `<ul class="notes">${rows.join("")}</ul>`;
 }
 
+/**
+ * **아직 아무도 오지 않은 자리.**
+ *
+ * subject 가 하나도 없을 때 값이 설 곳에 선다. 표기(`—`)를 쓰지 않는다 — 그것은
+ * **어떤 subject 의 값을 모른다**는 말인데, 여기엔 모를 subject 자체가 없다.
+ *
+ * **가짜 값을 그리지 않는다.** 예시 숫자나 흐린 더미 값은 진짜 값으로 읽히는 순간
+ * 우리가 지켜온 것이 무너진다. 그려도 되는 것은 **자리**뿐이라 빈 칸에 줄만 긋는다.
+ * 깜빡이거나 움직이지 않는다 — 「기다리는 중」은 앱이 얹을 말이고 언어의 것이 아니다.
+ */
+function slot(said = "값이 올 자리") {
+  return `<span class="slot" role="img" aria-label="${esc(said)}"></span>`;
+}
+
 /** 모른다는 **표기**. 왜 없는지는 주석이 글로 말한다. */
 function missMark() {
   return (
@@ -323,6 +337,11 @@ function oneRead(ctx, facet, decl, subject) {
 /** 값 하나를 크게. focus 가 고른 subject 의 것을 그린다. */
 function stat(ctx, facet) {
   const decl = facet.fields[0];
+  // **수 하나가 크게 설 자리.** 그 자리의 크기 그대로 비워 둔다.
+  if (ctx.subjects.length === 0) {
+    return `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>` +
+      `<div class="big">${slot()}</div>`;
+  }
   const subject = shownOf(ctx);
   if (!subject) return `<div class="blank">${missMark()}</div>`;
   const where = `${facet.id}/${decl.key}/${subject.id}`;
@@ -336,6 +355,13 @@ function stat(ctx, facet) {
 
 /** 라벨과 값 여럿. 한 facet 안에 타입이 섞여도 읽는 규칙은 하나다 — 고른 subject 의 것. */
 function facts(ctx, facet) {
+  // **라벨이 그대로 선다.** 사용자가 선언한 줄들이 이 facet 의 내용이고 지금 보러 온 것이다.
+  if (ctx.subjects.length === 0) {
+    const empty = facet.fields.map((decl) =>
+      `<div class="fact"><dt>${esc(decl.label ?? decl.key)}${hintMark(decl)}</dt>` +
+      `<dd>${slot()}</dd></div>`);
+    return `<dl class="facts">${empty.join("")}</dl>`;
+  }
   const subject = shownOf(ctx);
   if (!subject) return `<div class="blank">${missMark()}</div>`;
   const rows = facet.fields.map((decl) => {
@@ -363,6 +389,13 @@ function facts(ctx, facet) {
  * **「이 facet 은 축이 둘이다」라는 신호**다 — 감추지 않는다.
  */
 function bars(ctx, facet) {
+  // **빈 자가 그대로 선다.** `.track` 이 이미 「막대가 여기까지 갈 수 있다」는 자리라
+  // 채우지 않은 자만 두면 된다 — 길이 0 의 막대를 그리는 것이 아니다.
+  if (ctx.subjects.length === 0) {
+    return facet.fields.map((decl) =>
+      `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}${hintMark(decl)}</span>` +
+      `<span class="track"></span><span class="val">${slot()}</span></div>`).join("");
+  }
   const subject = shownOf(ctx);
   if (!subject) return `<div class="blank">${missMark()}</div>`;
   const numbers = facet.fields
@@ -445,9 +478,13 @@ function line(ctx, facet) {
       if (x !== null && y !== null) { span.x.push({ x, at: point.at }); span.y.push(y); }
     }
   }
-  const body = series.length
-    ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
-    : `<div class="blank">${missMark()}</div>`;
+  // **축만 남는다.** 값이 없으면 눈금도 없다 — 눈금을 지어내면 그것이 가짜 값이다.
+  // 두 축이 서는 것만으로 「여기에 선이 그려진다」가 읽힌다.
+  const body = ctx.subjects.length === 0
+    ? `<div class="chart-scroll">${emptyAxes()}</div>`
+    : series.length
+      ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
+      : `<div class="blank">${missMark()}</div>`;
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
     // 값이 설 한 자리가 없는 element 다 — 값 주석 표시가 이름 줄에 함께 선다.
@@ -458,6 +495,16 @@ function line(ctx, facet) {
     blankRow(missing, ctx) +
     // 어긋난 값은 범례가 아니라 결함 신호다. 누구 것인지 적어야 고칠 수 있어 전원을 낸다.
     (broken.length ? `<div class="offs">${broken.join("")}</div>` : "")
+  );
+}
+
+/** 아직 아무도 오지 않은 축. 눈금도 선도 없다 — 자리만 있다. */
+function emptyAxes() {
+  const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
+  return (
+    `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
+    `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
   );
 }
 
@@ -541,6 +588,18 @@ function list(ctx, facet) {
     .map(({ subject }) => ({ ...subject }));
   // list 는 값이 subject 열에 선다 — 값 주석 표시는 그 열 머리로 간다.
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>`;
+  // **열은 subject 가 만든다.** 아직 아무도 없으니 키 열만 서고 그 옆 한 칸이
+  // 「제안서가 오면 여기에 한 열씩 선다」는 자리로 비어 있는다. 이름을 지어내지 않는다.
+  if (ctx.subjects.length === 0) {
+    return (
+      label +
+      `<div class="table-scroll"><table class="items"><colgroup><col><col></colgroup>` +
+      `<thead><tr><th class="corner">${esc(key.label ?? key.key)}</th>` +
+      `<th>${slot("제안서가 올 자리")}</th></tr></thead>` +
+      `<tbody><tr><th class="row-label" scope="row">${slot("항목이 올 자리")}</th>` +
+      `<td>${slot()}</td></tr></tbody></table></div>`
+    );
+  }
   if (rows.size === 0) {
     return label +
       // 목록 **전체**가 비었다는 말은 값 하나의 자리가 아니라 표가 설 자리다. 글로 선다.
@@ -600,6 +659,17 @@ function rows(ctx, facet) {
   // rows 도 값이 설 한 자리가 없다 — 이름 줄에 hint 다음으로 선다.
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}` +
     `${fieldMark(ctx, facet, decl)}</div>`;
+  // **열 머리가 전부 선다.** 열은 템플릿이 선언한 것이라 subject 가 없어도 안다 —
+  // 사용자가 무엇을 담기로 했는지가 여기서 그대로 읽힌다.
+  if (ctx.subjects.length === 0) {
+    const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
+    const blank = columns.map(() => `<td>${slot()}</td>`).join("");
+    return (
+      label +
+      `<div class="table-scroll"><table class="items"><thead><tr>${head}</tr></thead>` +
+      `<tbody><tr>${blank}</tr></tbody></table></div>`
+    );
+  }
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 
   const { state, entry } = oneRead(ctx, facet, decl, subject);
@@ -649,6 +719,10 @@ function parts(ctx, facet) {
     `${fieldMark(ctx, facet, decl)}</div>`;
   if (columns.length < 2) return `${label}<div class="blank">${missMark()}</div>`;
   const [name, share] = columns;
+  // **빈 띠가 자리를 말한다.** 조각의 이름은 값이 갖고 오는 것이라 지어내지 않는다.
+  if (ctx.subjects.length === 0) {
+    return `${label}<div class="band" role="img" aria-label="조각이 올 자리"></div>`;
+  }
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 
   const { state, entry } = oneRead(ctx, facet, decl, subject);

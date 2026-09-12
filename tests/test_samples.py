@@ -225,7 +225,7 @@ class CatalogCannotDiverge(unittest.TestCase):
             if element.startswith("__"):
                 continue
             with self.subTest(element):
-                self.assertEqual(set(entry), {"compare", "draws", "note", "demo"})
+                self.assertEqual(set(entry), {"compare", "draws", "blank", "note", "demo"})
                 self.assertIn(entry["compare"], {"overlay", "focus"})
 
     def test_prose_is_plain_text(self) -> None:
@@ -236,7 +236,7 @@ class CatalogCannotDiverge(unittest.TestCase):
                 self.assertNotIn("`", text)
 
         for row in catalog.catalog():
-            for field in ("draws", "note"):
+            for field in ("draws", "blank", "note"):
                 look(f"{row['element']}/{field}", row[field])
         for key, entry in catalog.guide().items():
             look(f"{key}/lead", entry["lead"])

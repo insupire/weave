@@ -650,6 +650,99 @@ test("값 한 벌이 하나도 없으면 골격만 남는다", () => {
   for (const facet of FIX.template.facets) assert.ok(shown.includes(facet.title), facet.id);
 });
 
+test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => {
+  // **골격이 섰다는 것으로는 모자란다.** 제목만 보면 원소 안이 텅 빈 채로도 통과한다.
+  // 여기서는 원소 일곱이 각자 「여기에 무엇이 올지」를 그리는지를 하나씩 본다.
+  const { html } = renderView({ template: FIX.template, values: [] });
+  const byId = Object.fromEntries(FIX.template.facets.map((f) => [f.element, f]));
+  assert.equal(Object.keys(byId).length, Object.keys(ELEMENTS).length, "fixture 가 원소 전부를 써야 한다");
+  const at = (element) => sectionOf(html, element);
+  const slots = (part) => (part.match(/class="slot"/g) ?? []).length;
+
+  // 공통 — **가짜 값도 표기도 쓰지 않는다.** `—` 는 「어떤 subject 의 값을 모른다」는 말인데
+  // 여기엔 모를 subject 자체가 없다. 「없음」류의 글도 아직 할 말이 아니다.
+  assert.ok(!html.includes(NO_VALUE_MARK), "모른다는 표기가 섰다 — 모를 subject 가 없는 자리다");
+  for (const said of [NO_VALUE, NO_ITEM, NO_ITEMS, UNDRAWABLE]) {
+    assert.ok(!textOf(html).includes(said), `아직 할 말이 아니다: ${said}`);
+  }
+  // **깜빡이지 않는다.** 「기다리는 중」은 앱이 얹는 말이라 자리 자체는 가만히 있는다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  assert.ok(!/@keyframes/.test(css), "스켈레톤 애니메이션이 들어왔다");
+  const slotRule = css.match(/\n\.slot\s*\{[^}]*\}/);
+  assert.ok(slotRule, ".slot 이 모양을 안 갖고 있다");
+  assert.ok(!/animation|transition/.test(slotRule[0]), "자리가 움직인다");
+
+  // stat — 수 하나가 크게 설 자리를 그 크기 그대로 비운다.
+  assert.match(at("stat"), /class="big"/);
+  assert.equal(slots(at("stat")), 1, "stat 은 자리 하나다");
+  assert.ok(textOf(at("stat")).includes(byId.stat.fields[0].label), "stat 의 이름이 빠졌다");
+
+  // facts — **사용자가 선언한 줄이 전부 선다.** 그 줄들이 이 facet 의 내용이다.
+  const factLines = byId.facts.fields;
+  assert.ok(factLines.length >= 3, "줄이 여럿이어야 「전부 선다」가 재진다");
+  for (const f of factLines) assert.ok(textOf(at("facts")).includes(f.label ?? f.key), f.key);
+  assert.equal(slots(at("facts")), factLines.length, "줄 수와 자리 수가 다르다");
+
+  // bars — 빈 자가 선다. 길이 0 의 막대를 그리는 것이 아니라 **채우지 않은 자**를 둔다.
+  const barFields = byId.bars.fields;
+  assert.ok(barFields.length >= 2, "막대가 여럿이어야 한다");
+  assert.equal((at("bars").match(/class="track"/g) ?? []).length, barFields.length);
+  assert.ok(!/class="fill"/.test(at("bars")), "막대를 그렸다 — 가짜 값이다");
+  for (const f of barFields) assert.ok(textOf(at("bars")).includes(f.label ?? f.key), f.key);
+
+  // line — **축만 남는다.** 눈금을 지어내면 그것이 가짜 값이다.
+  // **그림 안만 본다** — 표시 아이콘도 `<path>` 라 facet 째로 재면 판정이 헛돈다.
+  const chart = at("line").match(/<svg class="line"[\s\S]*?<\/svg>/)?.[0];
+  assert.ok(chart, "선이 설 자리가 없다");
+  assert.equal((chart.match(/class="axis"/g) ?? []).length, 2, "축 둘만 선다");
+  for (const drawn of ["<path", "<circle", "series-label", "class=\"tick"]) {
+    assert.ok(!chart.includes(drawn), `선 위에 무언가 그렸다: ${drawn}`);
+  }
+
+  // list — 열은 subject 가 만든다. 키 열만 서고 그 옆이 「제안서가 오면 여기」라는 자리다.
+  const items = at("list");
+  assert.match(items, /table class="items"/);
+  const keyColumn = byId.list.fields[0].columns[0];
+  assert.ok(textOf(items).includes(keyColumn.label ?? keyColumn.key), "키 열 이름이 빠졌다");
+  assert.equal((items.match(/<tbody>[\s\S]*?<\/tbody>/)[0].match(/<tr>/g) ?? []).length, 1);
+  for (const name of Object.values(NAMES)) assert.ok(!items.includes(name), `이름을 지어냈다: ${name}`);
+
+  // rows — **열 머리가 전부 선다.** 열은 템플릿이 선언한 것이라 subject 없이도 안다.
+  const table = at("rows");
+  const columns = byId.rows.fields[0].columns;
+  assert.ok(columns.length >= 2, "열이 여럿이어야 한다");
+  for (const c of columns) assert.ok(textOf(table).includes(c.label ?? c.key), c.key);
+  assert.equal(slots(table), columns.length, "빈 줄이 열 수만큼 서야 한다");
+
+  // parts — 빈 띠가 자리를 말한다. 조각 이름은 값이 갖고 오는 것이라 지어내지 않는다.
+  const band = at("parts");
+  assert.match(band, /class="band"/);
+  assert.ok(!/class="slice"/.test(band), "조각을 그렸다 — 가짜 값이다");
+  assert.ok(!/class="slice-row"/.test(band), "조각 이름을 지어냈다");
+});
+
+test("subject 0 에서도 고르는 자리는 서고 focus 는 가리킬 것이 없어도 안 무너진다", () => {
+  // **축은 값이 아니라 템플릿의 것이다.** 아직 아무도 없어도 「무엇으로 볼지」는 고를 수 있어야
+  // 그 facet 에 무엇이 올지가 읽힌다.
+  const axed = structuredClone(FIX.template);
+  axed.choices = [{ id: "term", label: "기간",
+    options: [{ id: "y10", label: "10년" }, { id: "y20", label: "20년" }] }];
+  for (const facet of axed.facets) facet.fields[0].choice = "term";
+  const html = renderView({ template: axed, values: [], choices: { term: "y20" } }).html;
+  assert.equal((html.match(/data-choice="term"/g) ?? []).length, axed.facets.length,
+    "facet 마다 선택자가 서야 한다");
+  assert.match(html, /data-option="y20" aria-pressed="true"/);
+  // 고른 것을 바꿔도 골격은 그대로다 — 아직 바뀔 값이 없다.
+  const other = renderView({ template: axed, values: [], choices: { term: "y10" } }).html;
+  assert.equal((other.match(/class="slot"/g) ?? []).length, (html.match(/class="slot"/g) ?? []).length);
+
+  // **focus 는 가리킬 것이 없다.** 없는 subject 를 가리켜도 자리는 그대로 선다.
+  const lost = renderView({ template: FIX.template, values: [], focus: "nobody", previousFocus: "nobody2" });
+  assert.deepEqual(lost.view.seats, []);
+  assert.ok(!lost.html.includes("is-focus"), "가리킬 것이 없는데 표시가 붙었다");
+  assert.equal(lost.html, renderView({ template: FIX.template, values: [] }).html);
+});
+
 // ---------------------------------------------------------------- focus
 
 /** focus 표시가 붙은 자리에서 읽히는 subject 이름. 겹친 화면에서 어느 것이 무엇인지 가르는 자리다. */

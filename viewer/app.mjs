@@ -98,6 +98,7 @@ function elementPage(page) {
     `<p class="lead">${esc(page.draws)}</p></header>` +
     `<dl class="limits">` +
     `<dt>비교</dt><dd>${esc(page.compareSaid)}</dd>` +
+    `<dt>아무도 없을 때</dt><dd>${esc(page.blank)}</dd>` +
     `<dt>필드 수</dt><dd>${esc(page.fields)}</dd>` +
     `<dt>shape</dt><dd>${page.shapes.map((x) => `<code>${esc(x)}</code>`).join(" · ")}</dd>` +
     `<dt>type</dt><dd>${types}</dd>` +
