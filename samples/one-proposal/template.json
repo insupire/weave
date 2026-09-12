@@ -1,11 +1,12 @@
 {
   "weave": "1",
   "id": "one-proposal-1",
-  "title": "이 제안서를 뜯어봅니다",
+  "title": "제안서 상세",
   "facets": [
     {
       "id": "premium",
-      "title": "다달이 내는 돈",
+      "title": "월 보험료",
+      "hint": "이 제안서에서 매달 빠져나가는 금액입니다.",
       "element": "stat",
       "fields": [
         {
@@ -26,7 +27,8 @@
     },
     {
       "id": "overview",
-      "title": "어떤 계약인가",
+      "title": "계약 조건",
+      "hint": "누구와 언제까지 어떤 방식으로 맺는 계약인지입니다.",
       "element": "facts",
       "fields": [
         {
@@ -107,7 +109,8 @@
     },
     {
       "id": "payback",
-      "title": "언제쯤 낸 만큼 돌려받나",
+      "title": "회수 배율",
+      "hint": "낸 보험료 대비 받게 되는 누적 금액의 배수를 나이별로 그린 것입니다.",
       "element": "line",
       "fields": [
         {
@@ -134,7 +137,8 @@
     },
     {
       "id": "covered-total",
-      "title": "이 병에 얼마가 나오나",
+      "title": "보장 총액",
+      "hint": "고른 병으로 받을 수 있는 금액을 다 더한 값입니다.",
       "element": "stat",
       "fields": [
         {
@@ -160,7 +164,8 @@
     },
     {
       "id": "covered-items",
-      "title": "무엇으로 그 금액이 되나",
+      "title": "담보별 가입금액",
+      "hint": "위 총액을 이루는 담보를 제안서끼리 나란히 둔 것입니다.",
       "element": "list",
       "fields": [
         {
@@ -194,7 +199,8 @@
     },
     {
       "id": "surrender",
-      "title": "중간에 그만두면 얼마를 버리나",
+      "title": "해지 시 부담",
+      "hint": "그 나이에 해지했을 때 한 달치로 환산한 손해입니다.",
       "element": "line",
       "fields": [
         {
@@ -220,7 +226,8 @@
     },
     {
       "id": "riders",
-      "title": "붙어 있는 담보 전부",
+      "title": "담보 목록",
+      "hint": "고른 제안서에 붙은 담보를 설계안에 적힌 순서 그대로 편 것입니다.",
       "element": "rows",
       "fields": [
         {

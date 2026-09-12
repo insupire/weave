@@ -793,7 +793,10 @@ export function renderView({
     const draw = ELEMENTS[facet.element];
     // primitive element 이름은 분석뷰에 나올 자리가 없다. 구조로만 남긴다 —
     // 참조 뷰어의 배지는 이 속성을 읽어 CSS 가 그리므로 렌더가 낸 글에는 들어가지 않는다.
-    const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>`;
+    // **제목은 짧은 이름이고 설명은 hint 가 진다.** facet 은 화면에 서넛뿐이라 한 줄씩
+    // 붙어도 길어지지 않는다 — 필드가 열 개씩이라 표시 뒤로 숨긴 것과 갈리는 자리다.
+    const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>` +
+      (facet.hint ? `<p class="facet-hint">${esc(facet.hint)}</p>` : "");
     let body;
     if (!draw) {
       body = undrawable(report, facet.id ?? at, `모르는 primitive element 다 — ${JSON.stringify(facet.element)}`);

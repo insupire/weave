@@ -1,6 +1,6 @@
 {
   "order": 2,
-  "name": "말한 금액이 그대로 왔나",
+  "name": "요청 금액 대조",
   "args": {
     "focus": "plan-a"
   }

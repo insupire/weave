@@ -1,11 +1,12 @@
 {
   "weave": "1",
   "id": "care-1",
-  "title": "돌봄이 필요해지면 무엇이 나오나",
+  "title": "간병·요양 보장",
   "facets": [
     {
       "id": "daily",
-      "title": "하루에 얼마가 나오나",
+      "title": "간병인 일당",
+      "hint": "간병인을 쓴 하루마다 나오는 금액입니다.",
       "element": "stat",
       "fields": [
         {
@@ -30,7 +31,8 @@
     },
     {
       "id": "by-grade",
-      "title": "등급마다 얼마가 나오나",
+      "title": "장기요양 등급별 금액",
+      "hint": "장기요양 등급 판정을 받았을 때 나오는 금액입니다.",
       "element": "bars",
       "fields": [
         {
@@ -84,7 +86,8 @@
     },
     {
       "id": "terms",
-      "title": "언제까지, 며칠까지",
+      "title": "보장 조건",
+      "hint": "언제까지, 며칠까지, 언제부터 보장되는지입니다.",
       "element": "facts",
       "fields": [
         {
@@ -129,7 +132,8 @@
     },
     {
       "id": "covers",
-      "title": "어떤 상태를 보장하나",
+      "title": "보장하는 상태",
+      "hint": "고른 설계가 보장하는 상태와 그때 나오는 금액입니다.",
       "element": "rows",
       "fields": [
         {

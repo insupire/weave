@@ -1,6 +1,6 @@
 {
   "order": 1,
-  "name": "지금 앱 화면을 그대로 옮겨 보기",
+  "name": "제안서 상세",
   "args": {
     "focus": "plan-a",
     "choices": {

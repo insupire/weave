@@ -164,6 +164,32 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
             with self.subTest(where):
                 self.assertTrue(said, "왜 비었는지 주석이 말해야 한다")
 
+    def test_titles_are_names_and_hints_carry_the_sentence(self) -> None:
+        """**샘플이 본보기다.** 템플릿을 쓰는 Procedure 가 여기 말투를 따라 쓴다.
+
+        제목은 **이름**(명사구)이고 「이것이 무엇인지」는 hint 가 진다. 제목이 설명까지
+        지면 화면을 훑을 때 무엇에 대한 자리인지가 한눈에 안 들어온다.
+
+        **말투는 기계가 못 잰다.** 여기서 막는 것은 되돌아가기 쉬운 한 가지 — 물음 꼴이다.
+        나머지(명사구인가·간결한가)는 사람이 본다.
+        """
+        asking = ("?", "？")
+        endings = ("나", "까", "요", "다")
+        for folder in sample_dirs():
+            meta = load(folder / "sample.json")
+            template = load(folder / "template.json")
+            names = [("샘플 이름", meta["name"]), ("분석뷰 제목", template["title"])]
+            names += [(f"facet {f['id']}", f["title"]) for f in template["facets"]]
+            for where, said in names:
+                with self.subTest(f"{folder.name}/{where}"):
+                    self.assertFalse(said.endswith(asking), f"물음표로 끝난다: {said}")
+                    self.assertFalse(
+                        said.endswith(endings), f"제목이 문장이다 — 이름으로 쓴다: {said}"
+                    )
+            for facet in template["facets"]:
+                with self.subTest(f"{folder.name}/{facet['id']}/hint"):
+                    self.assertIn("hint", facet, "이것이 무엇인지를 말하는 자리가 비었다")
+
     def test_every_facet_carries_template_author_notes(self) -> None:  # noqa: D102
         # 깨알 지식이 값이 아니라 템플릿에 사는지. 샘플이 그 자리를 실제로 쓴다.
         for folder in sample_dirs():

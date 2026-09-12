@@ -155,6 +155,8 @@ col.is-focus { border:2px solid var(--ink); }
 /* 첫 facet 위에는 선이 없다. 그래도 제목이 분석뷰 제목에 붙지 않게 한 층을 띄운다. */
 .facet:first-of-type { border-top:none; padding-top:var(--step); }
 .facet h2 { margin-bottom:0; }
+/* **제목 아래 늘 보이는 한 줄.** 이 자리가 무엇인지 말한다 — 제목은 이름만 진다. */
+.facet-hint { margin:var(--row) 0 0; font-size:13px; color:var(--mute); max-width:68ch; }
 .body { margin-top:var(--step); }
 .field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
 /* **늘 보이는 한 줄.** 값이 무엇인지 그 자리에서 말한다 — 표시 뒤로 숨지 않는다.

@@ -1,6 +1,6 @@
 {
   "order": 3,
-  "name": "내 보험료가 어디에 쓰이나",
+  "name": "보험료 구성",
   "args": {
     "focus": "plan-a"
   }

@@ -49,6 +49,7 @@ export const PAGES = [
           {
             "id": "premium",
             "title": "초회 보험료",
+            "hint": "이 제안서에서 매달 빠져나가는 금액입니다.",
             "element": "stat",
             "fields": [
               {
@@ -150,6 +151,7 @@ export const PAGES = [
           {
             "id": "terms",
             "title": "계약 조건",
+            "hint": "누구와 언제까지 어떤 방식으로 맺는 계약인지입니다.",
             "element": "facts",
             "fields": [
               {
@@ -274,6 +276,7 @@ export const PAGES = [
           {
             "id": "amounts",
             "title": "주요 가입금액",
+            "hint": "주요 담보의 가입금액입니다.",
             "element": "bars",
             "fields": [
               {
@@ -380,6 +383,7 @@ export const PAGES = [
           {
             "id": "curve",
             "title": "나이별 예상 보험료",
+            "hint": "나이가 들며 보험료가 어떻게 달라지는지입니다.",
             "element": "line",
             "fields": [
               {
@@ -496,6 +500,7 @@ export const PAGES = [
           {
             "id": "riders",
             "title": "특약",
+            "hint": "제안서마다 어떤 특약을 넣었는지 나란히 둔 것입니다.",
             "element": "list",
             "fields": [
               {
@@ -625,6 +630,7 @@ export const PAGES = [
           {
             "id": "riders",
             "title": "담보",
+            "hint": "고른 제안서에 붙은 담보를 설계안 순서 그대로 편 것입니다.",
             "element": "rows",
             "fields": [
               {
@@ -754,6 +760,7 @@ export const PAGES = [
           {
             "id": "split",
             "title": "보험료가 어디로 가나",
+            "hint": "월 보험료를 주계약과 특약별 몫으로 쪼갠 것입니다.",
             "element": "parts",
             "fields": [
               {

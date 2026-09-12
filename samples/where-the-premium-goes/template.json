@@ -1,11 +1,12 @@
 {
   "weave": "1",
   "id": "premium-split-1",
-  "title": "내 보험료가 어디에 쓰이나",
+  "title": "보험료 구성",
   "facets": [
     {
       "id": "premium",
-      "title": "다달이 내는 돈",
+      "title": "월 보험료",
+      "hint": "이 설계에서 매달 빠져나가는 금액입니다.",
       "element": "stat",
       "fields": [
         {
@@ -26,7 +27,8 @@
     },
     {
       "id": "split",
-      "title": "그 돈이 어디로 가나",
+      "title": "보험료 구성",
+      "hint": "월 보험료를 주계약과 특약별 몫으로 쪼갠 것입니다.",
       "element": "parts",
       "fields": [
         {
@@ -64,7 +66,8 @@
     },
     {
       "id": "covered",
-      "title": "무엇이 들어 있나",
+      "title": "주요 보장",
+      "hint": "이 설계가 넣은 진단 담보의 가입금액입니다.",
       "element": "facts",
       "fields": [
         {

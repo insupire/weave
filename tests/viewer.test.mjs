@@ -1368,7 +1368,34 @@ test("타입마다 표시 단위가 있다", () => {
   assert.notEqual(formatScalar("multiple", 4.9), formatScalar("ratio", 4.9));
 });
 
-test("이 필드가 무엇인지는 이름 옆에서 열린다", () => {
+test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
+  // **뜻이 층마다 같다** — facet 의 hint 도 필드의 hint 도 「이것이 무엇인지」다.
+  // 보이는 방식만 다르고 근거는 **밀도**다: facet 은 화면에 서넛이라 한 줄씩 붙어도
+  // 길어지지 않고, 필드는 열 개씩이라 늘 보이면 값보다 설명이 길어진다.
+  const facetHint = read("schema/weave-template.schema.json").$defs.Facet.properties.hint;
+  assert.ok(facetHint, "facet 에 hint 가 없다");
+  assert.match(facetHint.pattern, /\\n/, "줄바꿈을 막지 않는다");
+  assert.ok(facetHint.maxLength <= 120, "한 문장을 넘길 수 있으면 제목이 다시 설명을 진다");
+
+  // **facet 의 hint 는 제목 바로 아래에 늘 보인다.** 표시 뒤로 숨지 않는다.
+  const line = "이 자리가 무엇인지 한 문장으로 말합니다.";
+  const withHint = structuredClone(FIX.template);
+  for (const facet of withHint.facets) facet.hint = `${facet.id} — ${line}`;
+  const page = renderView({ template: withHint, values: FIX.values, focus: "proposal-a" }).html;
+  for (const facet of withHint.facets) {
+    const part = sectionOf(page, facet.element);
+    const at = part.indexOf(`${facet.id} — ${line}`);
+    assert.ok(at > 0, `${facet.id}: facet hint 가 안 보인다`);
+    assert.ok(!pops(part).some(([from, to]) => at > from && at < to), `${facet.id}: 표시 뒤로 숨었다`);
+    // 제목 **아래**다 — 제목이 이름을 지고 hint 가 설명을 진다.
+    assert.ok(at > part.indexOf("</h2>"), `${facet.id}: hint 가 제목보다 앞에 선다`);
+    assert.ok(at < part.indexOf('class="body"'), `${facet.id}: hint 가 본문보다 뒤에 선다`);
+  }
+  // hint 없는 facet 에는 줄이 서지 않는다.
+  const bareFacets = structuredClone(FIX.template);
+  for (const facet of bareFacets.facets) delete facet.hint;
+  assert.ok(!renderView({ template: bareFacets, values: FIX.values }).html.includes("facet-hint"));
+
   // **셋이 받는 사람이 다르다.**
   //   `description` — 분석에게. 무엇을 어떤 단위로 찾을지. 화면에 안 나온다.
   //   `hint`        — 읽는 사람에게. **이 필드가 무엇인지.** 값이 없어도 필요하다.
