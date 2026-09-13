@@ -719,13 +719,22 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
   }
   assert.ok(!/>[^<]*[0-9][^<]*</.test(chart), "그림 안에 수가 섰다");
   // **모양을 여럿 미리 그려 둔다.** 하나뿐이면 그 모양이 고정되어 「이 subject 의 선」으로
-  // 읽힌다 — 갈아 끼울 것이 있어야 계속 갈린다. 그려진 선은 전부 그 표식이어야 한다.
+  // 읽힌다 — 옮겨 갈 곳이 있어야 계속 갈린다. 그려진 선은 전부 그 표식이어야 한다.
   const drawnLines = [...chart.matchAll(/<(polyline|path)[^>]*>/g)].map((m) => m[0]);
   assert.ok(drawnLines.length >= 2, `갈아 끼울 모양이 없다: ${drawnLines.length}`);
-  for (const one of drawnLines) assert.match(one, /class="wave"/, `값에서 온 선이 섰다: ${one}`);
+  for (const one of drawnLines) assert.match(one, /class="wave[ "]/, `값에서 온 선이 섰다: ${one}`);
   // 서로 달라야 갈린다 — 같은 것을 여러 벌 두면 갈아 끼워도 그대로다.
-  const shapes = new Set(drawnLines.map((one) => one.match(/points="([^"]*)"/)?.[1]));
-  assert.equal(shapes.size, drawnLines.length, "같은 모양을 여러 벌 뒀다");
+  const corners = [...chart.matchAll(/<polyline[^>]*points="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(corners.length >= 2, `교대할 꺾은선이 없다: ${corners.length}`);
+  assert.equal(new Set(corners).size, corners.length, "같은 모양을 여러 벌 뒀다");
+  // **이어서 변형되는 선이 하나 있다.** 꼭짓점 수가 같아야 좌표가 짝지어 움직인다 —
+  // 짝이 안 맞으면 보간이 아니라 통째로 튄다.
+  const morphs = [...chart.matchAll(/<path class="wave wave-morph" d="([^"]*)"/g)].map((m) => m[1]);
+  assert.equal(morphs.length, 1, `흐르는 선이 하나가 아니다: ${morphs.length}`);
+  assert.equal(morphs[0], `M ${corners[0].split(" ").join(" L ")}`, "흐르는 선이 첫 꺾은선과 다르다");
+  for (const one of corners) {
+    assert.equal(one.split(" ").length, corners[0].split(" ").length, `꼭짓점 수가 다르다: ${one}`);
+  }
 
   // list — 열은 subject 가 만든다. 키 열만 서고 그 옆이 「제안서가 오면 여기」라는 자리다.
   const items = at("list");
@@ -859,6 +868,24 @@ test("움직임을 끈 사람에게도 자리가 선다", () => {
       }));
     assert.ok(off, `조용한 자리에 움직이던 것이 남았다: ${one}`);
   }
+  // **그리던 것은 멈추는 것으로 모자란다.** 굴리기만 멈추면 밑그림이 그대로 남는다 —
+  // 써 넣던 줄의 커서 테두리가 임의 자리에 서 있던 적이 있고, 그때 판정은 통과시켰다.
+  // 칠·테두리·획을 가진 자리는 **사라져야** 하고, 글자만 내던 자리는 글자를 비우면 된다.
+  const drawn = [...bareCss.slice(0, quietStart).matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, sel, rule]) => /\.slot|\.wave/.test(sel) && /animation:[^;]*infinite/.test(rule)
+      && /background|border|stroke/.test(rule))
+    .map(([, sel]) => sel.trim());
+  assert.ok(drawn.length >= 3, `그리는 자리를 못 찾았다 — 판정이 헛돈다: ${drawn.length}`);
+  for (const one of drawn) {
+    const parts = one.split(/\s+/);
+    const gone = quietText.some(([sel, rule]) =>
+      /display:none/.test(rule)
+      && sel.split(",").some((x) => {
+        const bits = x.trim().split(/\s+/);
+        return bits.length > 0 && bits.every((bit) => parts.includes(bit));
+      }));
+    assert.ok(gone, `조용한 자리에 그리던 것이 남았다 — 멈추는 것이 아니라 사라져야 한다: ${one}`);
+  }
   // **멈추는 것이 아니라 사라진다.** 멈춘 그림은 값처럼 읽힌다.
   assert.match(body, /\.wave \{[^}]*display:none/, "모양이 바뀌는 표식이 안 사라진다");
   // 그래도 「여기 값이 온다」가 읽혀야 한다 — 릴 상자의 모양은 그대로 남는다.
@@ -883,7 +910,8 @@ test("움직임을 끈 사람에게도 자리가 선다", () => {
     const timed = rule.match(/animation(?:-duration)?:\s*([^;]+)/);
     if (timed) {
       // 릴은 `--spin`, 지나가는 표식은 `--pass`. **갈래마다 하나뿐**이라 인스턴스가 못 흔든다.
-      assert.match(timed[1], /var\(--spin\)|var\(--pass\)|none/,
+      // 릴은 `--spin`, 지나가는 표식은 `--pass`, 써 넣는 자리는 `--type`.
+      assert.match(timed[1], /var\(--spin\)|var\(--pass\)|var\(--type\)|none/,
         `자리마다 속도가 다르다: ${name} — ${timed[1]}`);
       spun += 1;
     }
@@ -903,6 +931,100 @@ test("움직임을 끈 사람에게도 자리가 선다", () => {
   // **표식 이름을 바꾸면 판정이 조용히 좁아진다.** 실제로 `.sweep` 을 찾던 채로 남아
   // 그림 쪽 규칙을 한동안 안 보고 있었다. 두 갈래를 다 보고 있는지 여기서 못 박는다.
   assert.ok(waved >= 3, `그림 표식을 못 찾았다 — 판정이 헛돈다: ${waved}`);
+});
+
+test("선은 끊기지 않고 이어서 변형된다 — 좌표는 산출물이 갖는다", () => {
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const chart = renderView({ template: FIX.template, values: [] }).html
+    .match(/<svg class="line"[\s\S]*?<\/svg>/)[0];
+
+  // **변형은 `d` 를 보간한다.** opacity 로 갈아 끼우면 한 선이 끊겼다 다른 선이 나타난다.
+  const morph = css.match(/@keyframes morph \{([\s\S]*?)\n\}/);
+  assert.ok(morph, "흐르는 선의 시간표가 없다");
+  const frames = [...morph[1].matchAll(/([^{}]*)\{([^}]*)\}/g)].map(([, at, rule]) => [at.trim(), rule]);
+  assert.ok(frames.length >= 3, `옮겨 갈 곳이 모자란다: ${frames.length}`);
+  for (const [at, rule] of frames) assert.match(rule, /\bd:path\("/, `모양이 아닌 것을 움직인다: ${at}`);
+  assert.match(css, /svg\.line \.wave-morph \{[^}]*animation:morph var\(--pass\)/, "흐르는 선이 안 흐른다");
+
+  // **좌표를 스타일시트가 따로 갖지 않는다.** `render.mjs` 의 자와 모양에서 나온 꼭짓점
+  // 그대로여야 한다 — 두 곳에 베껴 쓰고 어긋나면 선이 축 밖으로 나간다.
+  const corners = [...chart.matchAll(/<polyline[^>]*points="([^"]*)"/g)]
+    .map((m) => `M ${m[1].split(" ").join(" L ")}`);
+  const drawn = frames.map(([, rule]) => rule.match(/d:path\("([^"]*)"\)/)[1]);
+  assert.deepEqual(new Set(drawn), new Set(corners), "스타일시트의 좌표가 산출물과 갈렸다");
+  assert.equal(drawn[0], corners[0], "첫 모양이 산출물이 세운 선과 다르다");
+  // 한 바퀴가 첫 모양으로 닫힌다 — 안 닫히면 돌 때마다 한 번씩 튄다.
+  assert.match(frames[0][0], /(^|,\s*)100%/, `한 바퀴가 안 닫힌다: ${frames[0][0]}`);
+
+  // **한쪽은 반드시 선다.** `d` 를 못 받는 자리에 교대가 남아야 선이 아예 안 보이지 않는다.
+  const yes = css.match(/@supports \(d:path\([^)]*\)\) \{([\s\S]*?)\n\}/);
+  const no = css.match(/@supports not \(d:path\([^)]*\)\) \{([\s\S]*?)\n\}/);
+  assert.ok(yes && no, "둘 중 하나를 고르는 자리가 없다");
+  assert.match(yes[1], /polyline \{[^}]*display:none/, "보간되는데 교대가 겹쳐 선다");
+  assert.match(no[1], /\.wave-morph \{[^}]*display:none/, "못 받는데 안 흐르는 선이 굳어 선다");
+  // 교대를 감출 때 **흐르는 선까지 같이 감기면** 그 자리에 선이 하나도 안 남는다 —
+  // 흐르는 선도 같은 표식(`.wave`)을 달고 있어 `.wave` 로 감추면 둘 다 감긴다. 실제로 그랬다.
+  // **주석을 걷고 본다** — 까닭을 적은 주석에 표식 이름이 들어 있어 그대로 재면 헛돈다.
+  const yesBody = yes[1].replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/\.wave\b(?!-)/.test(yesBody), `보간되는 자리에서 선이 통째로 사라진다: ${yesBody.trim()}`);
+});
+
+test("글 자리는 한 칸씩 끊어서 찍는다", () => {
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const cycle = Number(css.match(/--type:(\d+)ms/)[1]);
+  const box = Number(css.match(/\.slot\[data-slot="text"\] i \{ width:calc\(var\(--cell\) \* (\d+)\)/)[1]);
+
+  const block = css.match(/@keyframes type \{([\s\S]*?)\n\}/);
+  assert.ok(block, "써 넣는 시간표가 없다");
+  const steps = [...block[1].matchAll(/([\d.]+)% \{([^}]*)\}/g)].map(([, at, rule]) => {
+    const w = rule.match(/width:calc\(var\(--cell\) \* (\d+)\)/);
+    assert.ok(w || /width:0/.test(rule), `칸이 아닌 폭을 쓴다: ${at}% — ${rule}`);
+    return {
+      at: (Number(at) / 100) * cycle,
+      cells: w ? Number(w[1]) : 0,
+      step: Number(rule.match(/steps\((\d+),/)?.[1] ?? 0),
+    };
+  });
+  assert.ok(steps.length >= 4, `구간이 모자란다: ${steps.length}`);
+  assert.equal(steps[0].cells, 0, "빈 자리에서 시작하지 않는다");
+  assert.equal(steps.at(-1).cells, 0, "지우고 끝나지 않는다 — 다음 바퀴에서 폭이 튄다");
+
+  // **한 칸 100ms 로 찍고 1000ms 멈추고 한 칸 50ms 로 지운다.** 매끄럽게 자라면 로딩 막대다.
+  const words = new Set();
+  for (const [i, one] of steps.slice(0, -1).entries()) {
+    const next = steps[i + 1];
+    const span = next.at - one.at;
+    const near = (want, said) => assert.ok(Math.abs(span - want) < 1, `${said}: ${span}ms (${want}ms 여야)`);
+    if (next.cells > one.cells) {
+      near(100 * (next.cells - one.cells), `${next.cells}칸 찍는 데`);
+      assert.equal(one.step, next.cells - one.cells, "찍는 칸 수와 뛰는 수가 다르다");
+      words.add(next.cells);
+    } else if (next.cells === one.cells) {
+      near(1000, "다 찍고 멈추는 데");
+      assert.equal(one.step, 1, "멈춘 동안 무언가 움직인다");
+    } else {
+      near(50 * (one.cells - next.cells), `${one.cells}칸 지우는 데`);
+      assert.equal(one.step, one.cells - next.cells, "지우는 칸 수와 뛰는 수가 다르다");
+    }
+  }
+  // **한 폭에 고정되면 그 폭이 값이 된다.** 길이가 여럿이라야 폭이 아무 말도 못 한다.
+  assert.ok(words.size >= 2, `낱말 길이가 하나뿐이다: ${[...words]}`);
+  // 자리는 가장 긴 낱말만큼만 잡는다 — 좁으면 넘치고 넓으면 빈 자리가 값처럼 읽힌다.
+  assert.equal(Math.max(...words), box, `자리 폭(${box}칸)과 가장 긴 낱말(${Math.max(...words)}칸)이 다르다`);
+
+  // **커서는 찍는 동안 서 있고 멈춘 동안 깜빡인다.** 찍는 중에 깜빡이면 찍히는 것이 안 보인다.
+  const blink = css.match(/@keyframes blink \{([\s\S]*?)\n\}/);
+  assert.ok(blink, "커서 시간표가 없다");
+  const holds = steps.slice(0, -1)
+    .map((one, i) => [one.at, steps[i + 1].at, steps[i + 1].cells === one.cells])
+    .filter(([, , held]) => held);
+  assert.ok(holds.length >= 2, `멈추는 구간을 못 찾았다 — 판정이 헛돈다: ${holds.length}`);
+  const off = [...blink[1].matchAll(/([\d.]+)% \{[^}]*transparent/g)]
+    .map((m) => (Number(m[1]) / 100) * cycle);
+  assert.ok(off.length >= holds.length, `깜빡이지 않는 멈춤이 있다: ${off.length}`);
+  for (const at of off) {
+    assert.ok(holds.some(([from, to]) => at >= from - 1 && at < to), `찍는 동안 커서가 꺼진다: ${at}ms`);
+  }
 });
 
 test("subject 0 에서도 고르는 자리는 서고 focus 는 가리킬 것이 없어도 안 무너진다", () => {

@@ -530,16 +530,30 @@ function line(ctx, facet) {
 }
 
 /**
+ * 그림 한 장의 자 — viewBox 와 네 여백. **이 저장소에서 한 번만 적는다.**
+ *
+ * 값이 있는 그림과 아직 아무도 없는 축이 같은 자를 써야 자리가 안 흔들린다. 뷰어가 갈아 끼울
+ * 모양의 좌표도 여기서 나온다 — 스타일시트는 그 좌표를 옮겨 적기만 하고 제 수를 두지 않는다.
+ */
+const CHART = { W: 760, H: 240, L: 78, R: 130, T: 18, B: 34 };
+
+/** 꼭짓점 목록을 꺾은선 path 로. **이 한 줄이 폴리라인과 path 의 같은 모양을 보증한다.** */
+const MORPH_PATH = (corners) => `M ${corners.join(" L ")}`;
+
+/**
  * 아직 아무도 오지 않은 축. **눈금도 수도 이름도 없다** — 그 셋 가운데 하나라도 붙으면
  * 그 모양이 값이 된다. 그것이 값이 되는 유일한 길이라 셋을 다 막는다.
  *
- * 꺾은선을 **여럿 미리 그려 둔다.** 실제 `line` 이 꺾은선이니 자리도 그 모양이어야 하고,
- * 뷰어가 그중 하나씩만 보이게 갈아 끼운다 — 한 모양이 고정되면 그것이 「이 subject 의 선」으로
- * 읽히지만, 계속 갈리면 어느 것도 그렇게 읽히지 않는다. **갈아 끼우는 것은 뷰어의 일이라
- * 여기엔 시간도 프레임도 없다.**
+ * 꺾은선을 **하나로 낸다.** 실제 `line` 이 꺾은선이니 자리도 그 모양이어야 하고, 한 선이
+ * 다음 모양으로 **이어서 흘러간다** — 끊었다 다시 나타나면 그 사이가 빈 자리로 읽힌다.
+ * 한 모양이 고정되면 그것이 「이 subject 의 선」으로 읽히지만, 끊임없이 변형되면 어느 것도
+ * 그렇게 읽히지 않는다. **흘리는 것은 뷰어의 일이라 여기엔 시간도 프레임도 없다.**
+ *
+ * 꼭짓점 수가 같은 `<polyline>` 넷도 함께 낸다. `d` 를 못 받는 브라우저에서 그 넷을 교대시키면
+ * 선이 아예 안 보이는 자리가 생기지 않는다 — 어느 쪽을 세울지는 뷰어의 `@supports` 가 고른다.
  */
 function emptyAxes() {
-  const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
+  const { W, H, L, R, T, B } = CHART;
   const span = W - R - L, top = T + 12, bottom = H - B - 12;
   // **정해진 수에서 나온 모양이다.** 값에서 오지 않으므로 무엇을 그려도 값이 아니다.
   const SHAPES = [
@@ -548,21 +562,22 @@ function emptyAxes() {
     [0.81, 0.44, 0.19, 0.63, 0.72, 0.36, 0.88],
     [0.37, 0.52, 0.88, 0.26, 0.61, 0.79, 0.44],
   ];
-  const shapes = SHAPES.map((ys) => {
-    const points = ys.map((y, i) =>
-      `${(L + (span * i) / (ys.length - 1)).toFixed(1)},${(bottom - (bottom - top) * y).toFixed(1)}`);
-    return `<polyline class="wave" points="${points.join(" ")}"/>`;
-  });
+  const cornersOf = (ys) => ys.map((y, i) =>
+    `${(L + (span * i) / (ys.length - 1)).toFixed(1)},${(bottom - (bottom - top) * y).toFixed(1)}`);
+  const shapes = SHAPES.map((ys) => `<polyline class="wave" points="${cornersOf(ys).join(" ")}"/>`);
+  // 흐르는 선은 **첫 모양으로 선다.** 다음 모양으로 옮기는 것은 뷰어이고, 그 좌표는
+  // 여기 꼭짓점을 그대로 옮겨 적은 것이라 고정 케이스가 둘을 대조한다.
+  const morph = `<path class="wave wave-morph" d="${MORPH_PATH(cornersOf(SHAPES[0]))}"/>`;
   return (
     `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
-    `${shapes.join("")}` +
+    `${shapes.join("")}${morph}` +
     `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
     `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
   );
 }
 
 function lineSvg(series, axis, type, focus, prior, span) {
-  const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
+  const { W, H, L, R, T, B } = CHART;
   // **그린 것이 아니라 잴 것 전부로 자를 잡는다** — 무엇을 눌러도 축이 안 움직인다.
   const edge = span.x.length ? span.x : series.flatMap((s) => s.points.map((p) => ({ x: p.x, at: p.at })));
   const xs = edge.map((one) => one.x);
