@@ -1,0 +1,478 @@
+/* 설명서의 시각.
+ *
+ * 규칙 넷 — 취향이 아니라 이 저장소가 서 있는 이유다.
+ *   1. **색은 주석 갈래에서만 나온다.** subject 도 값도 색으로 가르지 않는다 —
+ *      가르는 것은 이름·무늬·굵기·크기·여백이다.
+ *   2. 순위·등급·경고를 시각으로 되살리지 않는다. 주석 갈래의 색은 통용 시맨틱이지 심각도 순위가 아니다.
+ *   3. 렌더 출력에 도구 껍데기가 없다.
+ *   4. 파일 하나로 열린다. 웹폰트도 네트워크를 타지 않으므로 시스템 글꼴로 간다.
+ *
+ * **띠와 상자로 말하던 것을 글자로 말하게 한다.** 테두리·채움·모서리는 각각 별개의 물건이라는
+ * 뜻이므로 역할을 보고만 쓴다. radius 는 한 값뿐이고 진짜 컨테이너에만 붙는다.
+ */
+
+:root {
+  /* 이 한 장은 밝은 바탕으로 짜였다. 기기가 어두운 쪽으로 기울여 읽지 않게 못 박는다 —
+     밖에서 덧대던 줄을 여기로 들였다. */
+  color-scheme: light;
+
+  --ink:#1a1a1a;       /* 본문 */
+  --mute:#6b6b6b;      /* 딸린 말 */
+  --line:#d9d9d9;      /* 구조선 */
+  --surface:#f6f6f6;   /* 옅은 면 */
+  --bed:#e9e9e9;       /* 아직 아무도 오지 않은 자리의 밑그림 */
+  --r:3px;             /* 하나뿐인 모서리. 진짜 컨테이너에만 */
+
+  /* **움직임의 자는 하나다.** 빈 자리의 빛줄기가 쓰는 유일한 시간과 거리 —
+     갈래마다 따로 두면 한 벌로 안 읽힌다. 한 바퀴에 이 거리만큼 나아간다. */
+  --sheen:1500ms;
+  --sheen-span:420px;
+
+  /* **세로 리듬은 자 셋에서만 나온다.** 값이 제각각이면 어디서 끊기는지 눈이 못 읽는다.
+     한 자를 고치면 그 층 전체가 함께 움직인다. */
+  --row:6px;           /* 줄과 줄 — 주석 한 줄 다음 줄, 묶음과 묶음도 같은 값이다 */
+  --step:14px;         /* 한 facet 안의 층 — 제목·본문·말 */
+  --gap:30px;          /* facet 과 facet — 선이 그 한가운데 선다 */
+}
+
+/* list 한 칸 안의 열들. 한 항목의 여러 열은 하나의 자로 줄일 수 없어 그 안에서만 나란히 선다. */
+.cell-pair { display:block; font-size:13px; }
+.cell-pair .who { font-weight:400; color:var(--mute); margin-right:4px; }
+* { box-sizing:border-box; }
+html, body { height:100%; }
+body { margin:0; color:var(--ink); background:#ffffff;
+  font:15px/1.6 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
+
+/* ---------------------------------------------------------------- 설명서의 뼈대 */
+
+.site { display:grid; grid-template-columns:216px 1fr; height:100%; }
+.nav { border-right:1px solid var(--line); overflow:auto; padding-bottom:24px; background:var(--surface); }
+.brand { font-size:14px; font-weight:700; letter-spacing:.02em; padding:16px 18px 12px; }
+.nav .group { font-size:11px; color:var(--mute); padding:16px 18px 4px; letter-spacing:.04em; }
+.toc-link { display:block; width:100%; text-align:left; border:none; background:none;
+  padding:5px 18px; font:inherit; font-size:13.5px; color:var(--mute); cursor:pointer; }
+.toc-link:hover { color:var(--ink); }
+.toc-link.has-icon { display:flex; align-items:center; gap:9px; }
+/* primitive element 표시. 구조를 가리킬 뿐 도메인을 가리키지 않는다. 다섯이 같은 무게다. */
+.toc-icon { flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:1.3;
+  stroke-linecap:round; opacity:.75; }
+.toc-link[aria-pressed="true"] .toc-icon { opacity:1; }
+/* 고른 것은 굵기로 말한다. 왼쪽 띠를 대지 않는다. */
+.toc-link[aria-pressed="true"] { color:var(--ink); font-weight:700; background:var(--surface); }
+
+.content { min-width:0; min-height:0; overflow:auto; }
+.page { max-width:720px; padding:36px 32px 96px; margin:0 auto; }
+.page-head { margin-bottom:20px; }
+h1 { font-size:26px; margin:0 0 10px; letter-spacing:-.015em; }
+h1 code { font-size:25px; }
+.lead { font-size:15px; color:var(--mute); margin:0; max-width:62ch; }
+.page p { max-width:68ch; }
+.page > h2 { font-size:12px; color:var(--mute); font-weight:600; margin:32px 0 10px;
+  display:block; letter-spacing:.04em; }
+code { font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.limits { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; margin:20px 0 0; font-size:13.5px; }
+.limits dt { color:var(--mute); }
+.limits dd { margin:0; }
+.note-line { font-size:13.5px; color:var(--mute); margin:12px 0 0; max-width:68ch; }
+/* 코드는 회색 상자가 아니라 글꼴로 갈린다 */
+pre { margin:0; padding:0; overflow-x:auto; color:var(--ink);
+  font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; }
+/* 산 렌더와 산문 사이는 진짜 경계라 틀이 하나 선다 */
+.demo { border:1px solid var(--line); border-radius:var(--r); padding:18px 20px; }
+/* focus 를 따라 바뀌는 element 는 고른 것을 달리한 두 장으로 보인다 */
+.shot + .shot { margin-top:14px; }
+.shot-said { font-size:11px; color:var(--mute); margin-bottom:6px; letter-spacing:.03em; }
+.demo h1 { font-size:11px; color:var(--mute); font-weight:600; margin:0 0 10px; letter-spacing:.04em; }
+.demo .facet, .demo .facet:first-of-type { border-top:none; padding:0; }
+
+/* ---------------------------------------------------------------- 플레이그라운드 */
+
+.playground { display:flex; flex-direction:column; height:100%; }
+.playground[hidden] { display:none; }
+.playground .page-head { padding:24px 28px 14px; margin:0; }
+.playground h1 { font-size:19px; }
+.panes { display:grid; grid-template-columns:minmax(320px, 44%) 1fr; flex:1; min-height:0;
+  border-top:1px solid var(--line); }
+.pane { min-width:0; min-height:0; display:flex; flex-direction:column; }
+.pane.edit { border-right:1px solid var(--line); }
+/* 판은 스크롤하지 않는다. 띠는 붙박이로 두고 본문만 굴린다 —
+   띄우는 방식이 아니라 구조로 가른 자리다. */
+.pane.view { overflow:hidden; }
+.scroll { flex:1; min-height:0; overflow:auto; }
+.viewport { padding:28px 28px 72px; max-width:880px; margin:0 auto; }
+
+.bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  padding:10px 14px; border-bottom:1px solid var(--line); }
+.bar .push { margin-left:auto; }
+select, button { font:inherit; font-size:13px; color:var(--ink);
+  background:#ffffff; border:1px solid var(--line); border-radius:var(--r); padding:4px 9px; }
+button { cursor:pointer; }
+button:hover { background:var(--surface); }
+button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
+/* focus 나열. 항목에 none 이 있어 무엇을 고르는 줄인지 스스로 읽힌다 — 라벨을 두지 않는다. */
+#focus-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+button.pick { padding:3px 10px; font-size:12.5px; }
+label { font-size:12px; color:var(--mute); }
+label:has(input) { display:inline-flex; align-items:center; gap:5px; }
+
+/* 탭은 고른 것을 **굵기와 색조**로 말한다. 밑줄도 상자도 두르지 않는다 —
+   밑줄로 활성을 말하는 것은 왼쪽 띠를 아래로 옮긴 것뿐이다.
+   `.tabs` 의 아래 선은 활성 표시가 아니라 편집기와의 판 구분선이다. */
+.tabs { display:flex; flex-wrap:wrap; gap:2px; align-items:stretch;
+  padding:0 10px; border-bottom:1px solid var(--line); }
+.tab { border:none; background:none; padding:9px 10px; font-size:12.5px; color:var(--mute); }
+.tab:hover { background:none; color:var(--ink); }
+.tab[aria-pressed="true"] { background:none; color:var(--ink); font-weight:700; }
+.tab .bad { font-weight:700; }
+/* 탭 하나가 곧 subject 다. 템플릿은 하나뿐이라 홀로 앞에 서고, 사이를 자리(간격)가 가른다.
+   묶는 말을 두지 않는다 — 탭이 이미 subject 인데 그 위에 또 적으면 같은 말을 두 번 한다. */
+.tab-slot { display:inline-flex; align-items:stretch; }
+/* 템플릿은 subject 가 아니다 — 자리(간격)가 그것을 가른다. */
+.tab-slot:has(.tab-template) { margin-right:16px; }
+/* **닫는 자리는 지금 고른 탭에만 선다.** 폭은 28px 로 44px 에 못 미치지만 높이는 줄 전체를
+   채운다 — 닫기는 되돌릴 수 없어 후보를 하나로 줄이는 쪽을 골랐다. 표시(ⓘ)와 같은 맞바꿈이다. */
+.tab-x, .tab-add { border:none; background:none; color:var(--mute);
+  padding:0; width:28px; align-self:stretch; font-size:14px; line-height:1; }
+.tab-x:hover, .tab-add:hover { background:none; color:var(--ink); }
+.tab-add { margin-left:6px; }
+
+textarea { flex:1; width:100%; margin:0; border:none; padding:14px;
+  resize:none; background:#ffffff; color:var(--ink);
+  font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
+textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
+.strip { border-top:1px solid var(--line); padding:10px 14px;
+  font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; max-height:26vh; overflow:auto; }
+.strip:empty { display:none; }
+.strip b { display:block; margin-bottom:4px; }
+.strip ul { margin:0; padding-left:16px; }
+.strip li { color:var(--ink); }
+
+/* ---------------------------------------------------------------- 분석뷰 */
+
+h2 { font-size:17px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; letter-spacing:-.01em; }
+/* primitive element 이름은 **분석뷰 옆에 늘 선다.** 설명서가 쪽마다 원소를 설명하므로
+   facet 마다 이름이 서면 둘이 이어진다. 알약이 아니라 작은 글이다.
+   **렌더 출력에는 들어가지 않는다** — CSS 가 `data-element` 를 읽어 붙인다. */
+.viewport h2[data-element]::after { content:attr(data-element);
+  font:11px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--mute); font-weight:400; }
+/* focus 는 색이 아니라 테두리와 굵기로 말한다.
+   **표에서는 열을 통째로 잡는다** — 칸마다 두르면 열 안에 가로선이 생겨 한 덩어리로
+   읽히지 않는다. 열 선언에 준 테두리는 `border-collapse` 가 머리부터 끝까지 한 상자로 잇는다. */
+col.is-focus { border:2px solid var(--ink); }
+.is-focus > .who { font-weight:700; }
+/* **facet 이 타는 축의 선택자.** 렌더가 자리를 내고 앱이 제 것으로 갈아 끼운다 —
+   참조 뷰어는 단추로 그린다. 꼴을 가리키는 이름을 붙이지 않는다. */
+.choice { display:flex; flex-wrap:wrap; gap:6px; margin-top:var(--step); }
+.choice button { font-size:12.5px; padding:4px 10px; }
+
+/* **선은 두 facet 의 한가운데 선다.** 위 여백은 앞 facet 의 아래 여백이고 아래 여백은
+   이 facet 의 위 여백이라, 둘이 같아야 선이 가운데로 온다 — 그래서 한 자로 적는다. */
+.facet { border-top:1px solid var(--line); padding:var(--gap) 0; }
+/* 첫 facet 위에는 선이 없다. 그래도 제목이 분석뷰 제목에 붙지 않게 한 층을 띄운다. */
+.facet:first-of-type { border-top:none; padding-top:var(--step); }
+.facet h2 { margin-bottom:0; }
+/* **제목 아래 늘 보이는 한 줄.** 이 자리가 무엇인지 말한다 — 제목은 이름만 진다. */
+.facet-hint { margin:var(--row) 0 0; font-size:13px; color:var(--mute); max-width:68ch; }
+.body { margin-top:var(--step); }
+.field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
+/* **늘 보이는 한 줄.** 값이 무엇인지 그 자리에서 말한다 — 표시 뒤로 숨지 않는다.
+   딸린 말이라 작고 흐리게 서고, 값보다 앞에 나서지 않는다. */
+/* **이름 옆 표시가 열면 나오는 한 줄.** 늘 보이면 계약 표가 값보다 설명으로 길어진다 —
+   읽고 싶을 때 연다. 여는 길은 값 주석과 같은 것을 쓴다. */
+.hint { margin:0; font-size:12.5px; color:var(--ink); }
+/* facts 는 줄이 촘촘해 딸린 말이 다음 줄 것처럼 읽히기 쉽다 — 값에 붙이고 아래를 띄운다. */
+.who { font-size:12.5px; color:var(--mute); }
+/* 없다는 **표기**. 값이 설 자리에 서서 「여기에 값이 없다」를 말한다 —
+   빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
+.miss { font-size:12.5px; color:var(--mute); }
+.miss.value { cursor:help; }
+/* **아직 아무도 오지 않은 자리 — 밑그림 하나와 빛줄기 하나.**
+
+   산출물(renderView)은 표식만 낸다: `.slot` 과 그 안의 칸 `<i>`, `.track` · `.band` ·
+   `.plot`, 그리고 빛줄기가 설 `.sheen`. 시간도 프레임도 애니메이션 지시도 산출물에는 한
+   글자 없다 — **움직임은 전부 이 파일의 것**이라 앱은 같은 표식 위에 제 방식을 얹으면 된다.
+   「산출물에 디자인이 없다」가 그대로 선다.
+
+   **밑그림은 원소마다 다르다.** stat 은 큰 덩어리 하나, facts 는 줄 여럿, bars 는 가로 막대
+   여럿, line 은 축과 그림 자리, list·rows 는 칸, parts 는 띠. 무엇이 올 자리인지는 계속 보여야
+   하므로 이 밑그림은 움직이지 않고 사라지지도 않는다.
+
+   **움직임은 빛줄기 하나뿐이다.** 자리마다 다른 효과를 박자로 맞춰서 한 벌이 되는 것이
+   아니라 **효과를 하나로 줄여서** 된다. 모든 원소가 같은 방향·같은 속도·같은 세기로 움직이고
+   **속도는 `--sheen` 하나에서만 나온다.** 위상도 어긋내지 않는다 — 전부 같이 움직이는 것이
+   자리 표시가 한 벌로 읽히는 까닭이다.
+
+   **선은 하나다 — 빈 자리에 눈금도 수도 이름도 글자도 그리지 않는다.** 예전에는 「한 모양이
+   고정되지 않는다」가 함께 섰다. 그것은 **움직이는 가짜 값이 읽히는 것**을 막으려던 수단이었고,
+   읽힐 것을 아예 안 그리는 지금은 필요가 없다 — 고정된 회색 덩어리는 값으로 읽히지 않는다. */
+
+/* 자리의 밑그림 — **값의 생김새를 따른다.** 칸 수는 타입마다 고정이라 자릿수가 크기를
+   말하지 않고, 글 자리의 폭도 타입이 정한다(값에서 오면 그 폭이 곧 값이다). */
+.slot { --cell:1.15em;
+  position:relative; display:inline-flex; gap:1px; align-items:center;
+  vertical-align:-.18em; height:var(--cell); max-width:100%; }
+.slot i { display:block; height:var(--cell); }
+.slot[data-slot="num"] i { width:.68em; }
+.slot[data-slot="text"] i { width:6.9em; }
+/* 단위는 **값이 아니라 생김새**다. 빛줄기 위에 서서 씻기지 않는다. */
+.slot-unit { position:relative; z-index:1; font-weight:400; color:var(--mute);
+  align-self:center; margin-left:2px; }
+.big .slot { --cell:1.05em; }
+/* 큰 자리의 **숫자 칸**만 좁힌다 — 글 자리의 폭은 글줄 하나라 여기서 건드리지 않는다. */
+.big .slot[data-slot="num"] i { width:.62em; }
+td .slot, th .slot { max-width:100%; }
+
+/* 빛줄기가 앉을 자리. 자·띠·그림 자리는 이미 밑그림이라 상자만 잡아 준다. */
+.track, .band, .chart-blank { position:relative; }
+/* 그림 자리 — 축 둘과 **그림이 들어올 면**뿐이다. 꺾은선을 그리지 않는다:
+   고정된 꺾은선 하나는 눈금이 없어도 **추세로 읽힌다**. 면은 어떤 추세도 말하지 않는다. */
+svg.line .plot { fill:var(--bed); stroke:none; }
+/* 축은 **면 위에 선다.** 값이 있는 그림에서는 흰 바탕 위라 구조선 색으로 읽히지만, 밑그림
+   위에서는 면과 밝기가 거의 같아 축이 사라진다 — 「축과 그림 자리」에서 축이 빠지는 것이다. */
+.chart-blank .axis { stroke:var(--mute); }
+
+/* **빛줄기 하나.** 모든 자리에서 같은 방향(왼쪽 → 오른쪽)·같은 속도·같은 세기다.
+
+   한 바퀴에 `--sheen-span` 만큼 나아가므로 **자리가 넓든 좁든 초당 같은 거리**를 간다.
+   폭에 맞춰 늘이면 넓은 자리가 더 빨라 보이고, 그것이 강조다. 무늬가 `--sheen-span` 주기로
+   되풀이되고 정확히 한 주기만 밀리므로 이음매가 없다.
+
+   **transform 하나만 움직인다** — background-position 을 밀면 매 프레임 다시 칠해져 버벅인다.
+   상자는 빛줄기가 스스로 자른다(`overflow`). 밑그림 쪽에 자르기를 걸면 값이 있는 화면의
+   막대·조각까지 함께 잘린다. */
+.sheen { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+/* 자와 띠는 밑그림이 상자 전체라 빛줄기가 바탕까지 함께 깐다. 칸(`.slot i`)과 그림 자리
+   (`.plot`)는 저마다 모양이 있어 그 쪽이 바탕을 갖는다. */
+.slot i, .track > .sheen, .band > .sheen { background:var(--bed); }
+.sheen::before { content:""; position:absolute; top:0; bottom:0; left:0;
+  width:calc(100% + var(--sheen-span));
+  background-image:linear-gradient(90deg,
+    transparent 0 34%, rgba(255,255,255,.78) 50%, transparent 66% 100%);
+  background-size:var(--sheen-span) 100%; background-repeat:repeat-x;
+  will-change:transform;
+  animation:sheen var(--sheen) linear infinite; }
+@keyframes sheen {
+  from { transform:translateX(calc(var(--sheen-span) * -1)); }
+  to { transform:translateX(0); }
+}
+
+/* **조용한 자리 — 멎는 것은 빛줄기뿐이다.**
+
+   예전에는 움직이던 것을 통째로 감췄다. 멈춘 릴에 숫자가, 멈춘 줄에 임의의 길이가 남으면
+   그것이 읽을 수 있는 값이었기 때문이다. 지금은 읽힐 것을 아예 안 그리므로 **감출 것이
+   빛줄기뿐**이고, 밑그림까지 사라지면 「여기에 무엇이 온다」가 통째로 사라진다. */
+@media (prefers-reduced-motion: reduce) {
+  .sheen::before { animation:none; display:none; }
+}
+
+/* 틀이 아니라 자리다 */
+.blank { padding:4px 0 8px; }
+/* 그리지 못한 자리. 테두리 친 알약이 아니라 굵은 monospace 다. */
+.broken, .undrawable { font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-weight:700; color:var(--ink); }
+
+/* 겹치는 쪽 (line · list) — 값을 못 얹은 subject 는 축 아래에 선다 */
+.offs { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin-top:var(--row); }
+/* **무슨 줄인지 줄 머리가 한 번 말한다.** 이름만 늘어놓으면 범례로 읽히고,
+   subject 마다 붙이면 같은 문장이 되풀이된다. */
+.off-said { font-size:12.5px; color:var(--mute); margin-right:2px; }
+.off { font-size:12.5px; color:var(--mute); }
+.off.is-focus { color:var(--ink); }
+.off.is-focus .who { font-weight:700; }
+
+/* focus 를 따라 바뀌는 쪽 (stat · facts · bars) — 무엇을 보고 있는지 늘 이름으로 말한다 */
+/* 무엇을 보고 있는지는 **화면에 한 번** — 오른쪽 띠가 말한다. facet 마다 되풀이하지 않는다. */
+.watching { font-size:12px; color:var(--mute); white-space:nowrap; }
+.watching b { color:var(--ink); }
+.facts { display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; margin:0; font-size:14px; }
+.fact { display:contents; }
+.facts dt { color:var(--mute); font-size:13px; padding-top:1px; }
+.facts dd { margin:0; }
+.big { font-size:27px; letter-spacing:-.01em; display:flex; align-items:center; gap:2px; }
+.big .note-mark { vertical-align:baseline; }
+/* 큰 값의 자리에서는 표기도 그 자리만큼 선다 — 값이 있던 자리가 비어 보이면 안 된다. */
+.big .miss { font-size:22px; }
+.big .undrawable { font-size:15px; }
+
+/* 막대. 자는 subject 전체의 최대값으로 고정돼 focus 를 옮겨도 길이를 견줄 수 있다. */
+.bar-row { display:grid; grid-template-columns:130px 1fr 150px; gap:12px; align-items:center; padding:4px 2px; }
+.bar-row .who { font-size:13px; color:var(--mute); }
+.track { display:block; height:10px; background:var(--surface); }
+.fill { display:block; height:100%; background:var(--ink); }
+.val { font-size:13px; text-align:right; }
+
+/* **표만 옆으로 굴린다.** subject 가 늘수록 넓어지는 유일한 자리다 — 페이지 전체가 옆으로
+   밀리면 왼쪽 목차도 위쪽 띠도 함께 사라진다. 그래서 스크롤은 이 상자의 것이다. */
+/* 안쪽 여백은 고른 열의 테두리가 상자 모서리에 닿아 잘리지 않게 두는 자리다 —
+   스크롤 상자는 한 축만 굴릴 수 없어 위아래도 함께 자른다. */
+.table-scroll { overflow-x:auto; margin-top:var(--step); padding:3px; }
+/* 열 너비가 균일하다. 자리마다 너비가 다르면 넓은 칸이 중요해 보인다 —
+   `fixed` 가 남은 폭을 고르게 나누고, 다 못 담으면 표가 상자 밖으로 넘쳐 굴러간다. */
+/* **하나를 쪼갠 띠.** 조각이 합쳐 한 덩어리가 된다 — 파이가 아니라 띠인 까닭은
+   색으로 가르지 않기 때문이다. 조각은 **자리 차례로** 두 무채색을 번갈아 쓴다:
+   크기와 무관하고 앞이 뒤보다 무겁다는 뜻이 없다. 사이의 흰 틈이 경계를 세운다. */
+/* 조각 사이는 **틈**이 가른다 — 띠를 덧대지 않는다. 흰 바탕이 그대로 경계가 된다. */
+.band { display:flex; gap:2px; height:14px; margin-top:var(--step); background:var(--surface); }
+.slice { display:block; height:100%; background:var(--ink); }
+.slice:nth-child(even) { background:var(--mute); }
+.slices { margin-top:var(--step); }
+.slice-row { display:flex; justify-content:space-between; gap:12px; font-size:13px; padding:2px 0; }
+.slice-row .who { color:var(--mute); }
+
+table { border-collapse:collapse; table-layout:fixed; width:max-content; min-width:100%;
+  font-size:14px; }
+th, td { border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top; }
+thead th { font-weight:600; font-size:13px; width:180px; }
+th.corner, th.row-label { font-weight:600; width:140px; color:var(--mute); }
+
+/* 축이 이미 틀이다. 테두리를 두르지 않는다.
+   **좁아지면 상자가 굴러간다** — 그림을 통째로 줄이면 축 라벨과 선 끝 이름이 읽을 수
+   없게 작아진다. `list` 표와 같은 규칙이다: 페이지가 아니라 그 상자가 굴러간다. */
+.chart-scroll { overflow-x:auto; }
+svg.line, .chart-blank { min-width:560px; }
+svg.line { display:block; width:100%; height:auto; background:#ffffff; }
+svg .axis { stroke:var(--line); stroke-width:1; }
+svg .tick { font-size:11px; fill:var(--mute); }
+svg .ty { text-anchor:end; }
+svg .tx { text-anchor:start; }
+svg .tx.end { text-anchor:end; }
+/* **선은 세 갈래로 갈린다 — 지금 보는 것 · 직전에 보던 것 · 나머지.**
+   이 색은 **subject 의 것이 아니라 상태의 것이다.** 같은 subject 라도 focus 가 옮겨 가면
+   색이 바뀐다 — 걷어낸 subject 팔레트를 되살리는 것이 아니다.
+   **색에만 기대지 않는다**: 굵기와 진하기가 같은 순서를 함께 말해 색 없이도 갈린다.
+   평가가 아니다 — 뚜렷한 것이 「더 좋은 것」이 아니라 **보고 있는 것**이라, 경고색·성공색을 피한다. */
+.trace-now { --trace:#1a1a1a; }    /* 무채색. 지금 보는 것이 가장 뚜렷하다 */
+.trace-prior { --trace:#3f6fb5; }  /* 좋고 나쁨을 뜻하지 않는 파랑 */
+.trace-rest { --trace:#9a9a9a; }   /* 무채색. 가장 옅다 */
+svg .series { fill:none; stroke:var(--trace, var(--ink)); }
+svg .series.trace-now { stroke-width:2.6; opacity:1; }
+svg .series.trace-prior { stroke-width:1.8; opacity:.8; }
+svg .series.trace-rest { stroke-width:1.1; opacity:.45; }
+svg circle.series, svg circle.dot { fill:var(--trace, var(--ink)); stroke:none; }
+svg .series-label { font-size:11px; fill:var(--trace, var(--mute)); font-weight:600;
+  paint-order:stroke; stroke:#ffffff; stroke-width:3px; stroke-linejoin:round; }
+svg .series-label.is-focus { font-weight:700; }
+
+/* 주석은 띠가 아니라 **글**로 읽힌다.
+   **줄 사이가 전부 같다** — 한 묶음 안이든 묶음과 묶음 사이든 `--row` 하나다.
+   간격으로 무엇을 가르지 않는다. 가르는 일은 글(이름)이 한다. */
+.notes { list-style:none; margin:0; padding:0;
+  display:flex; flex-direction:column; gap:var(--row); }
+.body .notes { margin-top:var(--step); }
+.note { display:grid; grid-template-columns:2.8em 1fr; gap:0 10px; font-size:12.5px; }
+.note .kind { color:var(--kind, var(--mute)); font-size:11px; line-height:1.85; white-space:nowrap; }
+
+/* **필드에 붙는 말.** 표시는 값 옆에 늘 서 있고 내용은 가리키거나 초점을 받으면 열린다.
+   **표시는 하나이고 중립이다** — 「여기 붙은 말이 있다」만 말한다. 갈래에 따라 달라지면
+   값이 갈래로 물든다. 갈래는 열었을 때 줄마다 선다. */
+.note-mark { position:relative; display:inline-flex; align-items:center; gap:2px;
+  margin-left:6px; vertical-align:-2px; cursor:help; color:var(--mute); }
+.note-mark:hover, .note-mark:focus { color:var(--ink); outline:none; }
+.note-mark:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+/* 표시 자체는 갈래를 모른다 — 글자색을 따라가고 갈래색을 받지 않는다. */
+.note-mark > .mark-icon { stroke:currentColor; }
+/* 수를 적지 않는다 — 값 옆에 서는 것은 표시 하나뿐이고, 몇 개인지는 열면 보인다. */
+.note-pop { position:absolute; left:0; top:calc(100% + 6px); z-index:5; display:none;
+  min-width:260px; max-width:min(380px, 60vw); padding:10px 12px;
+  background:#ffffff; border:1px solid var(--line); border-radius:var(--r); text-align:left; }
+/* 여는 길 셋 — 가리키기 · 초점 · **누르기.** 누르기는 앱이 표시를 켜서 연다:
+   손가락에는 가리키기가 없고 글자 위의 초점은 기기마다 달리 돈다. */
+.note-mark:hover .note-pop, .note-mark:focus-within .note-pop, .note-mark:focus .note-pop,
+.note-mark.is-open .note-pop { display:block; }
+.note-pop .notes { margin-top:0; }
+.note-pop .note { cursor:auto; }
+.pop-close { display:none; }
+
+/* 주석 갈래의 색. **통용되는 UI 시맨틱을 따른다** — 주의는 warning, 보충은 info.
+   이 자리를 어떻게 읽으라는 말이지 **그 제안서가 좋고 나쁘다는 말이 아니다.**
+   그래서 색은 갈래 표시와 갈래 이름에만 얹고 값이나 글에는 얹지 않는다.
+   **색이 나오는 곳은 여기뿐이다** — 값·subject·facet 에서는 색이 나오지 않는다. */
+.note-quote { --kind:var(--mute); }   /* 근거·출처. 상태가 아니다 */
+.note-tip { --kind:#175cd3; }         /* 도움말의 통용색 */
+.note-note { --kind:var(--mute); }    /* info — 사람이 준 예대로 중립 회색 */
+.note-caution { --kind:#b42318; }     /* warning 의 통용색 */
+
+.kind-icon, .mark-icon { width:12px; height:12px; margin-right:4px; vertical-align:-2px;
+  fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.kind-icon { stroke:var(--kind, var(--mute)); }
+.mark-icon { stroke:var(--mute); }
+.note .kind { color:var(--kind, var(--mute)); }
+.note .text { color:var(--ink); }
+/* 좁은 자리에서는 매달린 라벨이 폭을 먹는다. 같은 줄에 흘려 보낸다. */
+td .note { display:block; }
+td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
+/* 말은 데이터 뒤에 한자리에 모인다. 묶음 사이도 줄 사이와 같은 자다. */
+.said { margin-top:var(--step); display:flex; flex-direction:column; gap:var(--row); }
+/* facet 것과 subject 것 사이의 **짧은 구조선.** 판을 가로지르지 않고 글머리 쪽에만 놓인다 —
+   갈래 이름이 서는 폭만큼이다. 이름이 가르는 것을 거들 뿐이라 무채색이고 위계를 말하지 않는다.
+   줄 사이가 `--row` 로 균일한 흐름을 깨지 않는다: 자기 자리를 갖되 앞뒤 간격은 같은 자다. */
+.said-cut { width:2.8em; height:0; margin:0; border:none; border-top:1px solid var(--line); }
+
+/* 판을 고르는 줄. 넓은 화면에는 없다 — 둘이 나란히 서므로 고를 것이 없다. */
+.pane-pick { display:none; }
+
+/* ---------------------------------------------------------------- 손에 잡히는 화면 */
+
+/* **누를 것은 손가락만 해야 한다.** 통용되는 자가 44px 이고, 서로 붙어 있지 않아야
+   옆것을 누르지 않는다. 좁은 화면이라고 다른 규칙으로 갈아타지 않는다 —
+   자리가 없으면 접거나 미룰 뿐이고, 굵기·여백으로 말하는 방식은 그대로다. */
+@media (max-width: 900px), (pointer: coarse) {
+  button, select, .toc-link { min-height:44px; }
+  /* 기본 네모는 13px 이라 손가락이 못 맞춘다. 상자를 키우고 줄도 손가락만 하게 한다. */
+  label:has(input) { min-height:44px; }
+  input[type="checkbox"] { width:20px; height:20px; }
+  button.pick { padding:0 14px; font-size:13.5px; }
+  #focus-buttons { gap:8px; }
+  .choice { gap:8px; }
+  .choice button { padding:0 14px; }
+  .tabs { gap:6px; }
+  .tab { min-height:44px; padding:0 12px; }
+  .toc-link { display:flex; align-items:center; padding:0 18px; }
+  .toc-link.has-icon { padding:0 18px; }
+  .bar { gap:10px; padding:8px 14px; }
+  /* 닫는 길도 손가락으로 되어야 한다. */
+  .pop-close { min-height:44px; padding:0 16px; }
+  /* **글 사이에 선 표시도 손가락이 맞춰야 한다.** 누르는 자리를 넓히되 음수 여백으로
+     흐름은 그대로 둔다 — 줄 간격이 좁아 44px 을 채우면 위아래 줄의 자리와 겹친다.
+     겹치면 옆것이 눌리므로 줄 사이에 맞는 만큼만 넓힌다. */
+  .note-mark { padding:8px 6px; margin:-8px 0 -8px 0; }
+  .big .note-mark, .val .note-mark { padding:10px 8px; margin:-10px 0; }
+}
+
+@media (max-width: 420px) {
+  /* 전화기에서 편집기가 서면 글을 넣을 만큼은 되어야 한다 — 밖에서 덧대던 줄을 들였다. */
+  textarea { min-height:44vh; }
+}
+
+@media (max-width: 900px) {
+  /* 좁은 화면엔 가리키기가 없다. 아래에서 올라오는 판으로 연다. */
+  .note-pop { position:fixed; inset:auto 0 0 0; max-width:none; min-width:0;
+    border:none; border-top:1px solid var(--line); padding:18px 18px 22px; }
+  .pop-close { display:block; margin-top:14px; margin-left:auto; }
+
+  /* 좁아도 판이 스스로 스크롤한다 — 문서 전체가 밀리면 띠가 또 사라진다. */
+  .site { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+  /* 목차가 판을 스스로 스크롤하게 됐으므로 위쪽을 다 먹지 않게 묶는다. */
+  /* 목차가 위쪽을 다 먹지 않게 묶는다 — 붙박이라 먹은 만큼 본문이 줄어든다.
+     좁을수록 촘촘히 눕히고, 그래도 넘치면 목차가 스스로 굴러간다. */
+  .nav { border-right:none; border-bottom:1px solid var(--line); max-height:26vh; }
+  .nav nav { display:flex; flex-wrap:wrap; gap:2px 4px; padding:0 10px 10px; }
+  .brand { padding:10px 12px 6px; }
+  .nav .group { width:100%; padding:6px 6px 0; }
+  .toc-link { width:auto; padding:0 10px; }
+  .page { padding:20px 16px 56px; }
+  /* **분석뷰가 주인공이다.** 손가락으로 JSON 을 고치는 사람은 없다 — 판 하나만 세우고
+     편집기는 고를 때만 나온다. 위아래로 쌓으면 분석뷰를 보려고 JSON 을 지나가야 한다. */
+  .pane-pick { display:flex; gap:6px; padding:0 10px; border-bottom:1px solid var(--line); }
+  .panes { grid-template-columns:1fr; grid-template-rows:1fr; border-top:none; }
+  .pane.edit { display:none; border-right:none; }
+  .playground.editing .pane.edit { display:flex; }
+  .playground.editing .pane.view { display:none; }
+  .playground .page-head { padding:16px 16px 10px; }
+  /* 좁아도 표와 그림은 자기 상자에서 굴러간다 — 페이지는 밀리지 않는다. */
+  .viewport { padding:20px 16px 56px; }
+  /* 좁아도 표는 자기 상자에서 굴러간다 — 열은 그대로 균일하다. */
+  /* **막대는 좁아도 눕는다.** 라벨을 줄이고 값을 제 폭만 쓰게 해서 한 줄을 지킨다 —
+     접어 올리면 막대가 라벨 아래로 내려가 가로 막대로 읽히지 않는다. */
+  .bar-row { grid-template-columns:minmax(72px, 25%) 1fr max-content; gap:8px; }
+}

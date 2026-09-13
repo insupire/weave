@@ -1,0 +1,10 @@
+{
+  "order": 1,
+  "name": "제안서 상세",
+  "args": {
+    "focus": "plan-a",
+    "choices": {
+      "illness": "cancer"
+    }
+  }
+}

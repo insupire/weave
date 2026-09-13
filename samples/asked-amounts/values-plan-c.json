@@ -1,0 +1,86 @@
+{
+  "weave": "1",
+  "templateId": "asked-amounts-1",
+  "subjectId": "plan-c",
+  "subjectLabel": "다 제안",
+  "facets": {
+    "match": {
+      "fields": {
+        "asked-vs-given": {
+          "state": "filled",
+          "value": [
+            {
+              "cover": "암진단비",
+              "asked": 100000000,
+              "given": 100000000
+            },
+            {
+              "cover": "뇌혈관질환진단비",
+              "asked": 20000000
+            },
+            {
+              "cover": "허혈성심장질환진단비",
+              "asked": 20000000
+            },
+            {
+              "cover": "질병후유장해(3%이상)",
+              "asked": 50000000,
+              "given": 30000000
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "뇌혈관과 허혈성심장은 이 설계에 들어 있지 않습니다."
+        }
+      ]
+    },
+    "by-cover": {
+      "fields": {
+        "cover-list": {
+          "state": "filled",
+          "value": [
+            {
+              "cover": "암진단비",
+              "amount": 100000000
+            },
+            {
+              "cover": "질병후유장해(3%이상)",
+              "amount": 30000000
+            }
+          ]
+        }
+      }
+    },
+    "premium": {
+      "fields": {
+        "monthly": {
+          "state": "filled",
+          "value": 131000
+        }
+      }
+    },
+    "terms": {
+      "fields": {
+        "pay-period": {
+          "state": "empty"
+        },
+        "cover-period": {
+          "state": "filled",
+          "value": "80세만기"
+        },
+        "renewal": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "설계안 사진이 잘려 납입기간과 갱신 여부를 읽지 못했습니다."
+        }
+      ]
+    }
+  }
+}

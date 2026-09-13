@@ -1,0 +1,3032 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>weave 설명서</title>
+<!--
+  이 파일은 tools/build_viewer.py 가 viewer/ · samples/ · catalog/ 에서 만든다. 손으로 고치지 않는다.
+  의존성이 없다 — CDN 도 서버도 쓰지 않는다. 파일을 브라우저로 열면 바로 돈다.
+-->
+<style>
+/* 설명서의 시각.
+ *
+ * 규칙 넷 — 취향이 아니라 이 저장소가 서 있는 이유다.
+ *   1. **색은 주석 갈래에서만 나온다.** subject 도 값도 색으로 가르지 않는다 —
+ *      가르는 것은 이름·무늬·굵기·크기·여백이다.
+ *   2. 순위·등급·경고를 시각으로 되살리지 않는다. 주석 갈래의 색은 통용 시맨틱이지 심각도 순위가 아니다.
+ *   3. 렌더 출력에 도구 껍데기가 없다.
+ *   4. 파일 하나로 열린다. 웹폰트도 네트워크를 타지 않으므로 시스템 글꼴로 간다.
+ *
+ * **띠와 상자로 말하던 것을 글자로 말하게 한다.** 테두리·채움·모서리는 각각 별개의 물건이라는
+ * 뜻이므로 역할을 보고만 쓴다. radius 는 한 값뿐이고 진짜 컨테이너에만 붙는다.
+ */
+
+:root {
+  /* 이 한 장은 밝은 바탕으로 짜였다. 기기가 어두운 쪽으로 기울여 읽지 않게 못 박는다 —
+     밖에서 덧대던 줄을 여기로 들였다. */
+  color-scheme: light;
+
+  --ink:#1a1a1a;       /* 본문 */
+  --mute:#6b6b6b;      /* 딸린 말 */
+  --line:#d9d9d9;      /* 구조선 */
+  --surface:#f6f6f6;   /* 옅은 면 */
+  --bed:#e9e9e9;       /* 아직 아무도 오지 않은 자리의 밑그림 */
+  --r:3px;             /* 하나뿐인 모서리. 진짜 컨테이너에만 */
+
+  /* **움직임의 자는 하나다.** 빈 자리의 빛줄기가 쓰는 유일한 시간과 거리 —
+     갈래마다 따로 두면 한 벌로 안 읽힌다. 한 바퀴에 이 거리만큼 나아간다. */
+  --sheen:1500ms;
+  --sheen-span:420px;
+
+  /* **세로 리듬은 자 셋에서만 나온다.** 값이 제각각이면 어디서 끊기는지 눈이 못 읽는다.
+     한 자를 고치면 그 층 전체가 함께 움직인다. */
+  --row:6px;           /* 줄과 줄 — 주석 한 줄 다음 줄, 묶음과 묶음도 같은 값이다 */
+  --step:14px;         /* 한 facet 안의 층 — 제목·본문·말 */
+  --gap:30px;          /* facet 과 facet — 선이 그 한가운데 선다 */
+}
+
+/* list 한 칸 안의 열들. 한 항목의 여러 열은 하나의 자로 줄일 수 없어 그 안에서만 나란히 선다. */
+.cell-pair { display:block; font-size:13px; }
+.cell-pair .who { font-weight:400; color:var(--mute); margin-right:4px; }
+* { box-sizing:border-box; }
+html, body { height:100%; }
+body { margin:0; color:var(--ink); background:#ffffff;
+  font:15px/1.6 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
+
+/* ---------------------------------------------------------------- 설명서의 뼈대 */
+
+.site { display:grid; grid-template-columns:216px 1fr; height:100%; }
+.nav { border-right:1px solid var(--line); overflow:auto; padding-bottom:24px; background:var(--surface); }
+.brand { font-size:14px; font-weight:700; letter-spacing:.02em; padding:16px 18px 12px; }
+.nav .group { font-size:11px; color:var(--mute); padding:16px 18px 4px; letter-spacing:.04em; }
+.toc-link { display:block; width:100%; text-align:left; border:none; background:none;
+  padding:5px 18px; font:inherit; font-size:13.5px; color:var(--mute); cursor:pointer; }
+.toc-link:hover { color:var(--ink); }
+.toc-link.has-icon { display:flex; align-items:center; gap:9px; }
+/* primitive element 표시. 구조를 가리킬 뿐 도메인을 가리키지 않는다. 다섯이 같은 무게다. */
+.toc-icon { flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:1.3;
+  stroke-linecap:round; opacity:.75; }
+.toc-link[aria-pressed="true"] .toc-icon { opacity:1; }
+/* 고른 것은 굵기로 말한다. 왼쪽 띠를 대지 않는다. */
+.toc-link[aria-pressed="true"] { color:var(--ink); font-weight:700; background:var(--surface); }
+
+.content { min-width:0; min-height:0; overflow:auto; }
+.page { max-width:720px; padding:36px 32px 96px; margin:0 auto; }
+.page-head { margin-bottom:20px; }
+h1 { font-size:26px; margin:0 0 10px; letter-spacing:-.015em; }
+h1 code { font-size:25px; }
+.lead { font-size:15px; color:var(--mute); margin:0; max-width:62ch; }
+.page p { max-width:68ch; }
+.page > h2 { font-size:12px; color:var(--mute); font-weight:600; margin:32px 0 10px;
+  display:block; letter-spacing:.04em; }
+code { font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.limits { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; margin:20px 0 0; font-size:13.5px; }
+.limits dt { color:var(--mute); }
+.limits dd { margin:0; }
+.note-line { font-size:13.5px; color:var(--mute); margin:12px 0 0; max-width:68ch; }
+/* 코드는 회색 상자가 아니라 글꼴로 갈린다 */
+pre { margin:0; padding:0; overflow-x:auto; color:var(--ink);
+  font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; }
+/* 산 렌더와 산문 사이는 진짜 경계라 틀이 하나 선다 */
+.demo { border:1px solid var(--line); border-radius:var(--r); padding:18px 20px; }
+/* focus 를 따라 바뀌는 element 는 고른 것을 달리한 두 장으로 보인다 */
+.shot + .shot { margin-top:14px; }
+.shot-said { font-size:11px; color:var(--mute); margin-bottom:6px; letter-spacing:.03em; }
+.demo h1 { font-size:11px; color:var(--mute); font-weight:600; margin:0 0 10px; letter-spacing:.04em; }
+.demo .facet, .demo .facet:first-of-type { border-top:none; padding:0; }
+
+/* ---------------------------------------------------------------- 플레이그라운드 */
+
+.playground { display:flex; flex-direction:column; height:100%; }
+.playground[hidden] { display:none; }
+.playground .page-head { padding:24px 28px 14px; margin:0; }
+.playground h1 { font-size:19px; }
+.panes { display:grid; grid-template-columns:minmax(320px, 44%) 1fr; flex:1; min-height:0;
+  border-top:1px solid var(--line); }
+.pane { min-width:0; min-height:0; display:flex; flex-direction:column; }
+.pane.edit { border-right:1px solid var(--line); }
+/* 판은 스크롤하지 않는다. 띠는 붙박이로 두고 본문만 굴린다 —
+   띄우는 방식이 아니라 구조로 가른 자리다. */
+.pane.view { overflow:hidden; }
+.scroll { flex:1; min-height:0; overflow:auto; }
+.viewport { padding:28px 28px 72px; max-width:880px; margin:0 auto; }
+
+.bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  padding:10px 14px; border-bottom:1px solid var(--line); }
+.bar .push { margin-left:auto; }
+select, button { font:inherit; font-size:13px; color:var(--ink);
+  background:#ffffff; border:1px solid var(--line); border-radius:var(--r); padding:4px 9px; }
+button { cursor:pointer; }
+button:hover { background:var(--surface); }
+button[aria-pressed="true"] { background:var(--ink); color:#ffffff; border-color:var(--ink); }
+/* focus 나열. 항목에 none 이 있어 무엇을 고르는 줄인지 스스로 읽힌다 — 라벨을 두지 않는다. */
+#focus-buttons { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+button.pick { padding:3px 10px; font-size:12.5px; }
+label { font-size:12px; color:var(--mute); }
+label:has(input) { display:inline-flex; align-items:center; gap:5px; }
+
+/* 탭은 고른 것을 **굵기와 색조**로 말한다. 밑줄도 상자도 두르지 않는다 —
+   밑줄로 활성을 말하는 것은 왼쪽 띠를 아래로 옮긴 것뿐이다.
+   `.tabs` 의 아래 선은 활성 표시가 아니라 편집기와의 판 구분선이다. */
+.tabs { display:flex; flex-wrap:wrap; gap:2px; align-items:stretch;
+  padding:0 10px; border-bottom:1px solid var(--line); }
+.tab { border:none; background:none; padding:9px 10px; font-size:12.5px; color:var(--mute); }
+.tab:hover { background:none; color:var(--ink); }
+.tab[aria-pressed="true"] { background:none; color:var(--ink); font-weight:700; }
+.tab .bad { font-weight:700; }
+/* 탭 하나가 곧 subject 다. 템플릿은 하나뿐이라 홀로 앞에 서고, 사이를 자리(간격)가 가른다.
+   묶는 말을 두지 않는다 — 탭이 이미 subject 인데 그 위에 또 적으면 같은 말을 두 번 한다. */
+.tab-slot { display:inline-flex; align-items:stretch; }
+/* 템플릿은 subject 가 아니다 — 자리(간격)가 그것을 가른다. */
+.tab-slot:has(.tab-template) { margin-right:16px; }
+/* **닫는 자리는 지금 고른 탭에만 선다.** 폭은 28px 로 44px 에 못 미치지만 높이는 줄 전체를
+   채운다 — 닫기는 되돌릴 수 없어 후보를 하나로 줄이는 쪽을 골랐다. 표시(ⓘ)와 같은 맞바꿈이다. */
+.tab-x, .tab-add { border:none; background:none; color:var(--mute);
+  padding:0; width:28px; align-self:stretch; font-size:14px; line-height:1; }
+.tab-x:hover, .tab-add:hover { background:none; color:var(--ink); }
+.tab-add { margin-left:6px; }
+
+textarea { flex:1; width:100%; margin:0; border:none; padding:14px;
+  resize:none; background:#ffffff; color:var(--ink);
+  font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:2; }
+textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
+.strip { border-top:1px solid var(--line); padding:10px 14px;
+  font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; max-height:26vh; overflow:auto; }
+.strip:empty { display:none; }
+.strip b { display:block; margin-bottom:4px; }
+.strip ul { margin:0; padding-left:16px; }
+.strip li { color:var(--ink); }
+
+/* ---------------------------------------------------------------- 분석뷰 */
+
+h2 { font-size:17px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; letter-spacing:-.01em; }
+/* primitive element 이름은 **분석뷰 옆에 늘 선다.** 설명서가 쪽마다 원소를 설명하므로
+   facet 마다 이름이 서면 둘이 이어진다. 알약이 아니라 작은 글이다.
+   **렌더 출력에는 들어가지 않는다** — CSS 가 `data-element` 를 읽어 붙인다. */
+.viewport h2[data-element]::after { content:attr(data-element);
+  font:11px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--mute); font-weight:400; }
+/* focus 는 색이 아니라 테두리와 굵기로 말한다.
+   **표에서는 열을 통째로 잡는다** — 칸마다 두르면 열 안에 가로선이 생겨 한 덩어리로
+   읽히지 않는다. 열 선언에 준 테두리는 `border-collapse` 가 머리부터 끝까지 한 상자로 잇는다. */
+col.is-focus { border:2px solid var(--ink); }
+.is-focus > .who { font-weight:700; }
+/* **facet 이 타는 축의 선택자.** 렌더가 자리를 내고 앱이 제 것으로 갈아 끼운다 —
+   참조 뷰어는 단추로 그린다. 꼴을 가리키는 이름을 붙이지 않는다. */
+.choice { display:flex; flex-wrap:wrap; gap:6px; margin-top:var(--step); }
+.choice button { font-size:12.5px; padding:4px 10px; }
+
+/* **선은 두 facet 의 한가운데 선다.** 위 여백은 앞 facet 의 아래 여백이고 아래 여백은
+   이 facet 의 위 여백이라, 둘이 같아야 선이 가운데로 온다 — 그래서 한 자로 적는다. */
+.facet { border-top:1px solid var(--line); padding:var(--gap) 0; }
+/* 첫 facet 위에는 선이 없다. 그래도 제목이 분석뷰 제목에 붙지 않게 한 층을 띄운다. */
+.facet:first-of-type { border-top:none; padding-top:var(--step); }
+.facet h2 { margin-bottom:0; }
+/* **제목 아래 늘 보이는 한 줄.** 이 자리가 무엇인지 말한다 — 제목은 이름만 진다. */
+.facet-hint { margin:var(--row) 0 0; font-size:13px; color:var(--mute); max-width:68ch; }
+.body { margin-top:var(--step); }
+.field-label { font-size:12.5px; color:var(--mute); margin-bottom:8px; }
+/* **늘 보이는 한 줄.** 값이 무엇인지 그 자리에서 말한다 — 표시 뒤로 숨지 않는다.
+   딸린 말이라 작고 흐리게 서고, 값보다 앞에 나서지 않는다. */
+/* **이름 옆 표시가 열면 나오는 한 줄.** 늘 보이면 계약 표가 값보다 설명으로 길어진다 —
+   읽고 싶을 때 연다. 여는 길은 값 주석과 같은 것을 쓴다. */
+.hint { margin:0; font-size:12.5px; color:var(--ink); }
+/* facts 는 줄이 촘촘해 딸린 말이 다음 줄 것처럼 읽히기 쉽다 — 값에 붙이고 아래를 띄운다. */
+.who { font-size:12.5px; color:var(--mute); }
+/* 없다는 **표기**. 값이 설 자리에 서서 「여기에 값이 없다」를 말한다 —
+   빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
+.miss { font-size:12.5px; color:var(--mute); }
+.miss.value { cursor:help; }
+/* **아직 아무도 오지 않은 자리 — 밑그림 하나와 빛줄기 하나.**
+
+   산출물(renderView)은 표식만 낸다: `.slot` 과 그 안의 칸 `<i>`, `.track` · `.band` ·
+   `.plot`, 그리고 빛줄기가 설 `.sheen`. 시간도 프레임도 애니메이션 지시도 산출물에는 한
+   글자 없다 — **움직임은 전부 이 파일의 것**이라 앱은 같은 표식 위에 제 방식을 얹으면 된다.
+   「산출물에 디자인이 없다」가 그대로 선다.
+
+   **밑그림은 원소마다 다르다.** stat 은 큰 덩어리 하나, facts 는 줄 여럿, bars 는 가로 막대
+   여럿, line 은 축과 그림 자리, list·rows 는 칸, parts 는 띠. 무엇이 올 자리인지는 계속 보여야
+   하므로 이 밑그림은 움직이지 않고 사라지지도 않는다.
+
+   **움직임은 빛줄기 하나뿐이다.** 자리마다 다른 효과를 박자로 맞춰서 한 벌이 되는 것이
+   아니라 **효과를 하나로 줄여서** 된다. 모든 원소가 같은 방향·같은 속도·같은 세기로 움직이고
+   **속도는 `--sheen` 하나에서만 나온다.** 위상도 어긋내지 않는다 — 전부 같이 움직이는 것이
+   자리 표시가 한 벌로 읽히는 까닭이다.
+
+   **선은 하나다 — 빈 자리에 눈금도 수도 이름도 글자도 그리지 않는다.** 예전에는 「한 모양이
+   고정되지 않는다」가 함께 섰다. 그것은 **움직이는 가짜 값이 읽히는 것**을 막으려던 수단이었고,
+   읽힐 것을 아예 안 그리는 지금은 필요가 없다 — 고정된 회색 덩어리는 값으로 읽히지 않는다. */
+
+/* 자리의 밑그림 — **값의 생김새를 따른다.** 칸 수는 타입마다 고정이라 자릿수가 크기를
+   말하지 않고, 글 자리의 폭도 타입이 정한다(값에서 오면 그 폭이 곧 값이다). */
+.slot { --cell:1.15em;
+  position:relative; display:inline-flex; gap:1px; align-items:center;
+  vertical-align:-.18em; height:var(--cell); max-width:100%; }
+.slot i { display:block; height:var(--cell); }
+.slot[data-slot="num"] i { width:.68em; }
+.slot[data-slot="text"] i { width:6.9em; }
+/* 단위는 **값이 아니라 생김새**다. 빛줄기 위에 서서 씻기지 않는다. */
+.slot-unit { position:relative; z-index:1; font-weight:400; color:var(--mute);
+  align-self:center; margin-left:2px; }
+.big .slot { --cell:1.05em; }
+/* 큰 자리의 **숫자 칸**만 좁힌다 — 글 자리의 폭은 글줄 하나라 여기서 건드리지 않는다. */
+.big .slot[data-slot="num"] i { width:.62em; }
+td .slot, th .slot { max-width:100%; }
+
+/* 빛줄기가 앉을 자리. 자·띠·그림 자리는 이미 밑그림이라 상자만 잡아 준다. */
+.track, .band, .chart-blank { position:relative; }
+/* 그림 자리 — 축 둘과 **그림이 들어올 면**뿐이다. 꺾은선을 그리지 않는다:
+   고정된 꺾은선 하나는 눈금이 없어도 **추세로 읽힌다**. 면은 어떤 추세도 말하지 않는다. */
+svg.line .plot { fill:var(--bed); stroke:none; }
+/* 축은 **면 위에 선다.** 값이 있는 그림에서는 흰 바탕 위라 구조선 색으로 읽히지만, 밑그림
+   위에서는 면과 밝기가 거의 같아 축이 사라진다 — 「축과 그림 자리」에서 축이 빠지는 것이다. */
+.chart-blank .axis { stroke:var(--mute); }
+
+/* **빛줄기 하나.** 모든 자리에서 같은 방향(왼쪽 → 오른쪽)·같은 속도·같은 세기다.
+
+   한 바퀴에 `--sheen-span` 만큼 나아가므로 **자리가 넓든 좁든 초당 같은 거리**를 간다.
+   폭에 맞춰 늘이면 넓은 자리가 더 빨라 보이고, 그것이 강조다. 무늬가 `--sheen-span` 주기로
+   되풀이되고 정확히 한 주기만 밀리므로 이음매가 없다.
+
+   **transform 하나만 움직인다** — background-position 을 밀면 매 프레임 다시 칠해져 버벅인다.
+   상자는 빛줄기가 스스로 자른다(`overflow`). 밑그림 쪽에 자르기를 걸면 값이 있는 화면의
+   막대·조각까지 함께 잘린다. */
+.sheen { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+/* 자와 띠는 밑그림이 상자 전체라 빛줄기가 바탕까지 함께 깐다. 칸(`.slot i`)과 그림 자리
+   (`.plot`)는 저마다 모양이 있어 그 쪽이 바탕을 갖는다. */
+.slot i, .track > .sheen, .band > .sheen { background:var(--bed); }
+.sheen::before { content:""; position:absolute; top:0; bottom:0; left:0;
+  width:calc(100% + var(--sheen-span));
+  background-image:linear-gradient(90deg,
+    transparent 0 34%, rgba(255,255,255,.78) 50%, transparent 66% 100%);
+  background-size:var(--sheen-span) 100%; background-repeat:repeat-x;
+  will-change:transform;
+  animation:sheen var(--sheen) linear infinite; }
+@keyframes sheen {
+  from { transform:translateX(calc(var(--sheen-span) * -1)); }
+  to { transform:translateX(0); }
+}
+
+/* **조용한 자리 — 멎는 것은 빛줄기뿐이다.**
+
+   예전에는 움직이던 것을 통째로 감췄다. 멈춘 릴에 숫자가, 멈춘 줄에 임의의 길이가 남으면
+   그것이 읽을 수 있는 값이었기 때문이다. 지금은 읽힐 것을 아예 안 그리므로 **감출 것이
+   빛줄기뿐**이고, 밑그림까지 사라지면 「여기에 무엇이 온다」가 통째로 사라진다. */
+@media (prefers-reduced-motion: reduce) {
+  .sheen::before { animation:none; display:none; }
+}
+
+/* 틀이 아니라 자리다 */
+.blank { padding:4px 0 8px; }
+/* 그리지 못한 자리. 테두리 친 알약이 아니라 굵은 monospace 다. */
+.broken, .undrawable { font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-weight:700; color:var(--ink); }
+
+/* 겹치는 쪽 (line · list) — 값을 못 얹은 subject 는 축 아래에 선다 */
+.offs { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; margin-top:var(--row); }
+/* **무슨 줄인지 줄 머리가 한 번 말한다.** 이름만 늘어놓으면 범례로 읽히고,
+   subject 마다 붙이면 같은 문장이 되풀이된다. */
+.off-said { font-size:12.5px; color:var(--mute); margin-right:2px; }
+.off { font-size:12.5px; color:var(--mute); }
+.off.is-focus { color:var(--ink); }
+.off.is-focus .who { font-weight:700; }
+
+/* focus 를 따라 바뀌는 쪽 (stat · facts · bars) — 무엇을 보고 있는지 늘 이름으로 말한다 */
+/* 무엇을 보고 있는지는 **화면에 한 번** — 오른쪽 띠가 말한다. facet 마다 되풀이하지 않는다. */
+.watching { font-size:12px; color:var(--mute); white-space:nowrap; }
+.watching b { color:var(--ink); }
+.facts { display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; margin:0; font-size:14px; }
+.fact { display:contents; }
+.facts dt { color:var(--mute); font-size:13px; padding-top:1px; }
+.facts dd { margin:0; }
+.big { font-size:27px; letter-spacing:-.01em; display:flex; align-items:center; gap:2px; }
+.big .note-mark { vertical-align:baseline; }
+/* 큰 값의 자리에서는 표기도 그 자리만큼 선다 — 값이 있던 자리가 비어 보이면 안 된다. */
+.big .miss { font-size:22px; }
+.big .undrawable { font-size:15px; }
+
+/* 막대. 자는 subject 전체의 최대값으로 고정돼 focus 를 옮겨도 길이를 견줄 수 있다. */
+.bar-row { display:grid; grid-template-columns:130px 1fr 150px; gap:12px; align-items:center; padding:4px 2px; }
+.bar-row .who { font-size:13px; color:var(--mute); }
+.track { display:block; height:10px; background:var(--surface); }
+.fill { display:block; height:100%; background:var(--ink); }
+.val { font-size:13px; text-align:right; }
+
+/* **표만 옆으로 굴린다.** subject 가 늘수록 넓어지는 유일한 자리다 — 페이지 전체가 옆으로
+   밀리면 왼쪽 목차도 위쪽 띠도 함께 사라진다. 그래서 스크롤은 이 상자의 것이다. */
+/* 안쪽 여백은 고른 열의 테두리가 상자 모서리에 닿아 잘리지 않게 두는 자리다 —
+   스크롤 상자는 한 축만 굴릴 수 없어 위아래도 함께 자른다. */
+.table-scroll { overflow-x:auto; margin-top:var(--step); padding:3px; }
+/* 열 너비가 균일하다. 자리마다 너비가 다르면 넓은 칸이 중요해 보인다 —
+   `fixed` 가 남은 폭을 고르게 나누고, 다 못 담으면 표가 상자 밖으로 넘쳐 굴러간다. */
+/* **하나를 쪼갠 띠.** 조각이 합쳐 한 덩어리가 된다 — 파이가 아니라 띠인 까닭은
+   색으로 가르지 않기 때문이다. 조각은 **자리 차례로** 두 무채색을 번갈아 쓴다:
+   크기와 무관하고 앞이 뒤보다 무겁다는 뜻이 없다. 사이의 흰 틈이 경계를 세운다. */
+/* 조각 사이는 **틈**이 가른다 — 띠를 덧대지 않는다. 흰 바탕이 그대로 경계가 된다. */
+.band { display:flex; gap:2px; height:14px; margin-top:var(--step); background:var(--surface); }
+.slice { display:block; height:100%; background:var(--ink); }
+.slice:nth-child(even) { background:var(--mute); }
+.slices { margin-top:var(--step); }
+.slice-row { display:flex; justify-content:space-between; gap:12px; font-size:13px; padding:2px 0; }
+.slice-row .who { color:var(--mute); }
+
+table { border-collapse:collapse; table-layout:fixed; width:max-content; min-width:100%;
+  font-size:14px; }
+th, td { border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top; }
+thead th { font-weight:600; font-size:13px; width:180px; }
+th.corner, th.row-label { font-weight:600; width:140px; color:var(--mute); }
+
+/* 축이 이미 틀이다. 테두리를 두르지 않는다.
+   **좁아지면 상자가 굴러간다** — 그림을 통째로 줄이면 축 라벨과 선 끝 이름이 읽을 수
+   없게 작아진다. `list` 표와 같은 규칙이다: 페이지가 아니라 그 상자가 굴러간다. */
+.chart-scroll { overflow-x:auto; }
+svg.line, .chart-blank { min-width:560px; }
+svg.line { display:block; width:100%; height:auto; background:#ffffff; }
+svg .axis { stroke:var(--line); stroke-width:1; }
+svg .tick { font-size:11px; fill:var(--mute); }
+svg .ty { text-anchor:end; }
+svg .tx { text-anchor:start; }
+svg .tx.end { text-anchor:end; }
+/* **선은 세 갈래로 갈린다 — 지금 보는 것 · 직전에 보던 것 · 나머지.**
+   이 색은 **subject 의 것이 아니라 상태의 것이다.** 같은 subject 라도 focus 가 옮겨 가면
+   색이 바뀐다 — 걷어낸 subject 팔레트를 되살리는 것이 아니다.
+   **색에만 기대지 않는다**: 굵기와 진하기가 같은 순서를 함께 말해 색 없이도 갈린다.
+   평가가 아니다 — 뚜렷한 것이 「더 좋은 것」이 아니라 **보고 있는 것**이라, 경고색·성공색을 피한다. */
+.trace-now { --trace:#1a1a1a; }    /* 무채색. 지금 보는 것이 가장 뚜렷하다 */
+.trace-prior { --trace:#3f6fb5; }  /* 좋고 나쁨을 뜻하지 않는 파랑 */
+.trace-rest { --trace:#9a9a9a; }   /* 무채색. 가장 옅다 */
+svg .series { fill:none; stroke:var(--trace, var(--ink)); }
+svg .series.trace-now { stroke-width:2.6; opacity:1; }
+svg .series.trace-prior { stroke-width:1.8; opacity:.8; }
+svg .series.trace-rest { stroke-width:1.1; opacity:.45; }
+svg circle.series, svg circle.dot { fill:var(--trace, var(--ink)); stroke:none; }
+svg .series-label { font-size:11px; fill:var(--trace, var(--mute)); font-weight:600;
+  paint-order:stroke; stroke:#ffffff; stroke-width:3px; stroke-linejoin:round; }
+svg .series-label.is-focus { font-weight:700; }
+
+/* 주석은 띠가 아니라 **글**로 읽힌다.
+   **줄 사이가 전부 같다** — 한 묶음 안이든 묶음과 묶음 사이든 `--row` 하나다.
+   간격으로 무엇을 가르지 않는다. 가르는 일은 글(이름)이 한다. */
+.notes { list-style:none; margin:0; padding:0;
+  display:flex; flex-direction:column; gap:var(--row); }
+.body .notes { margin-top:var(--step); }
+.note { display:grid; grid-template-columns:2.8em 1fr; gap:0 10px; font-size:12.5px; }
+.note .kind { color:var(--kind, var(--mute)); font-size:11px; line-height:1.85; white-space:nowrap; }
+
+/* **필드에 붙는 말.** 표시는 값 옆에 늘 서 있고 내용은 가리키거나 초점을 받으면 열린다.
+   **표시는 하나이고 중립이다** — 「여기 붙은 말이 있다」만 말한다. 갈래에 따라 달라지면
+   값이 갈래로 물든다. 갈래는 열었을 때 줄마다 선다. */
+.note-mark { position:relative; display:inline-flex; align-items:center; gap:2px;
+  margin-left:6px; vertical-align:-2px; cursor:help; color:var(--mute); }
+.note-mark:hover, .note-mark:focus { color:var(--ink); outline:none; }
+.note-mark:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+/* 표시 자체는 갈래를 모른다 — 글자색을 따라가고 갈래색을 받지 않는다. */
+.note-mark > .mark-icon { stroke:currentColor; }
+/* 수를 적지 않는다 — 값 옆에 서는 것은 표시 하나뿐이고, 몇 개인지는 열면 보인다. */
+.note-pop { position:absolute; left:0; top:calc(100% + 6px); z-index:5; display:none;
+  min-width:260px; max-width:min(380px, 60vw); padding:10px 12px;
+  background:#ffffff; border:1px solid var(--line); border-radius:var(--r); text-align:left; }
+/* 여는 길 셋 — 가리키기 · 초점 · **누르기.** 누르기는 앱이 표시를 켜서 연다:
+   손가락에는 가리키기가 없고 글자 위의 초점은 기기마다 달리 돈다. */
+.note-mark:hover .note-pop, .note-mark:focus-within .note-pop, .note-mark:focus .note-pop,
+.note-mark.is-open .note-pop { display:block; }
+.note-pop .notes { margin-top:0; }
+.note-pop .note { cursor:auto; }
+.pop-close { display:none; }
+
+/* 주석 갈래의 색. **통용되는 UI 시맨틱을 따른다** — 주의는 warning, 보충은 info.
+   이 자리를 어떻게 읽으라는 말이지 **그 제안서가 좋고 나쁘다는 말이 아니다.**
+   그래서 색은 갈래 표시와 갈래 이름에만 얹고 값이나 글에는 얹지 않는다.
+   **색이 나오는 곳은 여기뿐이다** — 값·subject·facet 에서는 색이 나오지 않는다. */
+.note-quote { --kind:var(--mute); }   /* 근거·출처. 상태가 아니다 */
+.note-tip { --kind:#175cd3; }         /* 도움말의 통용색 */
+.note-note { --kind:var(--mute); }    /* info — 사람이 준 예대로 중립 회색 */
+.note-caution { --kind:#b42318; }     /* warning 의 통용색 */
+
+.kind-icon, .mark-icon { width:12px; height:12px; margin-right:4px; vertical-align:-2px;
+  fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.kind-icon { stroke:var(--kind, var(--mute)); }
+.mark-icon { stroke:var(--mute); }
+.note .kind { color:var(--kind, var(--mute)); }
+.note .text { color:var(--ink); }
+/* 좁은 자리에서는 매달린 라벨이 폭을 먹는다. 같은 줄에 흘려 보낸다. */
+td .note { display:block; }
+td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
+/* 말은 데이터 뒤에 한자리에 모인다. 묶음 사이도 줄 사이와 같은 자다. */
+.said { margin-top:var(--step); display:flex; flex-direction:column; gap:var(--row); }
+/* facet 것과 subject 것 사이의 **짧은 구조선.** 판을 가로지르지 않고 글머리 쪽에만 놓인다 —
+   갈래 이름이 서는 폭만큼이다. 이름이 가르는 것을 거들 뿐이라 무채색이고 위계를 말하지 않는다.
+   줄 사이가 `--row` 로 균일한 흐름을 깨지 않는다: 자기 자리를 갖되 앞뒤 간격은 같은 자다. */
+.said-cut { width:2.8em; height:0; margin:0; border:none; border-top:1px solid var(--line); }
+
+/* 판을 고르는 줄. 넓은 화면에는 없다 — 둘이 나란히 서므로 고를 것이 없다. */
+.pane-pick { display:none; }
+
+/* ---------------------------------------------------------------- 손에 잡히는 화면 */
+
+/* **누를 것은 손가락만 해야 한다.** 통용되는 자가 44px 이고, 서로 붙어 있지 않아야
+   옆것을 누르지 않는다. 좁은 화면이라고 다른 규칙으로 갈아타지 않는다 —
+   자리가 없으면 접거나 미룰 뿐이고, 굵기·여백으로 말하는 방식은 그대로다. */
+@media (max-width: 900px), (pointer: coarse) {
+  button, select, .toc-link { min-height:44px; }
+  /* 기본 네모는 13px 이라 손가락이 못 맞춘다. 상자를 키우고 줄도 손가락만 하게 한다. */
+  label:has(input) { min-height:44px; }
+  input[type="checkbox"] { width:20px; height:20px; }
+  button.pick { padding:0 14px; font-size:13.5px; }
+  #focus-buttons { gap:8px; }
+  .choice { gap:8px; }
+  .choice button { padding:0 14px; }
+  .tabs { gap:6px; }
+  .tab { min-height:44px; padding:0 12px; }
+  .toc-link { display:flex; align-items:center; padding:0 18px; }
+  .toc-link.has-icon { padding:0 18px; }
+  .bar { gap:10px; padding:8px 14px; }
+  /* 닫는 길도 손가락으로 되어야 한다. */
+  .pop-close { min-height:44px; padding:0 16px; }
+  /* **글 사이에 선 표시도 손가락이 맞춰야 한다.** 누르는 자리를 넓히되 음수 여백으로
+     흐름은 그대로 둔다 — 줄 간격이 좁아 44px 을 채우면 위아래 줄의 자리와 겹친다.
+     겹치면 옆것이 눌리므로 줄 사이에 맞는 만큼만 넓힌다. */
+  .note-mark { padding:8px 6px; margin:-8px 0 -8px 0; }
+  .big .note-mark, .val .note-mark { padding:10px 8px; margin:-10px 0; }
+}
+
+@media (max-width: 420px) {
+  /* 전화기에서 편집기가 서면 글을 넣을 만큼은 되어야 한다 — 밖에서 덧대던 줄을 들였다. */
+  textarea { min-height:44vh; }
+}
+
+@media (max-width: 900px) {
+  /* 좁은 화면엔 가리키기가 없다. 아래에서 올라오는 판으로 연다. */
+  .note-pop { position:fixed; inset:auto 0 0 0; max-width:none; min-width:0;
+    border:none; border-top:1px solid var(--line); padding:18px 18px 22px; }
+  .pop-close { display:block; margin-top:14px; margin-left:auto; }
+
+  /* 좁아도 판이 스스로 스크롤한다 — 문서 전체가 밀리면 띠가 또 사라진다. */
+  .site { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+  /* 목차가 판을 스스로 스크롤하게 됐으므로 위쪽을 다 먹지 않게 묶는다. */
+  /* 목차가 위쪽을 다 먹지 않게 묶는다 — 붙박이라 먹은 만큼 본문이 줄어든다.
+     좁을수록 촘촘히 눕히고, 그래도 넘치면 목차가 스스로 굴러간다. */
+  .nav { border-right:none; border-bottom:1px solid var(--line); max-height:26vh; }
+  .nav nav { display:flex; flex-wrap:wrap; gap:2px 4px; padding:0 10px 10px; }
+  .brand { padding:10px 12px 6px; }
+  .nav .group { width:100%; padding:6px 6px 0; }
+  .toc-link { width:auto; padding:0 10px; }
+  .page { padding:20px 16px 56px; }
+  /* **분석뷰가 주인공이다.** 손가락으로 JSON 을 고치는 사람은 없다 — 판 하나만 세우고
+     편집기는 고를 때만 나온다. 위아래로 쌓으면 분석뷰를 보려고 JSON 을 지나가야 한다. */
+  .pane-pick { display:flex; gap:6px; padding:0 10px; border-bottom:1px solid var(--line); }
+  .panes { grid-template-columns:1fr; grid-template-rows:1fr; border-top:none; }
+  .pane.edit { display:none; border-right:none; }
+  .playground.editing .pane.edit { display:flex; }
+  .playground.editing .pane.view { display:none; }
+  .playground .page-head { padding:16px 16px 10px; }
+  /* 좁아도 표와 그림은 자기 상자에서 굴러간다 — 페이지는 밀리지 않는다. */
+  .viewport { padding:20px 16px 56px; }
+  /* 좁아도 표는 자기 상자에서 굴러간다 — 열은 그대로 균일하다. */
+  /* **막대는 좁아도 눕는다.** 라벨을 줄이고 값을 제 폭만 쓰게 해서 한 줄을 지킨다 —
+     접어 올리면 막대가 라벨 아래로 내려가 가로 막대로 읽히지 않는다. */
+  .bar-row { grid-template-columns:minmax(72px, 25%) 1fr max-content; gap:8px; }
+}
+</style>
+</head>
+<body>
+<div class="site">
+  <!-- 목차. 정본은 카탈로그다 — primitive element 가 늘거나 줄면 여기가 따라 바뀐다. -->
+  <aside class="nav">
+    <div class="brand">weave</div>
+    <nav id="toc"></nav>
+  </aside>
+
+  <main class="content">
+    <!-- 설명서 쪽. 고른 항목 하나를 그린다. -->
+    <article class="page" id="page"></article>
+
+    <!-- 플레이그라운드. DOM 을 살려 둬야 편집 중인 글이 안 날아간다. -->
+    <section class="playground" id="playground" hidden>
+      <header class="page-head">
+        <h1 id="pg-title"></h1>
+        <p class="lead" id="pg-lead"></p>
+      </header>
+      <!-- 전화기에서는 판 하나만 선다. **분석뷰가 먼저다** — 손가락으로 JSON 을 고치는
+           사람은 없다. 넓은 화면에서는 이 줄이 서지 않고 둘이 나란히 선다. -->
+      <div class="pane-pick" id="pane-pick">
+        <button type="button" class="tab" data-pane="view" aria-pressed="true">분석뷰</button>
+        <button type="button" class="tab" data-pane="edit" aria-pressed="false">템플릿·값</button>
+      </div>
+      <div class="panes">
+        <div class="pane edit">
+          <div class="bar">
+            <label for="sample">샘플</label>
+            <select id="sample"></select>
+          </div>
+          <div class="tabs" id="tabs"></div>
+          <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
+          <div class="strip" id="strip"></div>
+        </div>
+        <div class="pane view">
+          <div class="bar">
+            <span id="focus-buttons"></span>
+            <span class="watching" id="watching"></span>
+          </div>
+          <!-- 스크롤하는 것은 본문뿐이다. 띠는 바깥에 있어 늘 제자리를 지킨다. -->
+          <div class="scroll">
+            <div class="viewport" id="view"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module">
+// ---- viewer/icons.mjs ----
+// lucide 아이콘. **실물을 그대로 옮겼다** — 기억으로 그리지 않는다.
+//
+//   출처   npm lucide-static@1.44.0 의 icons/<name>.svg
+//   라이선스 ISC — Copyright (c) 2026 Lucide Icons and Contributors
+//            https://github.com/lucide-icons/lucide/blob/main/LICENSE
+//   다시 받기 npm pack lucide-static@1.44.0 로 풀어 icons/ 에서 아래 이름을 꺼낸다
+//
+// CDN 도 아이콘 폰트도 쓰지 않는다 — 파일 하나로 열려야 하므로 여기 인라인한다.
+// 주석 갈래는 **통용되는 UI 시맨틱**을 따른다 — 주의는 warning, 보충은 info.
+// primitive element 는 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
+
+const LUCIDE_VERSION = "1.44.0";
+
+const ICON = {
+  // 주석 갈래 — 인용. 근거·출처라 상태가 아니다 (lucide `quote`)
+  quote: "<path d=\"M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\" /> <path d=\"M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z\" />",
+  // 주석 갈래 — 팁. 도움말의 통용 표시 (lucide `lightbulb`)
+  tip: "<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /> <path d=\"M9 18h6\" /> <path d=\"M10 22h4\" />",
+  // 주석 갈래 — 보충. info 의 통용 표시 (lucide `info`)
+  note: "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 16v-4\" /> <path d=\"M12 8h.01\" />",
+  // 주석 갈래 — 주의. warning 의 통용 표시 (lucide `circle-alert`)
+  caution: "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\" /> <line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\" />",
+  // primitive element — stat (lucide `hash`)
+  stat: "<line x1=\"4\" x2=\"20\" y1=\"9\" y2=\"9\" /> <line x1=\"4\" x2=\"20\" y1=\"15\" y2=\"15\" /> <line x1=\"10\" x2=\"8\" y1=\"3\" y2=\"21\" /> <line x1=\"16\" x2=\"14\" y1=\"3\" y2=\"21\" />",
+  // primitive element — facts (lucide `table-properties`)
+  facts: "<path d=\"M15 3v18\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /> <path d=\"M21 9H3\" /> <path d=\"M21 15H3\" />",
+  // primitive element — bars (lucide `chart-bar`)
+  bars: "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\" /> <path d=\"M7 16h8\" /> <path d=\"M7 11h12\" /> <path d=\"M7 6h3\" />",
+  // primitive element — line (lucide `chart-line`)
+  line: "<path d=\"M3 3v16a2 2 0 0 0 2 2h16\" /> <path d=\"m19 9-5 5-4-4-3 3\" />",
+  // primitive element — rows (lucide `rows-3`)
+  rows: "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /> <path d=\"M21 9H3\" /> <path d=\"M21 15H3\" />",
+  // primitive element — parts (lucide `chart-pie`)
+  parts: "<path d=\"M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z\" /> <path d=\"M21.21 15.89A10 10 0 1 1 8 2.83\" />",
+  // primitive element — list (lucide `table`)
+  list: "<path d=\"M12 3v18\" /> <rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /> <path d=\"M3 9h18\" /> <path d=\"M3 15h18\" />",
+};
+
+// ---- viewer/render.mjs ----
+// 참조 렌더. 무엇이 올바른 렌더인지의 기준이다.
+//
+// 순수 함수다 — 문서를 받아 HTML 문자열을 낸다. DOM 을 모른다. 그래서 브라우저 없이도
+// 고정 케이스를 걸 수 있다 (`tests/viewer.test.mjs`).
+//
+// **facet 종류를 아는 분기가 없다.** element 로만 고른다 (ELEMENTS 표).
+// **subject 마다 값 한 벌이 정확히 하나 있다.** 비어 있을 수 있고, 누가 자리에 서는지는 그 값 한 벌들이
+// 말한다 — 명단을 따로 받지 않는다. 아직 분석되지 않았다는 것도 특별한 상태가 아니라
+// **전부 비어 있는 값 한 벌과 주석**이 말한다.
+// **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
+// 자리를 표시하고 무엇이 이상한지 적기만 한다.
+
+
+// 주석 갈래의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
+// 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
+const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
+
+// **없다는 말 넷.** 뜻이 다르면 표기도 달라야 한다 — 뭉개면 「모른다」와 「없다」가 같아진다.
+const NO_VALUE = "값 없음"; // 그 필드에 값이 없다
+const NO_ITEM = "없음"; // 목록은 읽었는데 그 항목이 여기 없다
+const NO_ITEMS = "항목 없음"; // 목록 자체가 비었다 — 아무 subject 도 항목이 없다
+const UNDRAWABLE = "그리지 못한다"; // 값의 문제가 아니라 템플릿과 값이 어긋났다
+
+/**
+ * **표기는 「모른다」를 가리킨다. 아는 사실은 글로 말한다.**
+ *
+ * 「값 없음」이라는 글은 값보다 길어 자리를 먹고 여러 개가 모이면 화면을 덮는다. 그래서
+ * 표기로 줄였다. 하지만 줄일 수 있는 것은 **값이 없다는 것 하나뿐**이다 — 나머지는 전부
+ * 우리가 **아는 사실**이라 글이 제값을 한다.
+ *
+ * - 「없음」 — 목록을 읽었고 그 항목이 없다는 것을 **안다**
+ * - 「항목 없음」 — 목록이 비었다는 것을 **안다**
+ * - 「있음」 — 있다는 것을 **안다**
+ * - 「그리지 못한다: …」 — 무엇이 어긋났는지 **안다**
+ *
+ * 표기 둘을 눈으로 가르려다 쓰다 만 글자처럼 보이느니, 아는 것은 말하게 두는 편이 낫다.
+ * **빈 칸으로 두지 않는다** — 아무것도 없으면 렌더가 깨진 것과 구별되지 않는다.
+ * **읽어 주는 기계에는 말이 남는다** — 표기는 이름표로 제 뜻을 말한다.
+ */
+const NO_VALUE_MARK = "—"; // 표에서 빈 자리를 가리키는 통용 표기
+
+/**
+ * **선이 갈리는 세 갈래.** subject 가 아니라 **상태**다 — 같은 subject 라도 focus 가
+ * 옮겨 가면 갈래가 바뀐다. 걷어낸 subject 팔레트를 되살리는 것이 아니다.
+ *
+ * 색으로 가르되 **색에만 기대지 않는다** — 굵기와 진하기가 같은 순서를 함께 말한다.
+ * 색을 못 보는 사람에게도 지금 무엇을 보고 있는지가 갈려야 한다.
+ * 누가 누구인지는 여전히 **선 끝의 이름**이 말한다.
+ *
+ * 평가가 아니다. 뚜렷한 것이 「더 좋은 것」이 아니라 **보고 있는 것**이다 —
+ * 그래서 경고색·성공색 계열을 쓰지 않는다.
+ */
+const TRACE = ["now", "prior", "rest"];
+
+/** 선 하나가 어느 갈래인지. **오직 화면 상태에서만 나온다** — id 도 차례도 보지 않는다. */
+function traceOf(id, focus, prior) {
+  if (focus !== null && id === focus) return "now";
+  // 직전이 현재와 같을 수는 없다. 같은 id 가 들어오면 직전이 없는 것으로 본다.
+  if (prior !== null && prior !== focus && id === prior) return "prior";
+  return "rest";
+}
+
+function esc(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#x27;");
+}
+
+// ---------------------------------------------------------------- 값 읽기
+
+/**
+ * 값 한 자리를 읽는다.
+ *
+ * **고르는 자리를 타는 필드면 고른 것의 값을 읽는다.** 고른 것이 바뀌어도 읽는 자리는
+ * 그대로이고 값만 달라진다 — 이 한 줄이 「고르는 자리는 facet 구성을 바꾸지 않는다」를
+ * 구조로 지킨다. 어느 자리를 타는지는 **템플릿의 필드 선언**이 말한다.
+ */
+function cell(valueset, facetId, decl, chosen) {
+  const key = typeof decl === "string" ? decl : decl?.key;
+  if (!valueset) return { state: "empty", entry: null };
+  const facet = valueset.facets?.[facetId];
+  if (!facet) return { state: "empty", entry: null };
+  const slot = facet.fields?.[key];
+  const rides = typeof decl === "string" ? null : decl?.choice;
+  const entry = slot?.byOption ? (rides ? slot.byOption[chosen?.[rides]] : null) : slot;
+  if (!entry || entry.state !== "filled") return { state: "empty", entry: entry ?? null };
+  return { state: "filled", entry };
+}
+
+function facetNotes(valueset, facetId) {
+  return valueset?.facets?.[facetId]?.notes ?? [];
+}
+
+// ---------------------------------------------------------------- 값 쓰기
+
+function grouped(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+  return value.toLocaleString("en-US", { maximumFractionDigits: 10 });
+}
+
+function formatScalar(type, value) {
+  if (type === "boolean") return value ? "예" : "아니오";
+  if (type === "text" || type === "date") return String(value);
+  if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+  if (type === "money") return `${grouped(value)}원`;
+  if (type === "ratio") return `${grouped(Math.round(value * 1e10) / 1e8)}%`;
+  // 배수는 비율이 아니다 — 0.049 가 4.9% 이고 4.9 가 4.9 배다. 단위를 글로 열지 않고 타입을 하나 둔다.
+  if (type === "multiple") return `${grouped(value)}배`;
+  if (type === "duration") return `${grouped(value)}개월`;
+  if (type === "age") return `${grouped(value)}세`;
+  return grouped(value);
+}
+
+function formatValue(decl, value) {
+  if (decl.shape === "single") return formatScalar(decl.type, value);
+  if (decl.shape === "range") {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+    const low = "min" in value ? formatScalar(decl.type, value.min) : null;
+    const high = "max" in value ? formatScalar(decl.type, value.max) : null;
+    if (low !== null && high !== null) return `${low} ~ ${high}`;
+    if (low !== null) return `${low} 이상`;
+    if (high !== null) return `${high} 이하`;
+    return null;
+  }
+  return null;
+}
+
+function axisNumber(axis, raw) {
+  if (axis === "date") {
+    const ms = Date.parse(`${raw}T00:00:00Z`);
+    return Number.isNaN(ms) ? null : ms / 86400000;
+  }
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+}
+
+// ---------------------------------------------------------------- HTML 조각
+
+/** 갈래 표시. **통용되는 UI 시맨틱을 따른다** — 주의는 warning, 보충은 info.
+ *  색은 갈래(`note-<kind>`)에서만 나온다. 값이나 subject 에서는 나오지 않는다. */
+function kindIcon(kind) {
+  const body = ICON[kind];
+  if (!body) return "";
+  return (
+    `<svg class="kind-icon note-${esc(kind)}" viewBox="0 0 24 24" width="14" height="14" ` +
+    `aria-hidden="true">${body}</svg>`
+  );
+}
+
+/**
+ * **필드에 붙는 주석.** 본문에 펼치지 않고 표시를 세워 그 자리에서 연다.
+ *
+ * **표시는 하나이고 중립이다.** 갈래를 값 옆에 늘어놓지 않는다 — 표시가 갈래를 따라
+ * 달라지면 값이 갈래로 물들고, 그것은 「평가를 색으로 말하지 않는다」에서 걷어낸 자리다.
+ * 값 옆의 표시가 하는 말은 **「여기 붙은 말이 있다」** 하나뿐이다.
+ * **갈래는 툴팁 안에서 산다** — 열면 줄마다 자기 갈래 표시와 색을 갖는다.
+ *
+ * 여는 길 셋 — 가리키기(hover) · 초점(키보드) · 좁은 화면에서는 아래에서 올라오는 판.
+ */
+function markPop(inside, aria, kind = "") {
+  return (
+    `<span class="note-mark${kind ? ` ${kind}` : ""}" tabindex="0" role="button" ` +
+    `aria-label="${esc(aria)}">` +
+    `<svg class="mark-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">${ICON.note}</svg>` +
+    `<span class="note-pop" role="tooltip">${inside}` +
+    `<button type="button" class="pop-close">닫기</button></span></span>`
+  );
+}
+
+function notePop(notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return "";
+  // **수를 적지 않는다.** 값 옆에 서는 것은 표시 하나뿐이다 — 몇 개인지는 열면 보인다.
+  // 세는 것은 읽는 사람의 일이 아니고, 수가 붙으면 값 옆이 다시 붐빈다.
+  // (기계가 읽는 이름표에는 남는다. 눈에 보이는 글이 아니다.)
+  return markPop(notesHtml(notes), `붙은 말 ${notes.length}`);
+}
+
+/**
+ * 주석 묶음 하나.
+ *
+ * `where` 는 **지금 아무도 주지 않는다** — 주석이 늘 고른 subject 것만 나오므로 이름이
+ * 그 사실을 두 번 말하고, 두 묶음을 가르는 일은 짧은 선이 맡는다. 자리를 남겨 둔 것은
+ * **되돌리기 쉽게** 하려는 것이다: subject 것을 내는 호출에 이름을 둘째 인자로 주면 된다.
+ */
+/**
+ * **이 필드가 무엇인지.** 필드 **이름 옆**의 표시를 열면 나온다.
+ *
+ * **자리가 뜻을 가른다** — 이름 옆은 템플릿의 것(모든 subject 에 같다), 값 옆은 그 subject 의
+ * 값에 대한 말이다. 양끝으로 갈리니 섞이지 않는다.
+ *
+ * 여는·닫는 길은 값 주석이 쓰는 것과 **같은 것**이다 — 길 두 벌을 만들지 않는다.
+ */
+function hintMark(decl) {
+  return decl?.hint ? markPop(`<p class="hint">${esc(decl.hint)}</p>`, "이 필드가 무엇인지", "hint-mark") : "";
+}
+
+function notesHtml(notes, where = "") {
+  if (!Array.isArray(notes) || notes.length === 0) return "";
+  const rows = notes.map((note) => {
+    const kind = note?.kind ?? "note";
+    const label = KIND_LABEL[kind] ?? kind;
+    const prefix = where ? `<b class="who">${esc(where)}</b> ` : "";
+    return (
+      `<li class="note note-${esc(kind)}"><span class="kind">${kindIcon(kind)}${esc(label)}</span>` +
+      `<span class="text">${prefix}${esc(note?.text ?? "")}</span></li>`
+    );
+  });
+  return `<ul class="notes">${rows.join("")}</ul>`;
+}
+
+/**
+ * **아직 아무도 오지 않은 자리.**
+ *
+ * subject 가 하나도 없을 때 값이 설 곳에 선다. 표기(`—`)를 쓰지 않는다 — 그것은
+ * **어떤 subject 의 값을 모른다**는 말인데, 여기엔 모를 subject 자체가 없다.
+ *
+ * **가짜 값을 그리지 않는다.** 그려도 되는 것은 **자리**뿐이다. 지키는 선은 하나다 —
+ * **빈 자리에 눈금도 수도 이름도 글자도 그리지 않는다.** 읽을 것이 없으면 값도 없다.
+ *
+ * 예전에는 「한 모양이 고정되지 않는다」가 함께 섰다. 그것은 움직이는 가짜 값이 읽히는 것을
+ * 막으려던 **수단**이었고, 읽힐 것을 아예 안 그리는 지금은 필요가 없다 — 고정된 회색
+ * 덩어리는 값으로 읽히지 않는다.
+ *
+ * 밑그림은 원소마다 다르고, 그 위를 쓸고 지나가는 빛줄기 하나는 **뷰어의 것**이다.
+ * 산출물은 표식(`.slot` · `.track` · `.band` · `.plot` · `.sheen`)만 낸다.
+ */
+/** 수로 서는 타입. 자리의 생김새를 값의 생김새에 맞추는 유일한 기준이다. */
+const NUMERIC = new Set(["number", "money", "ratio", "multiple", "duration", "age"]);
+
+/**
+ * 자리 하나의 칸 수와 뒤에 붙는 단위. **타입마다 고정**이다 — 값에서 끌어오면
+ * 자릿수 자체가 크기를 말해 버린다. 금액 자리는 늘 여섯 칸이고, 87,400 이든 8,740,000 이든 같다.
+ */
+const SLOT_SHAPE = {
+  number: [6, ""], money: [6, "원"], ratio: [3, "%"], multiple: [3, "배"],
+  duration: [3, "개월"], age: [3, "세"], boolean: [1, ""], text: [1, ""], date: [1, ""],
+};
+
+function slot(said = "값이 올 자리", type = "text", big = false) {
+  const kind = NUMERIC.has(type) ? "num" : "text";
+  const [count, unit] = SLOT_SHAPE[type] ?? SLOT_SHAPE.text;
+  // **산출물은 자리만 낸다.** 표식(`.slot` · 칸 `<i>` · 빛줄기가 설 `.sheen`)이 서고
+  // **뷰어 스타일시트가 그 위로 빛줄기를 지나가게 한다** — 여기에 시간도 프레임도
+  // 애니메이션 지시도 한 글자 없다. 앱은 이 표식 위에 제 방식을 얹는다.
+  //
+  // 단위는 **값이 아니라 생김새**다. 「여기에 금액이 온다」를 수 없이 말할 수 있는 유일한 글자라
+  // 값으로 오독되지 않는다 — 읽을 수 있는 **숫자**를 두지 않으면 된다.
+  const cells = "<i></i>".repeat(count);
+  const tail = unit ? `<b class="slot-unit">${esc(unit)}</b>` : "";
+  return `<span class="slot${big ? " slot-big" : ""}" data-slot="${kind}" ` +
+    `role="img" aria-label="${esc(said)}">${cells}${tail}${sheen()}</span>`;
+}
+
+/**
+ * **빛줄기가 지나갈 자리.** 원소마다 밑그림은 달라도 움직임은 이 표식 하나뿐이라
+ * 모든 자리가 같은 방향·같은 속도·같은 세기로 움직인다. 여기엔 시간도 프레임도 없다.
+ *
+ * `box` 는 밑그림이 상자 전체가 아닐 때 그 상자를 가리키는 **길이뿐인** 값이다
+ * (지금은 `line` 의 그림 자리 하나). 자에서 나온 수라 스타일시트가 좌표를 따로 갖지 않는다.
+ */
+function sheen(box = "") {
+  return `<span class="sheen" aria-hidden="true"${box ? ` style="${box}"` : ""}></span>`;
+}
+
+/** 모른다는 **표기**. 왜 없는지는 주석이 글로 말한다. */
+function missMark() {
+  return (
+    `<span class="miss value" role="img" aria-label="${esc(NO_VALUE)}" title="${esc(NO_VALUE)}">` +
+    `${NO_VALUE_MARK}</span>`
+  );
+}
+
+// 그리지 못한 자리. 렌더는 멈추지 않고 자리를 표시하고 까닭을 적는다.
+function undrawable(report, where, why, shown) {
+  report.push(`${where}: ${why}`);
+  // **조용해지지 않는다.** 값이 없는 것이 아니라 템플릿과 값이 어긋난 것이라 표기로 줄이지
+  // 않는다 — 글이 서고 무엇이 어긋났는지 적는다. 가름표는 표기(—)와 섞이지 않게 쌍점이다.
+  return `<span class="undrawable" title="${esc(why)}">${UNDRAWABLE}: ${esc(shown ?? why)}</span>`;
+}
+
+function drawCell(report, where, decl, value) {
+  const shown = formatValue(decl, value);
+  if (shown === null) {
+    return undrawable(report, where, `선언한 모양(${decl.shape ?? "없음"})과 값의 생김새가 다르다`, JSON.stringify(value));
+  }
+  return esc(shown);
+}
+
+// ---------------------------------------------------------------- primitive element
+
+// ---------------------------------------------------------------- 비교하는 법 둘
+//
+// 순위 문법을 스키마에서 뺀 대신 **비교를 시각이 맡는다**(glossary §3.14 원칙 7).
+// 다만 방법이 하나가 아니다 — **primitive element 마다 다르게 비교한다.**
+//
+// - **겹친다** (`line` · `list`) — 축이나 항목이라는 공유하는 자리가 있어 겹칠수록 읽을 것이 많아진다.
+// - **focus 를 따라 바뀐다** (`stat` · `facts` · `bars`) — 겹칠 자리가 없어 억지로 늘어놓는 대신
+//   **무엇을 그릴지 focus 가 고른다.** focus 가 강조 장치에서 고르는 자리로 커진다.
+//
+// **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
+// 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
+const COMPARE = {
+  stat: "focus", facts: "focus", bars: "focus", rows: "focus", parts: "focus",
+  line: "overlay", list: "overlay",
+};
+
+/**
+ * 겹치는 쪽에서 **고른 subject** 가 자리에 못 섰다는 말.
+ *
+ * **범례가 아니다.** 못 선 subject 를 줄줄이 적으면 그것이 범례다 — 안 보고 있는 것까지
+ * 이름을 늘어놓게 된다. 지금 보고 있는 것에 값이 없으면 그건 알아야 하므로 **그때만**
+ * 선다. 「말은 언제나 고른 subject 것」과 같은 줄이고, 이름을 적지 않는 까닭도 같다 —
+ * 고른 것 하나뿐이라 이름이 그 사실을 두 번 말한다.
+ */
+function blankRow(missing, ctx) {
+  const mine = missing.find((one) => one.id === ctx.shown);
+  if (!mine) return "";
+  return `<div class="offs"><span class="off-said">${esc(NO_VALUE)}</span>${mine.mark ?? ""}</div>`;
+}
+
+/**
+ * **자를 잴 때 보는 값 전부.** 그 필드의 모든 subject × 모든 고를 것.
+ *
+ * `cell` 은 **지금 고른 것**을 읽지만 자는 그것만 보면 안 된다 — 무엇을 누르든 자가
+ * 안 움직여야 길이가 뜻을 지킨다. focus 를 옮겨도 자가 안 움직이게 subject 전체로
+ * 잰 것과 같은 까닭이고, 고르는 자리가 들어오면서 잴 것이 한 겹 늘었을 뿐이다.
+ */
+function everyValue(ctx, facet, decl) {
+  const out = [];
+  for (const subject of ctx.subjects) {
+    const slot = ctx.byId.get(subject.id)?.facets?.[facet.id]?.fields?.[decl.key];
+    if (!slot) continue;
+    for (const entry of slot.byOption ? Object.values(slot.byOption) : [slot]) {
+      if (entry?.state === "filled") out.push(entry.value);
+    }
+  }
+  return out;
+}
+
+/** 자가 0 이 아닌 값을 길이 0 으로 지우지 않게 두는 바닥. 「값이 없다」와 구별되어야 한다. */
+const FLOOR = 0.8;
+
+function readsOf(ctx, facet, decl) {
+  return ctx.subjects.map((subject) => ({
+    subject: { ...subject, focused: subject.id === ctx.focus },
+    ...cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen),
+  }));
+}
+
+/** 값에 붙은 말을 본문 아래에 편다. **고른 subject 것뿐이다** — 말의 규칙은 하나다. */
+/**
+ * **값에 붙은 말은 어느 element 에서나 같은 자리에 선다** — 라벨 옆 표시를 가리키면 열린다.
+ *
+ * 겹치는 쪽만 본문 아래에 펴고 있었는데, 그것이 subject 이름을 달고 facet 주석 **위에**
+ * 서니 subject 주석처럼 읽혀 순서가 뒤집힌 것처럼 보였다. 화면에 규칙이 둘이었던 것이다.
+ * 고른 subject 것만 낸다 — 말의 규칙도 하나다.
+ */
+function fieldMark(ctx, facet, decl) {
+  const { entry } = cell(ctx.byId.get(ctx.shown), facet.id, decl, ctx.chosen);
+  return notePop(entry?.notes);
+}
+
+/** focus 를 따라 바뀌는 쪽이 지금 그리는 subject. 없으면 첫째다. */
+function shownOf(ctx) {
+  return ctx.subjects.find((s) => s.id === ctx.shown) ?? null;
+}
+
+function oneRead(ctx, facet, decl, subject) {
+  return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen) };
+}
+
+// ---------------------------------------------------------------- primitive element
+
+/** 값 하나를 크게. focus 가 고른 subject 의 것을 그린다. */
+function stat(ctx, facet) {
+  const decl = facet.fields[0];
+  // **수 하나가 크게 설 자리.** 그 자리의 크기 그대로 비워 둔다.
+  if (ctx.subjects.length === 0) {
+    return `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>` +
+      `<div class="big">${slot("값이 올 자리", decl.type, true)}</div>`;
+  }
+  const subject = shownOf(ctx);
+  if (!subject) return `<div class="blank">${missMark()}</div>`;
+  const where = `${facet.id}/${decl.key}/${subject.id}`;
+  const { state, entry } = oneRead(ctx, facet, decl, subject);
+  const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
+  return (
+    `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>` +
+    `<div class="big">${value}${notePop(entry?.notes)}</div>`
+  );
+}
+
+/** 라벨과 값 여럿. 한 facet 안에 타입이 섞여도 읽는 규칙은 하나다 — 고른 subject 의 것. */
+function facts(ctx, facet) {
+  // **라벨이 그대로 선다.** 사용자가 선언한 줄들이 이 facet 의 내용이고 지금 보러 온 것이다.
+  if (ctx.subjects.length === 0) {
+    const empty = facet.fields.map((decl) =>
+      `<div class="fact"><dt>${esc(decl.label ?? decl.key)}${hintMark(decl)}</dt>` +
+      `<dd>${slot("값이 올 자리", decl.type)}</dd></div>`);
+    return `<dl class="facts">${empty.join("")}</dl>`;
+  }
+  const subject = shownOf(ctx);
+  if (!subject) return `<div class="blank">${missMark()}</div>`;
+  const rows = facet.fields.map((decl) => {
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    const { state, entry } = oneRead(ctx, facet, decl, subject);
+    const value = state === "filled" ? drawCell(ctx.report, where, decl, entry.value) : missMark();
+    return (
+      `<div class="fact"><dt>${esc(decl.label ?? decl.key)}${hintMark(decl)}</dt>` +
+      `<dd>${value}${notePop(entry?.notes)}</dd></div>`
+    );
+  });
+  return `<dl class="facts">${rows.join("")}</dl>`;
+}
+
+/** 크기 비교. **자는 subject 전체의 최대값으로 고정한다** — focus 를 옮겨도 길이를 견줄 수 있어야 한다. */
+/**
+ * 크기 비교. **자는 facet 하나에 하나다.**
+ *
+ * 필드마다 따로 재면 3등급 1,000만이 1등급 3,000만보다 길어진다 — 그림이 거짓말을 한다.
+ * 「한 facet 은 비교 축 하나여야 한다」가 이미 언어의 규칙이니 같은 축이면 같은 자를
+ * 쓰는 것이 맞고, 그래야 그 규칙이 **시각으로 강제된다.**
+ *
+ * 자는 이 facet 의 **모든 필드 × 모든 subject × 모든 고를 것**을 덮는다. 무엇을 누르든
+ * 자가 안 움직인다. 범위가 크게 다른 필드가 섞이면 작은 것이 짧아지는데, 그것이
+ * **「이 facet 은 축이 둘이다」라는 신호**다 — 감추지 않는다.
+ */
+function bars(ctx, facet) {
+  // **빈 자가 그대로 선다.** `.track` 이 이미 「막대가 여기까지 갈 수 있다」는 자리라
+  // 채우지 않은 자만 두면 된다 — 길이 0 의 막대를 그리는 것이 아니다.
+  if (ctx.subjects.length === 0) {
+    return facet.fields.map((decl) =>
+      `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}${hintMark(decl)}</span>` +
+      `<span class="track">${sheen()}</span>` +
+      `<span class="val">${slot("값이 올 자리", decl.type)}</span></div>`).join("");
+  }
+  const subject = shownOf(ctx);
+  if (!subject) return `<div class="blank">${missMark()}</div>`;
+  const numbers = facet.fields
+    .flatMap((decl) => everyValue(ctx, facet, decl))
+    .filter((value) => typeof value === "number" && Number.isFinite(value));
+  const top = numbers.length ? Math.max(...numbers) : 0;
+
+  const rows = facet.fields.map((decl) => {
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    const { state, entry } = oneRead(ctx, facet, decl, subject);
+    let mark = '<span class="track"></span>';
+    let text;
+    if (state !== "filled") {
+      text = missMark();
+    } else if (typeof entry.value === "number" && Number.isFinite(entry.value)) {
+      // 0 은 길이 0 이다 — 진짜 0 이니까. 0 이 아닌 값은 바닥을 둔다: 길이 0 으로
+      // 사라지면 「값이 없다」와 구별이 안 된다. 정확한 수는 옆에 늘 적혀 있다.
+      const share = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
+      const width = share > 0 ? Math.max(share, FLOOR) : 0;
+      mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
+      text = esc(formatScalar(decl.type, entry.value));
+    } else {
+      text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(entry.value));
+    }
+    return (
+      // **이름 옆은 hint, 값 옆은 그 값에 대한 말.** 자리가 뜻을 가른다.
+      `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}` +
+      `${hintMark(decl)}</span>${mark}<span class="val">${text}${notePop(entry?.notes)}</span></div>`
+    );
+  });
+  return rows.join("");
+}
+
+function line(ctx, facet) {
+  const decl = facet.fields[0];
+  const axis = decl.axis;
+  const series = [];
+  const missing = []; // 값이 없어 못 그린 subject — 줄 머리가 한 번 말한다
+  const broken = []; // 값은 있으나 그리지 못한 것 — 저마다 까닭을 적는다
+  for (const subject of ctx.subjects) {
+    const { state, entry } = cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen);
+    const where = `${facet.id}/${decl.key}/${subject.id}`;
+    if (state !== "filled") {
+      missing.push({ ...subject, mark: notePop(entry?.notes) });
+      continue;
+    }
+    const raw = entry.value;
+    const points = [];
+    let bad = null;
+    if (!Array.isArray(raw)) bad = "선은 점의 배열을 요구한다";
+    else
+      for (const point of raw) {
+        const x = axisNumber(axis, point?.at);
+        const y = typeof point?.value === "number" && Number.isFinite(point.value) ? point.value : null;
+        if (x === null || y === null) {
+          bad = `축(${axis ?? "없음"})이나 값에 그릴 수 없는 것이 있다`;
+          break;
+        }
+        points.push({ x, y, at: point.at });
+      }
+    if (bad || points.length === 0) {
+      broken.push(
+        `<span class="off${subject.id === ctx.focus ? " is-focus" : ""}">` +
+          `<b class="who">${esc(subject.name)}</b> ` +
+          `${undrawable(ctx.report, where, bad ?? "점이 하나도 없다", JSON.stringify(raw).slice(0, 80))}</span>`,
+      );
+      continue;
+    }
+    series.push({ subject, points, notes: entry.notes });
+  }
+  // **그림도 표처럼 자기 상자에서 굴러간다.** 좁은 화면에서 통째로 줄이면 축 라벨과 선 끝
+  // 이름이 읽을 수 없게 작아진다 — 그림은 제 크기를 지키고 상자가 굴러간다.
+  // **자는 고를 것까지 덮는다.** 축을 옮겨도 그림의 자가 안 움직여야 앞뒤를 견줄 수 있다.
+  const span = { x: [], y: [] };
+  for (const value of everyValue(ctx, facet, decl)) {
+    if (!Array.isArray(value)) continue;
+    for (const point of value) {
+      const x = axisNumber(axis, point?.at);
+      const y = typeof point?.value === "number" && Number.isFinite(point.value) ? point.value : null;
+      if (x !== null && y !== null) { span.x.push({ x, at: point.at }); span.y.push(y); }
+    }
+  }
+  // **축만 남는다.** 값이 없으면 눈금도 없다 — 눈금을 지어내면 그것이 가짜 값이다.
+  // 두 축이 서는 것만으로 「여기에 선이 그려진다」가 읽힌다.
+  const body = ctx.subjects.length === 0
+    ? `<div class="chart-scroll">${emptyAxes()}</div>`
+    : series.length
+      ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
+      : `<div class="blank">${missMark()}</div>`;
+  return (
+    // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
+    // 값이 설 한 자리가 없는 element 다 — 값 주석 표시가 이름 줄에 함께 선다.
+    // 앞이 hint, 뒤가 값 주석. 차례가 고정이라 여는 것이 무엇인지 갈린다.
+    `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}` +
+    `${fieldMark(ctx, facet, decl)}</div>` + body +
+    // 선 끝에 이름이 붙으므로 **아래에 범례를 두지 않는다.** 고른 것이 못 섰을 때만 말한다.
+    blankRow(missing, ctx) +
+    // 어긋난 값은 범례가 아니라 결함 신호다. 누구 것인지 적어야 고칠 수 있어 전원을 낸다.
+    (broken.length ? `<div class="offs">${broken.join("")}</div>` : "")
+  );
+}
+
+/**
+ * 그림 한 장의 자 — viewBox 와 네 여백. **이 저장소에서 한 번만 적는다.**
+ *
+ * 값이 있는 그림과 아직 아무도 없는 축이 같은 자를 써야 자리가 안 흔들린다. 빈 자리의
+ * 그림 자리도 여기서 나온다 — **스타일시트는 그림의 좌표를 한 수도 갖지 않는다.**
+ */
+const CHART = { W: 760, H: 240, L: 78, R: 130, T: 18, B: 34 };
+
+/**
+ * 아직 아무도 오지 않은 축. **눈금도 수도 이름도 글자도 없다** — 그 가운데 하나라도 붙으면
+ * 그 모양이 값이 된다. 그것이 값이 되는 유일한 길이라 전부 막는다.
+ *
+ * **꺾은선을 그리지 않는다.** 고정된 꺾은선 하나는 눈금이 없어도 **추세로 읽힌다** —
+ * 「오르는 중」은 눈금이 없어도 값이다. 그래서 자리에는 축 둘과 **그림이 들어올 면**만 선다.
+ * 면은 어떤 추세도 말하지 않는다.
+ *
+ * 빛줄기는 그 면 위만 지나간다. 상자를 가리키는 수는 **여기 자(`CHART`)에서 나온다** —
+ * 스타일시트가 좌표를 따로 갖지 않는다.
+ */
+function emptyAxes() {
+  const { W, H, L, R, T, B } = CHART;
+  const pct = (part, whole) => `${((part / whole) * 100).toFixed(2)}%`;
+  const box = `left:${pct(L, W)};right:${pct(R, W)};top:${pct(T, H)};bottom:${pct(B, H)}`;
+  return (
+    // 자리 상자가 그림과 **같은 폭**이어야 빛줄기가 면 위에 정확히 앉는다.
+    `<div class="chart-blank">` +
+    `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
+    `<rect class="plot" x="${L}" y="${T}" width="${W - R - L}" height="${H - B - T}"/>` +
+    `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>` +
+    `${sheen(box)}</div>`
+  );
+}
+
+function lineSvg(series, axis, type, focus, prior, span) {
+  const { W, H, L, R, T, B } = CHART;
+  // **그린 것이 아니라 잴 것 전부로 자를 잡는다** — 무엇을 눌러도 축이 안 움직인다.
+  const edge = span.x.length ? span.x : series.flatMap((s) => s.points.map((p) => ({ x: p.x, at: p.at })));
+  const xs = edge.map((one) => one.x);
+  const ys = span.y.length ? span.y : series.flatMap((s) => s.points.map((p) => p.y));
+  const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const ymin = Math.min(...ys, 0), ymax = Math.max(...ys);
+  const xspan = xmax - xmin || 1;
+  const yspan = ymax - ymin || 1;
+  const px = (x) => L + ((x - xmin) / xspan) * (W - L - R);
+  const py = (y) => H - B - ((y - ymin) / yspan) * (H - T - B);
+
+  // 축 양끝의 글도 자에서 온다 — 그린 것만 보면 눌렀을 때 눈금이 달라진다.
+  const firstAt = edge.reduce((a, p) => (p.x < a.x ? p : a), edge[0]).at;
+  const lastAt = edge.reduce((a, p) => (p.x > a.x ? p : a), edge[0]).at;
+
+  const parts = [
+    `<line class="axis" x1="${L}" y1="${py(ymin).toFixed(1)}" x2="${W - R}" y2="${py(ymin).toFixed(1)}"/>`,
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/>`,
+    `<text class="tick ty" x="${L - 8}" y="${py(ymax).toFixed(1)}">${esc(formatScalar(type, ymax))}</text>`,
+    `<text class="tick ty" x="${L - 8}" y="${py(ymin).toFixed(1)}">${esc(formatScalar(type, ymin))}</text>`,
+    `<text class="tick tx" x="${L}" y="${H - B + 18}">${esc(formatScalar(axis, firstAt))}</text>`,
+    `<text class="tick tx end" x="${W - R}" y="${H - B + 18}">${esc(formatScalar(axis, lastAt))}</text>`,
+  ];
+  series.forEach(({ subject, points }) => {
+    const focused = subject.id === focus;
+    // 무늬를 쓰지 않는다. 갈래는 상태에서 나오고 CSS 가 색·굵기·진하기로 함께 말한다.
+    const klass = `series trace-${traceOf(subject.id, focus, prior)}${focused ? " is-focus" : ""}`;
+    if (points.length === 1) {
+      parts.push(`<circle class="${klass}" cx="${px(points[0].x).toFixed(1)}" cy="${py(points[0].y).toFixed(1)}" r="3.5"/>`);
+    } else {
+      const coords = points.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
+      parts.push(`<polyline class="${klass}" points="${coords}"/>`);
+    }
+    for (const p of points) {
+      parts.push(`<circle class="dot ${klass}" cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="2.5"/>`);
+    }
+    const last = points[points.length - 1];
+    parts.push(
+      `<text class="series-label trace-${traceOf(subject.id, focus, prior)}${focused ? " is-focus" : ""}" ` +
+        `x="${(px(last.x) + 8).toFixed(1)}" y="${(py(last.y) + 4).toFixed(1)}">${esc(subject.name)}</text>`,
+    );
+  });
+  return `<svg class="line" viewBox="0 0 ${W} ${H}" role="img">${parts.join("")}</svg>`;
+}
+
+/**
+ * 겹치는 좌표가 **항목**이다. subject 마다 표를 따로 두지 않고 목록을 하나로 합친다 —
+ * 누가 무엇을 갖고 누가 안 갖는지가 한 줄에서 읽힌다.
+ * 한 항목의 여러 열은 하나의 자로 줄일 수 없어 그 안에서만 나란히 선다 (원칙 9).
+ */
+function list(ctx, facet) {
+  const decl = facet.fields[0];
+  const columns = Array.isArray(decl.columns) ? decl.columns : [];
+  if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
+  const [key, ...rest] = columns;
+
+  const reads = readsOf(ctx, facet, decl);
+  const rows = new Map(); // 항목 이름 → subjectId → 항목
+  const unread = new Set(); // 목록 자체를 못 읽은 subject
+  for (const { subject, state, entry } of reads) {
+    if (state !== "filled" || !Array.isArray(entry.value)) {
+      unread.add(subject.id);
+      continue;
+    }
+    for (const item of entry.value) {
+      const name = item?.[key.key];
+      if (name === undefined) continue;
+      const at = String(name);
+      if (!rows.has(at)) rows.set(at, new Map());
+      rows.get(at).set(subject.id, item);
+    }
+  }
+
+  const blanks = reads
+    .filter(({ subject }) => unread.has(subject.id))
+    .map(({ subject }) => ({ ...subject }));
+  // list 는 값이 subject 열에 선다 — 값 주석 표시는 그 열 머리로 간다.
+  const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>`;
+  // **열은 subject 가 만든다.** 아직 아무도 없으니 키 열만 서고 그 옆 한 칸이
+  // 「subject 가 오면 여기에 한 열씩 선다」는 자리로 비어 있는다. 이름을 지어내지 않는다.
+  // **도메인 말을 쓰지 않는다** — 이 글은 산출물에 실려 나가는 계약 면이다.
+  if (ctx.subjects.length === 0) {
+    return (
+      label +
+      `<div class="table-scroll"><table class="items"><colgroup><col><col></colgroup>` +
+      `<thead><tr><th class="corner">${esc(key.label ?? key.key)}</th>` +
+      `<th>${slot("subject 가 올 자리", key.type)}</th></tr></thead>` +
+      `<tbody><tr><th class="row-label" scope="row">${slot("항목이 올 자리", key.type)}</th>` +
+      `<td>${rest.map((c) => slot("값이 올 자리", c.type)).join("") || slot()}</td>` +
+      `</tr></tbody></table></div>`
+    );
+  }
+  if (rows.size === 0) {
+    return label +
+      // 목록 **전체**가 비었다는 말은 값 하나의 자리가 아니라 표가 설 자리다. 글로 선다.
+      `<div class="blank"><span class="miss">${NO_ITEMS}</span></div>${blankRow(blanks, ctx)}`;
+  }
+
+  // **고른 열은 통째로 잡는다.** 칸마다 테두리를 두르면 열 안에 가로선이 생겨 한 덩어리로
+  // 읽히지 않는다. 열 선언(`<col>`)에 테두리를 주면 머리부터 끝까지 한 상자가 된다.
+  const cols = [`<col>`, ...reads.map(({ subject }) => (subject.focused ? `<col class="is-focus">` : `<col>`))];
+  const head = [`<th class="corner">${esc(key.label ?? key.key)}</th>`];
+  for (const { subject } of reads) {
+    const said = subject.id === ctx.shown ? fieldMark(ctx, facet, decl) : "";
+    head.push(`<th>${esc(subject.name)}${said}</th>`);
+  }
+  const body = [...rows.entries()].map(([name, held]) => {
+    const cells = reads.map(({ subject }) => {
+      if (unread.has(subject.id)) return `<td>${missMark()}</td>`;
+      const item = held.get(subject.id);
+      // **아는 사실이라 글이 선다.** 목록을 읽었고 그 항목이 여기 없다 — 모르는 것이 아니다.
+      if (!item) return `<td><span class="miss">${esc(NO_ITEM)}</span></td>`;
+      const pairs = rest.map((column) =>
+        column.key in item
+          ? `<span class="cell-pair"><b class="who">${esc(column.label ?? column.key)}</b> ${esc(formatScalar(column.type, item[column.key]))}</span>`
+          : "",
+      );
+      const extra = Object.keys(item).filter((k) => !columns.some((c) => c.key === k));
+      if (extra.length) ctx.report.push(`${facet.id}/${name}: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
+      // **있다는 것은 없다는 것이 아니다.** 표기는 빈 자리를 가리키는 것이라 여기엔 글이 선다.
+      return `<td>${pairs.join("") || '<span class="miss">있음</span>'}</td>`;
+    });
+    return `<tr><th class="row-label" scope="row">${esc(name)}</th>${cells.join("")}</tr>`;
+  });
+
+  return (
+    label +
+    // **표만 옆으로 굴린다.** subject 가 늘수록 넓어지는 유일한 자리라, 페이지 전체가 밀리는
+    // 대신 표가 자기 상자 안에서 굴러간다. 열 너비는 균일하다 — 넓이가 우열을 말하지 않는다.
+    `<div class="table-scroll"><table class="items"><colgroup>${cols.join("")}</colgroup>` +
+    `<thead><tr>${head.join("")}</tr></thead>` +
+    `<tbody>${body.join("")}</tbody></table></div>`
+    // 문장을 덧붙이지 않는다 — 그 subject 의 칸이 이미 없다고 말한다.
+  );
+}
+
+/**
+ * **고른 subject 의 항목을 행으로 편다.** `list` 와 같은 값(항목 배열)을 받지만 비교하는
+ * 법이 다르다 — `list` 는 여럿을 한 표에 겹치고, `rows` 는 지금 보고 있는 하나만 편다.
+ *
+ * 둘을 한 element 로 두고 템플릿이 고르게 하면 「비교 방법은 primitive element 가 정한다」가
+ * 깨진다. 같은 이름이 화면마다 다르게 굴면 이름만 보고 알 수 없다. 그래서 이름을 가른다.
+ */
+function rows(ctx, facet) {
+  const decl = facet.fields[0];
+  const columns = Array.isArray(decl.columns) ? decl.columns : [];
+  if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
+  const subject = shownOf(ctx);
+  // rows 도 값이 설 한 자리가 없다 — 이름 줄에 hint 다음으로 선다.
+  const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}` +
+    `${fieldMark(ctx, facet, decl)}</div>`;
+  // **열 머리가 전부 선다.** 열은 템플릿이 선언한 것이라 subject 가 없어도 안다 —
+  // 사용자가 무엇을 담기로 했는지가 여기서 그대로 읽힌다.
+  if (ctx.subjects.length === 0) {
+    const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
+    const blank = columns.map((c) => `<td>${slot("값이 올 자리", c.type)}</td>`).join("");
+    return (
+      label +
+      `<div class="table-scroll"><table class="items"><thead><tr>${head}</tr></thead>` +
+      `<tbody><tr>${blank}</tr></tbody></table></div>`
+    );
+  }
+  if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
+
+  const { state, entry } = oneRead(ctx, facet, decl, subject);
+  if (state !== "filled" || !Array.isArray(entry.value)) {
+    return `${label}<div class="blank">${missMark()}</div>`;
+  }
+  if (entry.value.length === 0) {
+    return `${label}<div class="blank"><span class="miss">${NO_ITEMS}</span></div>`;
+  }
+  const head = columns.map((c) => `<th>${esc(c.label ?? c.key)}</th>`).join("");
+  const body = entry.value.map((item, index) => {
+    const extra = Object.keys(item ?? {}).filter((k) => !columns.some((c) => c.key === k));
+    if (extra.length) ctx.report.push(`${facet.id}[${index}]: 템플릿에 없는 열이라 그리지 않았다 — ${extra.join(", ")}`);
+    const cells = columns.map((column) =>
+      column.key in (item ?? {})
+        ? `<td>${esc(formatScalar(column.type, item[column.key]))}</td>`
+        : `<td>${missMark()}</td>`,
+    );
+    return `<tr>${cells.join("")}</tr>`;
+  });
+  return (
+    label +
+    // 표는 자기 상자에서 굴러간다. 열이 늘어도 페이지가 밀리지 않는다.
+    `<div class="table-scroll"><table class="items"><thead><tr>${head}</tr></thead>` +
+    `<tbody>${body.join("")}</tbody></table></div>`
+  );
+}
+
+/**
+ * **하나를 쪼갠 것.** 조각들이 합쳐 한 덩어리가 된다 — 「내 보험료가 어디에 쓰이나」.
+ *
+ * `bars` 와 다르다. 막대는 **서로 다른 것들의 크기**를 견주고, 여기 조각들은 **한 덩어리의
+ * 안쪽**이다. 합이 전체라는 사실이 `bars` 로는 보이지 않는다.
+ *
+ * **겹칠 수 없다** — 한 subject 의 안을 나눈 것이라 두 subject 의 안이 한 덩어리가 될 수
+ * 없다. 그래서 focus 를 따른다.
+ *
+ * **파이가 아니라 띠로 그린다.** 우리는 색으로 가르지 않는데, 색 없는 파이는 조각을 가를
+ * 길이 각도뿐이라 읽히지 않는다. 띠는 조각마다 이름을 옆에 세울 수 있고 길이가 각도보다
+ * 정확히 읽힌다. 조각은 자리 차례로 두 무채색을 번갈아 쓴다 — 크기와 무관하고 우열이 없다.
+ */
+function parts(ctx, facet) {
+  const decl = facet.fields[0];
+  const columns = Array.isArray(decl.columns) ? decl.columns : [];
+  const subject = shownOf(ctx);
+  const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}` +
+    `${fieldMark(ctx, facet, decl)}</div>`;
+  if (columns.length < 2) return `${label}<div class="blank">${missMark()}</div>`;
+  const [name, share] = columns;
+  // **빈 띠가 자리를 말한다.** 조각의 이름은 값이 갖고 오는 것이라 지어내지 않는다.
+  if (ctx.subjects.length === 0) {
+    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${sheen()}</div>`;
+  }
+  if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
+
+  const { state, entry } = oneRead(ctx, facet, decl, subject);
+  if (state !== "filled" || !Array.isArray(entry.value)) {
+    return `${label}<div class="blank">${missMark()}</div>`;
+  }
+  // **0 인 조각도 목록에 남는다.** 띠에서 사라진다고 값까지 사라지면 안 된다 —
+  // 「0 원이다」와 「그런 조각이 없다」는 다른 말이다.
+  const all = entry.value
+    .map((item) => ({ said: item?.[name.key], size: item?.[share.key] }))
+    .filter((one) => typeof one.size === "number" && Number.isFinite(one.size));
+  const slices = all.filter((one) => one.size > 0);
+  if (all.length === 0) {
+    return `${label}<div class="blank"><span class="miss">${NO_ITEMS}</span></div>`;
+  }
+  const whole = slices.reduce((sum, one) => sum + one.size, 0);
+  const band = slices
+    .map((one) =>
+      // 조각도 바닥을 둔다 — 0 이 아닌 몫이 길이 0 으로 사라지면 없는 것과 같아진다.
+      `<span class="slice" style="width:${Math.max((one.size / whole) * 100, FLOOR).toFixed(4)}%" ` +
+      `title="${esc(one.said ?? "")}"></span>`)
+    .join("");
+  const rows = all
+    .map((one) =>
+      `<div class="slice-row"><span class="who">${esc(one.said ?? "")}</span>` +
+      `<span class="val">${esc(formatScalar(share.type, one.size))}</span></div>`)
+    .join("");
+  return (
+    label +
+    (slices.length ? `<div class="band">${band}</div>` : "") +
+    `<div class="slices">${rows}</div>`
+  );
+}
+
+const ELEMENTS = { stat, facts, bars, line, list, rows, parts };
+
+// ---------------------------------------------------------------- 페이지
+
+/**
+ * **facet 이 타는 축의 선택자가 설 자리.**
+ *
+ * 축은 그 facet 이 **무엇에 대한 값인지**를 말한다 — 그래서 facet 의 내용이고 렌더가 낸다.
+ * 화면 전체에 걸리는 것(focus·명단·상태 줄)은 여전히 껍데기라 밖에 남는다. 선이 거기다.
+ *
+ * **어느 축을 타는지는 facet 이 제 필드로 말한다** — 따로 적지 않는다. 두 군데 적으면
+ * 어긋날 수 있고, 필드가 이미 말한 것을 되풀이하는 것뿐이다.
+ *
+ * **모양은 말하지 않는다.** 고를 것과 고른 것을 자리로 낼 뿐, 칩인지 드롭다운인지는 앱이
+ * 제 것으로 갈아 끼운다 — 꼴을 가리키는 이름을 붙이지 않는다.
+ *
+ * 타는 facet 마다 제 선택자를 낸다. 첫 facet 에만 두면 나머지 둘이 까닭 없이 바뀌고
+ * facet 차례가 뜻을 지게 된다 — 그러면 차례가 배치일 뿐이라는 규칙이 깨진다.
+ */
+function choiceSlots(facet, picks, chosen) {
+  const rides = [];
+  for (const decl of facet.fields ?? []) {
+    if (decl?.choice && !rides.includes(decl.choice)) rides.push(decl.choice);
+  }
+  return rides
+    .map((id) => picks.find((one) => one.id === id))
+    .filter(Boolean)
+    .map((pick) => {
+      const buttons = (pick.options ?? []).map((option) =>
+        `<button type="button" data-option="${esc(option.id)}" ` +
+        `aria-pressed="${option.id === chosen[pick.id]}">${esc(option.label ?? option.id)}</button>`,
+      );
+      return (
+        `<div class="choice" data-choice="${esc(pick.id)}" role="group" ` +
+        `aria-label="${esc(pick.label ?? pick.id)}">${buttons.join("")}</div>`
+      );
+    })
+    .join("");
+}
+
+/** 뷰어가 왼쪽에 적을 것. **분석뷰에 섞이지 않는다.** 자리 계산이 두 벌이 되지 않게 여기서 낸다. */
+function viewState(seats, focus, prior, shown, wanted, picks) {
+  return {
+    seats,
+    // 고를 수 있는 것과 고른 것. **앱이 그 자리를 그린다** — 모양은 언어가 말하지 않고
+    // 분석뷰에도 들어가지 않는다. 우리가 내는 것은 무엇을 고를 수 있는가뿐이다.
+    ...picks,
+    shown, // focus 를 따라 바뀌는 element 가 지금 그리는 subject
+
+    focus,
+    prior, // 직전에 보고 있던 subject. 겹치는 선이 갈래를 여기서 받는다
+    // 없는 id 는 결함이 아니다. 분석뷰는 focus 를 놓은 것과 똑같고, 그 사실만 왼쪽이 알린다.
+    focusMissing: wanted && !focus ? wanted : null,
+  };
+}
+
+/**
+ * 분석뷰 하나를 HTML 로 그린다.
+ *
+ * @param {object} input  { template, values, focus, previousFocus }
+ *   - 자리와 그 차례는 **값 한 벌들이 정한다.** 명단을 따로 받지 않는다.
+ *   - focus 는 subject 의 id. null 이거나 없는 id 면 겹치는 element 는 강조를 풀고,
+ *     focus 를 따라 바뀌는 element 는 **첫 subject** 를 그린다.
+ *   - previousFocus 는 바로 전에 보고 있던 subject. **값에서 유도할 수 없어** 인자로 받는다.
+ *     같은 규칙이다 — 없는 id 면 그 상태만 사라지고, focus 와 같으면 직전이 없는 것으로 본다.
+ *   - choices 는 고르는 자리마다 무엇을 골랐는지의 지도. 빠졌거나 없는 id 면 **첫 option**.
+ *     고른 것이 바뀌면 값이 바뀔 뿐 **어떤 facet 이 서는지는 달라지지 않는다.**
+ * @returns {{html: string, report: string[], view: object|null}}
+ *   html 은 **분석뷰뿐**이다 — 템플릿 제목과 facet 들. 도구가 덧붙이는 것은 하나도 들어가지 않는다.
+ *   report 는 그리지 못한 자리들, view 는 뷰어가 왼쪽에 적을 화면 상태.
+ */
+function renderView({
+  template,
+  values = [],
+  focus = null,
+  previousFocus = null,
+  choices = null,
+} = {}) {
+  const report = [];
+  if (!template || typeof template !== "object" || Array.isArray(template)) {
+    // 그릴 분석뷰가 없다. 빈 판을 내고 무슨 일인지는 왼쪽이 말한다.
+    return { html: "", report: ["템플릿이 객체가 아니다"], view: null };
+  }
+  const byId = new Map();
+  for (const doc of values) {
+    if (doc && typeof doc === "object" && typeof doc.subjectId === "string") byId.set(doc.subjectId, doc);
+    else report.push("값 한 벌에 subjectId 가 없어 어느 subject 인지 알 수 없다");
+    if (doc?.templateId && template.id && doc.templateId !== template.id) {
+      report.push(`${doc.subjectId}: 값 한 벌의 templateId 가 템플릿과 다르다 (${doc.templateId} ≠ ${template.id})`);
+    }
+  }
+
+  // 자리는 값 한 벌들이 정한다. 차례는 넘어온 차례이고 배치일 뿐 우열이 아니다.
+  // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 무늬다.
+  const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
+
+  // **고르는 자리.** 무엇을 고를 수 있는지는 템플릿이 말한다 — 골격이라 subject 마다
+  // 달라서는 안 된다. **고른 것만** 사람이 누른 것이라 인자로 온다.
+  // 빠졌거나 없는 id 면 첫 option 이다 — 빈 화면을 내지 않는다.
+  const picks = Array.isArray(template.choices) ? template.choices.filter((c) => c?.id) : [];
+  const chosen = {};
+  for (const one of picks) {
+    const options = Array.isArray(one.options) ? one.options : [];
+    const wantedOption = choices?.[one.id];
+    chosen[one.id] = options.find((o) => o?.id === wantedOption)?.id ?? options[0]?.id ?? null;
+  }
+
+  const wanted = focus;
+  const seated = seats.some((s) => s.id === wanted) ? wanted : null;
+  // focus 를 따라 바뀌는 element 가 그릴 subject. 고른 것이 없으면 첫째다 —
+  // 늘어놓기로 돌아가지 않고 빈 화면도 내지 않는다.
+  const shown = seated ?? seats[0]?.id ?? null;
+  // 직전도 같은 규칙이다 — 없는 id 면 사라지고, 현재와 같으면 직전이 없는 것으로 본다.
+  const prior = seats.some((s) => s.id === previousFocus) && previousFocus !== seated
+    ? previousFocus
+    : null;
+  const ctx = { subjects: seats, byId, focus: seated, prior, shown, chosen, report };
+
+  for (const [id, doc] of byId) {
+    const known = new Set((template.facets ?? []).map((f) => f?.id));
+    for (const key of Object.keys(doc.facets ?? {})) {
+      if (!known.has(key)) report.push(`${id}: 템플릿에 없는 facet 이라 그리지 않았다 — ${key}`);
+    }
+  }
+
+  const facets = Array.isArray(template.facets) ? template.facets : [];
+  if (facets.length === 0) report.push("템플릿에 facet 이 하나도 없다");
+
+  /**
+   * **아무에게도 값이 없고 할 말도 없는 facet 은 서지 않는다.**
+   *
+   * 선이 어디인지가 중요하다. subject **하나**가 비는 것은 그대로 표기가 말한다 — 숨기면
+   * subject 마다 골격이 달라져 견줄 수 없다. **전원이 비었을 때만** 빠진다: 견줄 것이
+   * 없으니 골격이 달라질 일도 없고, 남는 것은 빈 카드뿐이다.
+   *
+   * 다만 **말이 붙어 있으면 선다.** 「이 제안서엔 이 항목이 없습니다」라고 적힌 카드는
+   * 빈 카드가 아니다 — 전부 비어 있는 값 한 벌이 「아직 분석하지 않았다」를 말하는 길이
+   * 그것이라, 말까지 지우면 그 자리가 사라진다.
+   *
+   * subject 가 하나도 없으면 이 규칙을 쓰지 않는다. 견줄 대상이 없는 것과 전원이 빈 것은
+   * 다르다 — 템플릿만으로 골격을 보는 자리가 남아야 한다.
+   */
+  const stands = (facet) => {
+    if (seats.length === 0 || !facet || typeof facet !== "object") return true;
+    if ((facet.notes ?? []).length > 0) return true;
+    for (const seat of seats) {
+      const doc = byId.get(seat.id);
+      if (facetNotes(doc, facet.id).length > 0) return true;
+      for (const decl of facet.fields ?? []) {
+        if (!decl || typeof decl.key !== "string") return true; // 그리지 못하는 것은 말해야 한다
+        const { state, entry } = cell(doc, facet.id, decl, chosen);
+        if (state === "filled" || (entry?.notes ?? []).length > 0) return true;
+      }
+    }
+    return false;
+  };
+  const dropped = facets.filter((facet) => !stands(facet)).map((facet, i) => facet?.id ?? `facets[${i}]`);
+
+  const sections = facets.filter(stands).map((facet, index) => {
+    const at = `facets[${index}]`;
+    if (!facet || typeof facet !== "object") {
+      return `<section class="facet broken">${undrawable(report, at, "facet 이 객체가 아니다")}</section>`;
+    }
+    const title = esc(facet.title ?? facet.id ?? at);
+    const draw = ELEMENTS[facet.element];
+    // primitive element 이름은 분석뷰에 나올 자리가 없다. 구조로만 남긴다 —
+    // 참조 뷰어의 배지는 이 속성을 읽어 CSS 가 그리므로 렌더가 낸 글에는 들어가지 않는다.
+    // **제목은 짧은 이름이고 설명은 hint 가 진다.** facet 은 화면에 서넛뿐이라 한 줄씩
+    // 붙어도 길어지지 않는다 — 필드가 열 개씩이라 표시 뒤로 숨긴 것과 갈리는 자리다.
+    const head = `<h2 data-element="${esc(facet.element ?? "")}">${title}</h2>` +
+      (facet.hint ? `<p class="facet-hint">${esc(facet.hint)}</p>` : "");
+    let body;
+    if (!draw) {
+      body = undrawable(report, facet.id ?? at, `모르는 primitive element 다 — ${JSON.stringify(facet.element)}`);
+    } else if (!Array.isArray(facet.fields) || facet.fields.length === 0) {
+      body = undrawable(report, facet.id ?? at, "필드가 하나도 없다");
+    } else if (facet.fields.some((f) => !f || typeof f.key !== "string")) {
+      body = undrawable(report, facet.id ?? at, "key 가 없는 필드가 있다");
+    } else {
+      body = draw(ctx, facet);
+    }
+    // **말은 데이터 뒤에 선다.** facet 에 붙은 것과 subject 에 붙은 것이 한자리에 모인다 —
+    // 예외를 두지 않는다. 읽는 규칙이 둘이면 매번 어디 있는지 찾게 된다.
+    // 둘을 가르는 것은 띠도 상자도 아니고 **자리와 글**이다: subject 것은 이름이 앞에 선다.
+    //
+    // **subject 의 말은 언제나 고른 subject 것이다.** element 로 갈리지 않는다 — 규칙이 하나다.
+    // 겹쳐 그리는 facet 이라도 아래에 서는 말은 지금 고른 subject 것이고, focus 를 옮기면
+    // 말이 따라온다. 고른 것이 없으면 첫 subject 이며, 그것이 화면이 그리고 있는 subject 다.
+    // **facet 에 붙은 말은 전부 선다** — 그건 subject 의 것이 아니다.
+    const mine = seats.find((s) => s.id === shown);
+    // **이름표를 붙이지 않는다.** 주석은 늘 고른 subject 것만 나오므로 이름이 그 사실을 두 번
+    // 말한다. 무엇을 고른 상태인지는 앱의 띠가 말하고, 두 묶음을 가르는 일은 짧은 선이 맡는다.
+    // (되돌리려면 아래 호출에 `mine.name` 을 둘째 인자로 다시 주면 된다.)
+    const ours = notesHtml(facet.notes);
+    const yours = mine ? notesHtml(facetNotes(byId.get(mine.id), facet.id)) : "";
+    // **두 묶음 사이에만 짧은 선이 선다.** 이름이 가르는 것을 거들 뿐이라 판을 가로지르지
+    // 않고 글머리 쪽에 짧게 놓인다. 가를 것이 없으면(한쪽이 비면) 서지 않는다.
+    // 줄과 같은 자로 재어진다 — 앞뒤 간격이 `--row` 하나다.
+    const cut = ours && yours ? `<hr class="said-cut">` : "";
+    const said = ours + cut + yours;
+    return (
+      `<section class="facet element-${esc(facet.element ?? "unknown")}">${head}` +
+      // 축은 제목 바로 아래 — 이 facet 이 무엇에 대한 값인지를 먼저 말하고 그 값을 그린다.
+      choiceSlots(facet, picks, chosen) +
+      `<div class="body">${body}</div>` +
+      (said ? `<div class="said">${said}</div>` : "") +
+      "</section>"
+    );
+  });
+
+  // 제목은 템플릿이 선언한 내용이라 렌더의 것이다. 그 밖의 머리말은 전부 뷰어 몫이다.
+  const html = `<h1>${esc(template.title ?? template.id ?? "제목 없음")}</h1>` + sections.join("");
+
+  return {
+    html,
+    report,
+    view: viewState(seats, seated, prior, shown, wanted, { choices: picks, chosen, dropped }),
+  };
+}
+
+// ---- viewer/samples.mjs ----
+// samples/ 에서 생성된다. 직접 고치지 않는다 — python3 tools/build_viewer.py
+
+const SAMPLES = {
+  "one-proposal": {
+    "name": "제안서 상세",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"one-proposal-1\",\n  \"title\": \"제안서 상세\",\n  \"facets\": [\n    {\n      \"id\": \"premium\",\n      \"title\": \"월 보험료\",\n      \"hint\": \"이 제안서에서 매달 빠져나가는 금액입니다.\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"monthly-premium\",\n          \"label\": \"월 납입료\",\n          \"shape\": \"single\",\n          \"description\": \"이 제안서의 월 납입 보험료 총액을 원 단위 정수로. 특약을 포함한 합계다.\",\n          \"type\": \"money\",\n          \"hint\": \"이 제안서에서 매달 빠져나가는 돈이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"갱신형 특약이 섞여 있으면 이 금액은 갱신할 때마다 달라집니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"overview\",\n      \"title\": \"계약 조건\",\n      \"hint\": \"누구와 언제까지 어떤 방식으로 맺는 계약인지입니다.\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"insurer\",\n          \"label\": \"보험사\",\n          \"shape\": \"single\",\n          \"description\": \"설계안 표지에 적힌 보험사 이름을 그대로.\",\n          \"type\": \"text\",\n          \"hint\": \"설계안을 낸 보험사예요.\"\n        },\n        {\n          \"key\": \"product\",\n          \"label\": \"상품명\",\n          \"shape\": \"single\",\n          \"description\": \"설계안 표지에 적힌 상품명을 그대로.\",\n          \"type\": \"text\",\n          \"hint\": \"설계안에 적힌 상품 이름이에요.\"\n        },\n        {\n          \"key\": \"pay-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"description\": \"납입기간을 사람이 읽는 표시 그대로. 보기: 30년납 · 20년납 · 전기납.\",\n          \"type\": \"text\",\n          \"hint\": \"보험료를 내는 기간이에요.\"\n        },\n        {\n          \"key\": \"cover-period\",\n          \"label\": \"보장기간\",\n          \"shape\": \"single\",\n          \"description\": \"보장기간을 사람이 읽는 표시 그대로. 보기: 90세만기 · 종신.\",\n          \"type\": \"text\",\n          \"hint\": \"보장을 받는 기간이에요.\"\n        },\n        {\n          \"key\": \"renewal\",\n          \"label\": \"갱신\",\n          \"shape\": \"single\",\n          \"description\": \"갱신 주기를 사람이 읽는 표시 그대로. 보기: 갱신 없음 · 10년 갱신.\",\n          \"type\": \"text\",\n          \"hint\": \"몇 년마다 보험료가 다시 매겨지는지예요.\"\n        },\n        {\n          \"key\": \"refund\",\n          \"label\": \"납입 중 환급\",\n          \"shape\": \"single\",\n          \"description\": \"납입 도중 해지해도 환급금이 있으면 참. 순수보장형이면 거짓.\",\n          \"type\": \"boolean\",\n          \"hint\": \"납입 도중 해지해도 돌려받을 돈이 있는지예요.\"\n        },\n        {\n          \"key\": \"source\",\n          \"label\": \"출처\",\n          \"shape\": \"single\",\n          \"description\": \"이 설계안이 어디서 왔는지. 설계사 제안 또는 직접 업로드.\",\n          \"type\": \"text\",\n          \"allowed\": [\n            \"설계사 제안\",\n            \"직접 업로드\"\n          ],\n          \"hint\": \"이 설계안이 어디서 왔는지예요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"납입기간은 보험료를 내는 기간이고, 보장기간은 보장을 받는 기간입니다. 둘은 다를 수 있습니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"갱신형은 처음 보험료가 싼 대신 갱신할 때마다 나이에 맞춰 오릅니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"출처가 직접 업로드이면 설계사가 확인하지 않은 문서입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"payback\",\n      \"title\": \"회수 배율\",\n      \"hint\": \"낸 보험료 대비 받게 되는 누적 금액의 배수를 나이별로 그린 것입니다.\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"payback-curve\",\n          \"label\": \"누적 회수 배율\",\n          \"shape\": \"series\",\n          \"description\": \"그 나이까지 낸 보험료 대비 받게 되는 누적 금액의 배수. 1이면 낸 만큼, 2면 두 배다. 고른 갈래로 진단받았을 때를 가정한다.\",\n          \"type\": \"multiple\",\n          \"axis\": \"age\",\n          \"choice\": \"illness\",\n          \"hint\": \"낸 보험료 대비 받게 되는 누적 금액의 배수예요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"1을 넘는 지점부터 낸 것보다 더 받는 구간입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"그 나이에 그 병으로 진단받는다는 가정 아래의 수치이고, 실제 지급은 약관이 정합니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covered-total\",\n      \"title\": \"보장 총액\",\n      \"hint\": \"고른 병으로 받을 수 있는 금액을 다 더한 값입니다.\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"covered-amount\",\n          \"label\": \"보장 총액\",\n          \"shape\": \"single\",\n          \"description\": \"고른 갈래의 진단·수술·입원 담보 가입금액 합계를 원 단위 정수로. 그 갈래를 보장하지 않으면 0.\",\n          \"type\": \"money\",\n          \"choice\": \"illness\",\n          \"hint\": \"고른 병으로 받을 수 있는 금액을 다 더한 값이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"가입금액은 받을 수 있는 최대이고 실제 지급 조건은 약관이 정합니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"0원이면 이 제안서가 그 병을 보장하지 않는다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covered-items\",\n      \"title\": \"담보별 가입금액\",\n      \"hint\": \"위 총액을 이루는 담보를 제안서끼리 나란히 둔 것입니다.\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"covered-list\",\n          \"label\": \"담보별 가입금액\",\n          \"shape\": \"items\",\n          \"description\": \"고른 갈래의 보장 총액을 이루는 담보를 하나씩. 그 갈래를 보장하지 않으면 빈 목록.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 담보명 그대로.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 담보의 가입금액을 원 단위 정수로.\"\n            }\n          ],\n          \"choice\": \"illness\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"위의 보장 총액을 이루는 담보들입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"surrender\",\n      \"title\": \"해지 시 부담\",\n      \"hint\": \"그 나이에 해지했을 때 한 달치로 환산한 손해입니다.\",\n      \"element\": \"line\",\n      \"fields\": [\n        {\n          \"key\": \"surrender-burden\",\n          \"label\": \"해지 시 월평균 부담\",\n          \"shape\": \"series\",\n          \"description\": \"그 나이에 해지했을 때, 그때까지 낸 보험료에서 환급금을 뺀 금액을 납입 개월로 나눈 월평균 부담액을 원 단위 정수로.\",\n          \"type\": \"money\",\n          \"axis\": \"age\",\n          \"hint\": \"그 나이에 그만뒀을 때 한 달치로 친 손해예요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"낮을수록 중간에 그만둬도 덜 손해라는 뜻입니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"병에 걸리는 것과 무관한 값이라 갈래를 바꿔도 달라지지 않습니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"riders\",\n      \"title\": \"담보 목록\",\n      \"hint\": \"고른 제안서에 붙은 담보를 설계안에 적힌 순서 그대로 편 것입니다.\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"rider-list\",\n          \"label\": \"담보 목록\",\n          \"shape\": \"items\",\n          \"description\": \"설계안 보장내역 표의 담보를 적힌 순서 그대로 하나씩. 주계약도 포함한다.\",\n          \"columns\": [\n            {\n              \"key\": \"name\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 담보명 그대로.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 담보의 가입금액을 원 단위 정수로.\"\n            },\n            {\n              \"key\": \"premium\",\n              \"label\": \"월 보험료\",\n              \"type\": \"money\",\n              \"description\": \"그 담보 몫의 월 보험료를 원 단위 정수로.\"\n            },\n            {\n              \"key\": \"pay-period\",\n              \"label\": \"납입\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 납입기간 표시 그대로. 보기: 30년납.\"\n            },\n            {\n              \"key\": \"cover-period\",\n              \"label\": \"만기\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 보장기간 표시 그대로. 보기: 90세.\"\n            },\n            {\n              \"key\": \"renewal\",\n              \"label\": \"갱신\",\n              \"type\": \"text\",\n              \"description\": \"그 담보의 갱신 주기 표시 그대로. 보기: 갱신 없음.\"\n            }\n          ],\n          \"hint\": \"설계안에 적힌 담보를 순서 그대로 옮긴 것이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"설계안에 적힌 순서 그대로입니다. 정렬하거나 묶지 않습니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"여기 없는 담보는 이 설계안에 적혀 있지 않은 것이지, 보장하지 않는다는 뜻은 아닙니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"지금 고른 제안서의 담보만 폅니다. 나란히 견주려면 위의 담보별 가입금액을 봅니다.\"\n        }\n      ]\n    }\n  ],\n  \"choices\": [\n    {\n      \"id\": \"illness\",\n      \"label\": \"무엇에 걸렸을 때\",\n      \"options\": [\n        {\n          \"id\": \"cancer\",\n          \"label\": \"암\"\n        },\n        {\n          \"id\": \"brain\",\n          \"label\": \"뇌혈관\"\n        },\n        {\n          \"id\": \"heart\",\n          \"label\": \"허혈성심장\"\n        }\n      ]\n    }\n  ]\n}\n",
+    "values": [
+      {
+        "id": "plan-a",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-proposal-1\",\n  \"subjectId\": \"plan-a\",\n  \"subjectLabel\": \"가 설계\",\n  \"facets\": {\n    \"premium\": {\n      \"fields\": {\n        \"monthly-premium\": {\n          \"state\": \"filled\",\n          \"value\": 87400\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"quote\",\n          \"text\": \"설계안 1쪽 합계보험료에서 읽었습니다.\"\n        }\n      ]\n    },\n    \"overview\": {\n      \"fields\": {\n        \"insurer\": {\n          \"state\": \"filled\",\n          \"value\": \"한빛생명\"\n        },\n        \"product\": {\n          \"state\": \"filled\",\n          \"value\": \"한빛 든든한 건강보험 무배당 2601\"\n        },\n        \"pay-period\": {\n          \"state\": \"filled\",\n          \"value\": \"30년납\",\n          \"notes\": [\n            {\n              \"kind\": \"note\",\n              \"text\": \"보험료를 내는 기간이에요.\"\n            },\n            {\n              \"kind\": \"tip\",\n              \"text\": \"납입기간이 짧으면 다달이 내는 돈은 비싸지지만 내는 총액은 대체로 적습니다. 30년납이면 41세에 시작해 71세까지 내고, 그 뒤 90세까지는 내지 않고 보장만 받습니다. 납입 도중 해지하면 낸 돈의 상당 부분을 돌려받지 못할 수 있으니, 끝까지 낼 수 있는 기간인지를 먼저 봅니다.\"\n            }\n          ]\n        },\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"90세만기\"\n        },\n        \"renewal\": {\n          \"state\": \"filled\",\n          \"value\": \"갱신 없음\"\n        },\n        \"refund\": {\n          \"state\": \"filled\",\n          \"value\": false\n        },\n        \"source\": {\n          \"state\": \"filled\",\n          \"value\": \"설계사 제안\"\n        }\n      }\n    },\n    \"payback\": {\n      \"fields\": {\n        \"payback-curve\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"at\": 41,\n                  \"value\": 0.3\n                },\n                {\n                  \"at\": 50,\n                  \"value\": 1.2\n                },\n                {\n                  \"at\": 60,\n                  \"value\": 2.4\n                },\n                {\n                  \"at\": 70,\n                  \"value\": 3.6\n                },\n                {\n                  \"at\": 80,\n                  \"value\": 4.4\n                },\n                {\n                  \"at\": 90,\n                  \"value\": 4.9\n                }\n              ]\n            },\n            \"brain\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"at\": 41,\n                  \"value\": 0.2\n                },\n                {\n                  \"at\": 50,\n                  \"value\": 0.8\n                },\n                {\n                  \"at\": 60,\n                  \"value\": 1.6\n                },\n                {\n                  \"at\": 70,\n                  \"value\": 2.5\n                },\n                {\n                  \"at\": 80,\n                  \"value\": 3.1\n                },\n                {\n                  \"at\": 90,\n                  \"value\": 3.5\n                }\n              ]\n            },\n            \"heart\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"at\": 41,\n                  \"value\": 0.2\n                },\n                {\n                  \"at\": 50,\n                  \"value\": 0.7\n                },\n                {\n                  \"at\": 60,\n                  \"value\": 1.4\n                },\n                {\n                  \"at\": 70,\n                  \"value\": 2.2\n                },\n                {\n                  \"at\": 80,\n                  \"value\": 2.7\n                },\n                {\n                  \"at\": 90,\n                  \"value\": 3.0\n                }\n              ]\n            }\n          }\n        }\n      }\n    },\n    \"covered-total\": {\n      \"fields\": {\n        \"covered-amount\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"filled\",\n              \"value\": 50000000\n            },\n            \"brain\": {\n              \"state\": \"filled\",\n              \"value\": 30000000\n            },\n            \"heart\": {\n              \"state\": \"filled\",\n              \"value\": 30000000\n            }\n          }\n        }\n      }\n    },\n    \"covered-items\": {\n      \"fields\": {\n        \"covered-list\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"name\": \"암진단비(유사암제외)\",\n                  \"amount\": 30000000\n                },\n                {\n                  \"name\": \"암수술비\",\n                  \"amount\": 10000000\n                },\n                {\n                  \"name\": \"암입원일당(1일당)\",\n                  \"amount\": 100000\n                }\n              ]\n            },\n            \"brain\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"name\": \"뇌혈관질환진단비\",\n                  \"amount\": 20000000\n                },\n                {\n                  \"name\": \"뇌혈관질환수술비\",\n                  \"amount\": 10000000\n                }\n              ]\n            },\n            \"heart\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"name\": \"허혈성심장질환진단비\",\n                  \"amount\": 20000000\n                },\n                {\n                  \"name\": \"허혈성심장질환수술비\",\n                  \"amount\": 10000000\n                }\n              ]\n            }\n          }\n        }\n      }\n    },\n    \"surrender\": {\n      \"fields\": {\n        \"surrender-burden\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"at\": 41,\n              \"value\": 98000\n            },\n            {\n              \"at\": 50,\n              \"value\": 71000\n            },\n            {\n              \"at\": 60,\n              \"value\": 57000\n            },\n            {\n              \"at\": 70,\n              \"value\": 49000\n            },\n            {\n              \"at\": 80,\n              \"value\": 46000\n            },\n            {\n              \"at\": 90,\n              \"value\": 44000\n            }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"name\": \"일반상해사망\",\n              \"amount\": 10000000,\n              \"premium\": 2400,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"암진단비(유사암제외)\",\n              \"amount\": 30000000,\n              \"premium\": 31200,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"암수술비\",\n              \"amount\": 10000000,\n              \"premium\": 6800,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"암입원일당(1일당)\",\n              \"amount\": 100000,\n              \"premium\": 5400,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"뇌혈관질환진단비\",\n              \"amount\": 20000000,\n              \"premium\": 14600,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"뇌혈관질환수술비\",\n              \"amount\": 10000000,\n              \"premium\": 5100,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"허혈성심장질환진단비\",\n              \"amount\": 20000000,\n              \"premium\": 12900,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"허혈성심장질환수술비\",\n              \"amount\": 10000000,\n              \"premium\": 4600,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"90세\",\n              \"renewal\": \"갱신 없음\"\n            },\n            {\n              \"name\": \"질병입원일당(1일이상)\",\n              \"amount\": 30000,\n              \"premium\": 4400,\n              \"pay-period\": \"30년납\",\n              \"cover-period\": \"80세\",\n              \"renewal\": \"갱신 없음\"\n            }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-b",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-proposal-1\",\n  \"subjectId\": \"plan-b\",\n  \"subjectLabel\": \"나 설계\",\n  \"facets\": {\n    \"premium\": {\n      \"fields\": {\n        \"monthly-premium\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"업로드한 문서에 합계보험료가 적혀 있지 않아 읽지 못했습니다.\"\n        }\n      ]\n    },\n    \"overview\": {\n      \"fields\": {\n        \"insurer\": {\n          \"state\": \"filled\",\n          \"value\": \"새길생명\"\n        },\n        \"product\": {\n          \"state\": \"empty\"\n        },\n        \"pay-period\": {\n          \"state\": \"empty\"\n        },\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"종신\"\n        },\n        \"renewal\": {\n          \"state\": \"empty\"\n        },\n        \"refund\": {\n          \"state\": \"empty\"\n        },\n        \"source\": {\n          \"state\": \"filled\",\n          \"value\": \"직접 업로드\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"설계안에 없어 계산으로 메운 값이 섞여 있습니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"직접 올린 사진이라 표가 잘려 있어 상품명과 납입 조건을 읽지 못했습니다.\"\n        }\n      ]\n    },\n    \"payback\": {\n      \"fields\": {\n        \"payback-curve\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"empty\"\n            },\n            \"brain\": {\n              \"state\": \"empty\"\n            },\n            \"heart\": {\n              \"state\": \"empty\"\n            }\n          }\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"보험료와 가입금액을 모르면 회수 배율을 계산할 수 없습니다.\"\n        }\n      ]\n    },\n    \"covered-total\": {\n      \"fields\": {\n        \"covered-amount\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"empty\"\n            },\n            \"brain\": {\n              \"state\": \"empty\"\n            },\n            \"heart\": {\n              \"state\": \"empty\"\n            }\n          }\n        }\n      }\n    },\n    \"covered-items\": {\n      \"fields\": {\n        \"covered-list\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"filled\",\n              \"value\": []\n            },\n            \"brain\": {\n              \"state\": \"filled\",\n              \"value\": []\n            },\n            \"heart\": {\n              \"state\": \"filled\",\n              \"value\": []\n            }\n          }\n        }\n      }\n    },\n    \"surrender\": {\n      \"fields\": {\n        \"surrender-burden\": {\n          \"state\": \"empty\"\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"보장내역 표가 사진에 담기지 않았습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-c",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"one-proposal-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 설계\",\n  \"facets\": {\n    \"premium\": {\n      \"fields\": {\n        \"monthly-premium\": {\n          \"state\": \"filled\",\n          \"value\": 52300\n        }\n      }\n    },\n    \"overview\": {\n      \"fields\": {\n        \"insurer\": {\n          \"state\": \"filled\",\n          \"value\": \"바로생명\"\n        },\n        \"product\": {\n          \"state\": \"filled\",\n          \"value\": \"바로 암케어 플러스 무배당 2602\"\n        },\n        \"pay-period\": {\n          \"state\": \"filled\",\n          \"value\": \"20년납\"\n        },\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"80세만기\"\n        },\n        \"renewal\": {\n          \"state\": \"filled\",\n          \"value\": \"10년 갱신\"\n        },\n        \"refund\": {\n          \"state\": \"filled\",\n          \"value\": true\n        },\n        \"source\": {\n          \"state\": \"filled\",\n          \"value\": \"설계사 제안\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"설계안에 없어 계산으로 메운 값이 섞여 있습니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"갱신형이라 10년마다 보험료가 오릅니다. 지금 금액만으로 견주면 안 됩니다.\"\n        }\n      ]\n    },\n    \"payback\": {\n      \"fields\": {\n        \"payback-curve\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"at\": 41,\n                  \"value\": 0.4\n                },\n                {\n                  \"at\": 50,\n                  \"value\": 1.6\n                },\n                {\n                  \"at\": 60,\n                  \"value\": 3.1\n                },\n                {\n                  \"at\": 70,\n                  \"value\": 4.5\n                },\n                {\n                  \"at\": 80,\n                  \"value\": 5.2\n                }\n              ]\n            },\n            \"brain\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"at\": 41,\n                  \"value\": 0.0\n                },\n                {\n                  \"at\": 50,\n                  \"value\": 0.0\n                },\n                {\n                  \"at\": 60,\n                  \"value\": 0.0\n                },\n                {\n                  \"at\": 70,\n                  \"value\": 0.0\n                },\n                {\n                  \"at\": 80,\n                  \"value\": 0.0\n                }\n              ]\n            },\n            \"heart\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"at\": 41,\n                  \"value\": 0.1\n                },\n                {\n                  \"at\": 50,\n                  \"value\": 0.5\n                },\n                {\n                  \"at\": 60,\n                  \"value\": 1.0\n                },\n                {\n                  \"at\": 70,\n                  \"value\": 1.5\n                },\n                {\n                  \"at\": 80,\n                  \"value\": 1.8\n                }\n              ]\n            }\n          }\n        }\n      }\n    },\n    \"covered-total\": {\n      \"fields\": {\n        \"covered-amount\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"filled\",\n              \"value\": 60000000\n            },\n            \"brain\": {\n              \"state\": \"filled\",\n              \"value\": 0\n            },\n            \"heart\": {\n              \"state\": \"filled\",\n              \"value\": 10000000\n            }\n          }\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"이 설계는 뇌혈관질환을 보장하지 않습니다. 0원은 모른다는 뜻이 아니라 보장이 없다는 뜻입니다.\"\n        }\n      ]\n    },\n    \"covered-items\": {\n      \"fields\": {\n        \"covered-list\": {\n          \"byOption\": {\n            \"cancer\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"name\": \"암진단비(유사암제외)\",\n                  \"amount\": 50000000\n                },\n                {\n                  \"name\": \"유사암진단비\",\n                  \"amount\": 10000000\n                }\n              ]\n            },\n            \"brain\": {\n              \"state\": \"filled\",\n              \"value\": []\n            },\n            \"heart\": {\n              \"state\": \"filled\",\n              \"value\": [\n                {\n                  \"name\": \"허혈성심장질환진단비\",\n                  \"amount\": 10000000\n                }\n              ]\n            }\n          }\n        }\n      }\n    },\n    \"surrender\": {\n      \"fields\": {\n        \"surrender-burden\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"at\": 41,\n              \"value\": 61000\n            },\n            {\n              \"at\": 50,\n              \"value\": 44000\n            },\n            {\n              \"at\": 60,\n              \"value\": 36000\n            },\n            {\n              \"at\": 70,\n              \"value\": 33000\n            },\n            {\n              \"at\": 80,\n              \"value\": 31000\n            }\n          ]\n        }\n      }\n    },\n    \"riders\": {\n      \"fields\": {\n        \"rider-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"name\": \"암진단비(유사암제외)\",\n              \"amount\": 50000000,\n              \"premium\": 33800,\n              \"pay-period\": \"20년납\",\n              \"cover-period\": \"80세\",\n              \"renewal\": \"10년 갱신\"\n            },\n            {\n              \"name\": \"유사암진단비\",\n              \"amount\": 10000000,\n              \"premium\": 3100,\n              \"pay-period\": \"20년납\",\n              \"cover-period\": \"80세\",\n              \"renewal\": \"10년 갱신\"\n            },\n            {\n              \"name\": \"허혈성심장질환진단비\",\n              \"amount\": 10000000,\n              \"premium\": 9200,\n              \"pay-period\": \"20년납\",\n              \"cover-period\": \"80세\",\n              \"renewal\": \"10년 갱신\"\n            },\n            {\n              \"name\": \"질병입원일당(1일이상)\",\n              \"amount\": 20000,\n              \"premium\": 6200,\n              \"pay-period\": \"20년납\",\n              \"cover-period\": \"80세\",\n              \"renewal\": \"10년 갱신\"\n            }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      }
+    ],
+    "args": {
+      "focus": "plan-a",
+      "choices": {
+        "illness": "cancer"
+      }
+    }
+  },
+  "asked-amounts": {
+    "name": "요청 금액 대조",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"asked-amounts-1\",\n  \"title\": \"요청 금액 대조\",\n  \"facets\": [\n    {\n      \"id\": \"match\",\n      \"title\": \"요청 금액 대조\",\n      \"hint\": \"요청한 가입금액과 이 제안서가 넣은 가입금액을 나란히 둔 것입니다.\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"asked-vs-given\",\n          \"label\": \"담보별\",\n          \"shape\": \"items\",\n          \"description\": \"말한 담보를 말한 순서대로 하나씩. 각 줄에 말한 금액과 이 제안서가 준 금액을 함께 담는다. 제안서가 그 담보를 안 넣었으면 준 금액을 비운다.\",\n          \"hint\": \"말한 금액과 이 제안서가 준 금액을 나란히 둔 것이에요.\",\n          \"columns\": [\n            {\n              \"key\": \"cover\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"말한 담보의 이름 그대로 담는다.\"\n            },\n            {\n              \"key\": \"asked\",\n              \"label\": \"말한 금액\",\n              \"type\": \"money\",\n              \"description\": \"사용자가 말한 가입금액을 원 단위 정수로 담는다.\"\n            },\n            {\n              \"key\": \"given\",\n              \"label\": \"이 제안서\",\n              \"type\": \"money\",\n              \"description\": \"이 제안서가 그 담보에 넣은 가입금액을 원 단위 정수로 담는다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"두 금액을 나란히 두기만 합니다. 어느 쪽이 낫다고 말하지 않습니다.\"\n        },\n        {\n          \"kind\": \"caution\",\n          \"text\": \"같은 이름의 담보라도 보장 범위가 다를 수 있습니다. 금액만으로 견주면 안 됩니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"by-cover\",\n      \"title\": \"담보별 가입금액\",\n      \"hint\": \"담보 하나가 한 줄에 서고 칸마다 제안서가 갈립니다.\",\n      \"element\": \"list\",\n      \"fields\": [\n        {\n          \"key\": \"cover-list\",\n          \"label\": \"담보별 가입금액\",\n          \"shape\": \"items\",\n          \"description\": \"말한 담보를 하나씩. 각 제안서가 그 담보에 넣은 가입금액을 담는다.\",\n          \"hint\": \"한 줄에 담보 하나, 칸마다 제안서 하나예요.\",\n          \"columns\": [\n            {\n              \"key\": \"cover\",\n              \"label\": \"담보\",\n              \"type\": \"text\",\n              \"description\": \"담보의 이름 그대로 담는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"가입금액\",\n              \"type\": \"money\",\n              \"description\": \"그 담보의 가입금액을 원 단위 정수로 담는다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"빈 칸은 그 제안서에 그 담보가 없다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"premium\",\n      \"title\": \"월 보험료\",\n      \"hint\": \"이 제안서에서 매달 빠져나가는 금액입니다.\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"monthly\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"single\",\n          \"description\": \"이 제안서의 월 납입 보험료 총액을 원 단위 정수로.\",\n          \"type\": \"money\",\n          \"hint\": \"이 제안서에서 매달 빠져나가는 돈이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"가입금액을 맞추면 보험료가 오릅니다. 둘을 함께 봅니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"terms\",\n      \"title\": \"계약 조건\",\n      \"hint\": \"언제까지 내고 언제까지 받는지, 갱신이 있는지입니다.\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"pay-period\",\n          \"label\": \"납입기간\",\n          \"shape\": \"single\",\n          \"description\": \"납입기간을 사람이 읽는 표시 그대로. 보기: 20년납.\",\n          \"type\": \"text\",\n          \"hint\": \"보험료를 내는 기간이에요.\"\n        },\n        {\n          \"key\": \"cover-period\",\n          \"label\": \"보장기간\",\n          \"shape\": \"single\",\n          \"description\": \"보장기간을 사람이 읽는 표시 그대로. 보기: 90세만기.\",\n          \"type\": \"text\",\n          \"hint\": \"보장을 받는 기간이에요.\"\n        },\n        {\n          \"key\": \"renewal\",\n          \"label\": \"갱신\",\n          \"shape\": \"single\",\n          \"description\": \"갱신 주기를 사람이 읽는 표시 그대로. 보기: 비갱신.\",\n          \"type\": \"text\",\n          \"hint\": \"몇 년마다 보험료가 다시 매겨지는지예요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"tip\",\n          \"text\": \"말한 조건(90세 만기·20년납·비갱신)과 다른 곳이 있으면 여기서 드러납니다.\"\n        }\n      ]\n    }\n  ]\n}\n",
+    "values": [
+      {
+        "id": "plan-a",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"asked-amounts-1\",\n  \"subjectId\": \"plan-a\",\n  \"subjectLabel\": \"가 제안\",\n  \"facets\": {\n    \"match\": {\n      \"fields\": {\n        \"asked-vs-given\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"cover\": \"암진단비\",\n              \"asked\": 100000000,\n              \"given\": 100000000\n            },\n            {\n              \"cover\": \"뇌혈관질환진단비\",\n              \"asked\": 20000000,\n              \"given\": 20000000\n            },\n            {\n              \"cover\": \"허혈성심장질환진단비\",\n              \"asked\": 20000000,\n              \"given\": 20000000\n            },\n            {\n              \"cover\": \"질병후유장해(3%이상)\",\n              \"asked\": 50000000,\n              \"given\": 50000000\n            }\n          ]\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"quote\",\n          \"text\": \"설계안 2쪽 보장내역 표에서 담보별로 읽었습니다.\"\n        }\n      ]\n    },\n    \"by-cover\": {\n      \"fields\": {\n        \"cover-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"cover\": \"암진단비\",\n              \"amount\": 100000000\n            },\n            {\n              \"cover\": \"뇌혈관질환진단비\",\n              \"amount\": 20000000\n            },\n            {\n              \"cover\": \"허혈성심장질환진단비\",\n              \"amount\": 20000000\n            },\n            {\n              \"cover\": \"질병후유장해(3%이상)\",\n              \"amount\": 50000000\n            }\n          ]\n        }\n      }\n    },\n    \"premium\": {\n      \"fields\": {\n        \"monthly\": {\n          \"state\": \"filled\",\n          \"value\": 148200\n        }\n      }\n    },\n    \"terms\": {\n      \"fields\": {\n        \"pay-period\": {\n          \"state\": \"filled\",\n          \"value\": \"20년납\"\n        },\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"90세만기\"\n        },\n        \"renewal\": {\n          \"state\": \"filled\",\n          \"value\": \"비갱신\"\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-b",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"asked-amounts-1\",\n  \"subjectId\": \"plan-b\",\n  \"subjectLabel\": \"나 제안\",\n  \"facets\": {\n    \"match\": {\n      \"fields\": {\n        \"asked-vs-given\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"cover\": \"암진단비\",\n              \"asked\": 100000000,\n              \"given\": 50000000\n            },\n            {\n              \"cover\": \"뇌혈관질환진단비\",\n              \"asked\": 20000000,\n              \"given\": 20000000\n            },\n            {\n              \"cover\": \"허혈성심장질환진단비\",\n              \"asked\": 20000000,\n              \"given\": 20000000\n            },\n            {\n              \"cover\": \"질병후유장해(3%이상)\",\n              \"asked\": 50000000\n            }\n          ]\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"암진단비가 말한 금액의 절반이고 질병후유장해는 들어 있지 않습니다.\"\n        }\n      ]\n    },\n    \"by-cover\": {\n      \"fields\": {\n        \"cover-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"cover\": \"암진단비\",\n              \"amount\": 50000000\n            },\n            {\n              \"cover\": \"뇌혈관질환진단비\",\n              \"amount\": 20000000\n            },\n            {\n              \"cover\": \"허혈성심장질환진단비\",\n              \"amount\": 20000000\n            }\n          ]\n        }\n      }\n    },\n    \"premium\": {\n      \"fields\": {\n        \"monthly\": {\n          \"state\": \"filled\",\n          \"value\": 96400\n        }\n      }\n    },\n    \"terms\": {\n      \"fields\": {\n        \"pay-period\": {\n          \"state\": \"filled\",\n          \"value\": \"20년납\"\n        },\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"90세만기\"\n        },\n        \"renewal\": {\n          \"state\": \"filled\",\n          \"value\": \"10년 갱신\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"갱신형이라 10년마다 보험료가 오릅니다.\"\n        }\n      ]\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-c",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"asked-amounts-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 제안\",\n  \"facets\": {\n    \"match\": {\n      \"fields\": {\n        \"asked-vs-given\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"cover\": \"암진단비\",\n              \"asked\": 100000000,\n              \"given\": 100000000\n            },\n            {\n              \"cover\": \"뇌혈관질환진단비\",\n              \"asked\": 20000000\n            },\n            {\n              \"cover\": \"허혈성심장질환진단비\",\n              \"asked\": 20000000\n            },\n            {\n              \"cover\": \"질병후유장해(3%이상)\",\n              \"asked\": 50000000,\n              \"given\": 30000000\n            }\n          ]\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"뇌혈관과 허혈성심장은 이 설계에 들어 있지 않습니다.\"\n        }\n      ]\n    },\n    \"by-cover\": {\n      \"fields\": {\n        \"cover-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"cover\": \"암진단비\",\n              \"amount\": 100000000\n            },\n            {\n              \"cover\": \"질병후유장해(3%이상)\",\n              \"amount\": 30000000\n            }\n          ]\n        }\n      }\n    },\n    \"premium\": {\n      \"fields\": {\n        \"monthly\": {\n          \"state\": \"filled\",\n          \"value\": 131000\n        }\n      }\n    },\n    \"terms\": {\n      \"fields\": {\n        \"pay-period\": {\n          \"state\": \"empty\"\n        },\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"80세만기\"\n        },\n        \"renewal\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"설계안 사진이 잘려 납입기간과 갱신 여부를 읽지 못했습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
+      }
+    ],
+    "args": {
+      "focus": "plan-a"
+    }
+  },
+  "where-the-premium-goes": {
+    "name": "보험료 구성",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"premium-split-1\",\n  \"title\": \"보험료 구성\",\n  \"facets\": [\n    {\n      \"id\": \"premium\",\n      \"title\": \"월 보험료\",\n      \"hint\": \"이 설계에서 매달 빠져나가는 금액입니다.\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"monthly\",\n          \"label\": \"월 보험료\",\n          \"shape\": \"single\",\n          \"description\": \"이 제안서의 월 납입 보험료 총액을 원 단위 정수로.\",\n          \"type\": \"money\",\n          \"hint\": \"이 제안서에서 매달 빠져나가는 돈이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"아래 조각을 다 더하면 이 금액이 됩니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"split\",\n      \"title\": \"보험료 구성\",\n      \"hint\": \"월 보험료를 주계약과 특약별 몫으로 쪼갠 것입니다.\",\n      \"element\": \"parts\",\n      \"fields\": [\n        {\n          \"key\": \"share\",\n          \"label\": \"몫\",\n          \"shape\": \"items\",\n          \"description\": \"월 보험료를 주계약과 특약별로 쪼개 각 몫을 원 단위 정수로. 설계안에 몫이 적혀 있지 않으면 비운다.\",\n          \"hint\": \"월 보험료를 쪼갠 것이에요.\",\n          \"columns\": [\n            {\n              \"key\": \"part\",\n              \"label\": \"어디\",\n              \"type\": \"text\",\n              \"description\": \"주계약이면 주계약, 특약이면 그 특약 이름 그대로 담는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"몫\",\n              \"type\": \"money\",\n              \"description\": \"그 몫의 월 보험료를 원 단위 정수로 담는다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"조각의 차례는 설계안에 적힌 차례입니다. 크기 순서가 아닙니다.\"\n        },\n        {\n          \"kind\": \"tip\",\n          \"text\": \"주계약 몫이 크면 보장을 늘리려 할 때 보험료가 빨리 오릅니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covered\",\n      \"title\": \"주요 보장\",\n      \"hint\": \"이 설계가 넣은 진단 담보의 가입금액입니다.\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"brain\",\n          \"label\": \"뇌혈관질환진단비\",\n          \"shape\": \"single\",\n          \"description\": \"뇌혈관질환 진단 담보의 가입금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"뇌혈관질환으로 진단받으면 나오는 금액이에요.\"\n        },\n        {\n          \"key\": \"heart\",\n          \"label\": \"허혈성심장질환진단비\",\n          \"shape\": \"single\",\n          \"description\": \"허혈성심장질환 진단 담보의 가입금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"허혈성심장질환으로 진단받으면 나오는 금액이에요.\"\n        },\n        {\n          \"key\": \"cancer\",\n          \"label\": \"암진단비\",\n          \"shape\": \"single\",\n          \"description\": \"암 진단 담보의 가입금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"암으로 진단받으면 나오는 금액이에요.\"\n        },\n        {\n          \"key\": \"main\",\n          \"label\": \"주계약\",\n          \"shape\": \"single\",\n          \"description\": \"주계약이 무엇을 보장하는지 설계안에 적힌 이름 그대로.\",\n          \"type\": \"text\",\n          \"hint\": \"특약을 붙이려면 반드시 있어야 하는 계약이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"빈 자리는 이 설계안에서 읽지 못했다는 뜻이고, 0원은 보장이 없다는 뜻입니다.\"\n        }\n      ]\n    }\n  ]\n}\n",
+    "values": [
+      {
+        "id": "plan-a",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"premium-split-1\",\n  \"subjectId\": \"plan-a\",\n  \"subjectLabel\": \"가 설계\",\n  \"facets\": {\n    \"premium\": {\n      \"fields\": {\n        \"monthly\": {\n          \"state\": \"filled\",\n          \"value\": 42800\n        }\n      }\n    },\n    \"split\": {\n      \"fields\": {\n        \"share\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"part\": \"주계약(질병사망)\",\n              \"amount\": 7400\n            },\n            {\n              \"part\": \"뇌혈관질환진단비\",\n              \"amount\": 18200\n            },\n            {\n              \"part\": \"허혈성심장질환진단비\",\n              \"amount\": 14300\n            },\n            {\n              \"part\": \"질병입원일당\",\n              \"amount\": 2900\n            }\n          ]\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"quote\",\n          \"text\": \"설계안 3쪽 담보별 보험료에서 읽었습니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"주계약 몫이 전체의 6분의 1쯤입니다.\"\n        }\n      ]\n    },\n    \"covered\": {\n      \"fields\": {\n        \"brain\": {\n          \"state\": \"filled\",\n          \"value\": 20000000\n        },\n        \"heart\": {\n          \"state\": \"filled\",\n          \"value\": 20000000\n        },\n        \"cancer\": {\n          \"state\": \"filled\",\n          \"value\": 0\n        },\n        \"main\": {\n          \"state\": \"filled\",\n          \"value\": \"질병사망 1,000만원\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"암은 0원입니다. 최근 수술 이력으로 이 설계에서는 넣지 않았습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-b",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"premium-split-1\",\n  \"subjectId\": \"plan-b\",\n  \"subjectLabel\": \"나 설계\",\n  \"facets\": {\n    \"premium\": {\n      \"fields\": {\n        \"monthly\": {\n          \"state\": \"filled\",\n          \"value\": 61500\n        }\n      }\n    },\n    \"split\": {\n      \"fields\": {\n        \"share\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"part\": \"주계약(종신)\",\n              \"amount\": 31000\n            },\n            {\n              \"part\": \"뇌혈관질환진단비\",\n              \"amount\": 17800\n            },\n            {\n              \"part\": \"허혈성심장질환진단비\",\n              \"amount\": 12700\n            }\n          ]\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"주계약 몫이 전체의 절반을 넘습니다.\"\n        }\n      ]\n    },\n    \"covered\": {\n      \"fields\": {\n        \"brain\": {\n          \"state\": \"filled\",\n          \"value\": 20000000\n        },\n        \"heart\": {\n          \"state\": \"filled\",\n          \"value\": 20000000\n        },\n        \"cancer\": {\n          \"state\": \"filled\",\n          \"value\": 0\n        },\n        \"main\": {\n          \"state\": \"filled\",\n          \"value\": \"종신 2,000만원\"\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-c",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"premium-split-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 설계\",\n  \"facets\": {\n    \"premium\": {\n      \"fields\": {\n        \"monthly\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"설계안을 아직 받지 못해 읽은 값이 없습니다.\"\n        }\n      ]\n    },\n    \"split\": {\n      \"fields\": {\n        \"share\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"보험료 내역이 없으면 쪼갤 수 없습니다.\"\n        }\n      ]\n    },\n    \"covered\": {\n      \"fields\": {\n        \"brain\": {\n          \"state\": \"empty\"\n        },\n        \"heart\": {\n          \"state\": \"empty\"\n        },\n        \"cancer\": {\n          \"state\": \"empty\"\n        },\n        \"main\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"설계안을 아직 받지 못했습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
+      }
+    ],
+    "args": {
+      "focus": "plan-a"
+    }
+  },
+  "when-care-is-needed": {
+    "name": "간병·요양 보장",
+    "template": "{\n  \"weave\": \"1\",\n  \"id\": \"care-1\",\n  \"title\": \"간병·요양 보장\",\n  \"facets\": [\n    {\n      \"id\": \"daily\",\n      \"title\": \"간병인 일당\",\n      \"hint\": \"간병인을 쓴 하루마다 나오는 금액입니다.\",\n      \"element\": \"stat\",\n      \"fields\": [\n        {\n          \"key\": \"care-daily\",\n          \"label\": \"간병인 사용 일당\",\n          \"shape\": \"range\",\n          \"description\": \"간병인을 쓴 하루마다 나오는 금액을 원 단위 정수로. 구간으로 적혀 있으면 최솟값과 최댓값을 함께 담는다.\",\n          \"type\": \"money\",\n          \"hint\": \"간병인을 쓴 하루마다 나오는 돈이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"간병인을 실제로 쓴 날에만 나옵니다. 입원했다고 자동으로 나오지 않습니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"구간으로 적힌 것은 조건에 따라 금액이 달라진다는 뜻입니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"by-grade\",\n      \"title\": \"장기요양 등급별 금액\",\n      \"hint\": \"장기요양 등급 판정을 받았을 때 나오는 금액입니다.\",\n      \"element\": \"bars\",\n      \"fields\": [\n        {\n          \"key\": \"grade-1\",\n          \"label\": \"1등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 1등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"가장 무거운 등급이에요.\"\n        },\n        {\n          \"key\": \"grade-2\",\n          \"label\": \"2등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 2등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-3\",\n          \"label\": \"3등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 3등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-4\",\n          \"label\": \"4등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 4등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\"\n        },\n        {\n          \"key\": \"grade-5\",\n          \"label\": \"5등급\",\n          \"shape\": \"single\",\n          \"description\": \"장기요양 5등급 판정 시 나오는 금액을 원 단위 정수로. 없으면 비운다.\",\n          \"type\": \"money\",\n          \"hint\": \"가장 가벼운 등급이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"등급은 장기요양 판정의 이름이고 이 화면이 매기는 것이 아닙니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"terms\",\n      \"title\": \"보장 조건\",\n      \"hint\": \"언제까지, 며칠까지, 언제부터 보장되는지입니다.\",\n      \"element\": \"facts\",\n      \"fields\": [\n        {\n          \"key\": \"cover-period\",\n          \"label\": \"보장기간\",\n          \"shape\": \"single\",\n          \"description\": \"보장기간을 사람이 읽는 표시 그대로. 보기: 100세만기.\",\n          \"type\": \"text\",\n          \"hint\": \"보장을 받는 기간이에요.\"\n        },\n        {\n          \"key\": \"day-limit\",\n          \"label\": \"지급일수 한도\",\n          \"shape\": \"single\",\n          \"description\": \"간병 일당을 최대 며칠까지 주는지 일 수를 정수로. 한도가 없으면 비운다.\",\n          \"type\": \"number\",\n          \"hint\": \"일당이 나오는 날의 최대 수예요.\"\n        },\n        {\n          \"key\": \"waiting\",\n          \"label\": \"면책기간\",\n          \"shape\": \"single\",\n          \"description\": \"가입 뒤 보장이 시작되기까지 기다리는 기간을 개월로.\",\n          \"type\": \"duration\",\n          \"hint\": \"가입하고 이만큼 지나야 보장이 시작돼요.\"\n        },\n        {\n          \"key\": \"integrated\",\n          \"label\": \"간호간병통합서비스\",\n          \"shape\": \"single\",\n          \"description\": \"간호간병통합서비스 병동 입원 담보가 있으면 참.\",\n          \"type\": \"boolean\",\n          \"hint\": \"간병인 대신 병원이 돌보는 병동이에요.\"\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"면책기간 안에 진단받으면 나오지 않습니다. 가입 시점이 중요합니다.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"covers\",\n      \"title\": \"보장하는 상태\",\n      \"hint\": \"고른 설계가 보장하는 상태와 그때 나오는 금액입니다.\",\n      \"element\": \"rows\",\n      \"fields\": [\n        {\n          \"key\": \"state-list\",\n          \"label\": \"보장하는 상태\",\n          \"shape\": \"items\",\n          \"description\": \"이 설계가 보장하는 상태를 설계안에 적힌 순서 그대로 하나씩. 상태 이름과 그때 나오는 금액을 담는다.\",\n          \"hint\": \"고른 설계가 보장하는 상태만 폅니다.\",\n          \"columns\": [\n            {\n              \"key\": \"state\",\n              \"label\": \"상태\",\n              \"type\": \"text\",\n              \"description\": \"설계안에 적힌 상태 이름 그대로 담는다.\"\n            },\n            {\n              \"key\": \"amount\",\n              \"label\": \"금액\",\n              \"type\": \"money\",\n              \"description\": \"그 상태로 판정받으면 나오는 금액을 원 단위 정수로 담는다.\"\n            },\n            {\n              \"key\": \"once\",\n              \"label\": \"한 번만\",\n              \"type\": \"boolean\",\n              \"description\": \"한 번 받으면 끝나는 담보면 참으로 담는다.\"\n            }\n          ]\n        }\n      ],\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"여기 없는 상태는 이 설계안에 적혀 있지 않은 것입니다.\"\n        }\n      ]\n    }\n  ]\n}\n",
+    "values": [
+      {
+        "id": "plan-a",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"care-1\",\n  \"subjectId\": \"plan-a\",\n  \"subjectLabel\": \"가 설계\",\n  \"facets\": {\n    \"daily\": {\n      \"fields\": {\n        \"care-daily\": {\n          \"state\": \"filled\",\n          \"value\": {\n            \"min\": 100000,\n            \"max\": 150000\n          }\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"quote\",\n          \"text\": \"설계안 2쪽 간병 담보에서 읽었습니다.\"\n        }\n      ]\n    },\n    \"by-grade\": {\n      \"fields\": {\n        \"grade-1\": {\n          \"state\": \"filled\",\n          \"value\": 30000000\n        },\n        \"grade-2\": {\n          \"state\": \"filled\",\n          \"value\": 20000000\n        },\n        \"grade-3\": {\n          \"state\": \"filled\",\n          \"value\": 10000000\n        },\n        \"grade-4\": {\n          \"state\": \"filled\",\n          \"value\": 5000000\n        },\n        \"grade-5\": {\n          \"state\": \"filled\",\n          \"value\": 3000000\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"note\",\n          \"text\": \"1등급에서 5등급까지 모두 나옵니다. 대신 한 등급당 금액은 작습니다.\"\n        }\n      ]\n    },\n    \"terms\": {\n      \"fields\": {\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"100세만기\"\n        },\n        \"day-limit\": {\n          \"state\": \"filled\",\n          \"value\": 180\n        },\n        \"waiting\": {\n          \"state\": \"filled\",\n          \"value\": 24\n        },\n        \"integrated\": {\n          \"state\": \"filled\",\n          \"value\": true\n        }\n      }\n    },\n    \"covers\": {\n      \"fields\": {\n        \"state-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"state\": \"장기요양 1~5등급\",\n              \"amount\": 30000000,\n              \"once\": true\n            },\n            {\n              \"state\": \"중증치매(CDR 3점 이상)\",\n              \"amount\": 20000000,\n              \"once\": true\n            },\n            {\n              \"state\": \"경증치매(CDR 1점 이상)\",\n              \"amount\": 5000000,\n              \"once\": true\n            },\n            {\n              \"state\": \"파킨슨병\",\n              \"amount\": 10000000,\n              \"once\": true\n            },\n            {\n              \"state\": \"간병인 사용 일당\",\n              \"amount\": 150000\n            }\n          ]\n        }\n      }\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-b",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"care-1\",\n  \"subjectId\": \"plan-b\",\n  \"subjectLabel\": \"나 설계\",\n  \"facets\": {\n    \"daily\": {\n      \"fields\": {\n        \"care-daily\": {\n          \"state\": \"filled\",\n          \"value\": {\n            \"min\": 100000,\n            \"max\": 100000\n          }\n        }\n      }\n    },\n    \"by-grade\": {\n      \"fields\": {\n        \"grade-1\": {\n          \"state\": \"filled\",\n          \"value\": 50000000\n        },\n        \"grade-2\": {\n          \"state\": \"filled\",\n          \"value\": 40000000\n        },\n        \"grade-3\": {\n          \"state\": \"empty\"\n        },\n        \"grade-4\": {\n          \"state\": \"empty\"\n        },\n        \"grade-5\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"3등급부터는 나오지 않습니다. 빈 자리가 그 뜻입니다.\"\n        },\n        {\n          \"kind\": \"note\",\n          \"text\": \"무거운 등급에 금액을 몰아 둔 설계입니다.\"\n        }\n      ]\n    },\n    \"terms\": {\n      \"fields\": {\n        \"cover-period\": {\n          \"state\": \"filled\",\n          \"value\": \"90세만기\"\n        },\n        \"day-limit\": {\n          \"state\": \"filled\",\n          \"value\": 120\n        },\n        \"waiting\": {\n          \"state\": \"filled\",\n          \"value\": 24\n        },\n        \"integrated\": {\n          \"state\": \"filled\",\n          \"value\": false\n        }\n      }\n    },\n    \"covers\": {\n      \"fields\": {\n        \"state-list\": {\n          \"state\": \"filled\",\n          \"value\": [\n            {\n              \"state\": \"장기요양 1~2등급\",\n              \"amount\": 20000000,\n              \"once\": true\n            },\n            {\n              \"state\": \"중증치매(CDR 3점 이상)\",\n              \"amount\": 20000000,\n              \"once\": true\n            },\n            {\n              \"state\": \"간병인 사용 일당\",\n              \"amount\": 100000\n            }\n          ]\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"파킨슨병과 경증치매는 이 설계에 없습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
+      },
+      {
+        "id": "plan-c",
+        "text": "{\n  \"weave\": \"1\",\n  \"templateId\": \"care-1\",\n  \"subjectId\": \"plan-c\",\n  \"subjectLabel\": \"다 설계\",\n  \"facets\": {\n    \"daily\": {\n      \"fields\": {\n        \"care-daily\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"간병 특약이 붙지 않은 설계라 읽을 값이 없습니다.\"\n        }\n      ]\n    },\n    \"by-grade\": {\n      \"fields\": {\n        \"grade-1\": {\n          \"state\": \"empty\"\n        },\n        \"grade-2\": {\n          \"state\": \"empty\"\n        },\n        \"grade-3\": {\n          \"state\": \"empty\"\n        },\n        \"grade-4\": {\n          \"state\": \"empty\"\n        },\n        \"grade-5\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"장기요양 담보가 없습니다.\"\n        }\n      ]\n    },\n    \"terms\": {\n      \"fields\": {\n        \"cover-period\": {\n          \"state\": \"empty\"\n        },\n        \"day-limit\": {\n          \"state\": \"empty\"\n        },\n        \"waiting\": {\n          \"state\": \"empty\"\n        },\n        \"integrated\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"간병 담보가 없어 적을 조건이 없습니다.\"\n        }\n      ]\n    },\n    \"covers\": {\n      \"fields\": {\n        \"state-list\": {\n          \"state\": \"empty\"\n        }\n      },\n      \"notes\": [\n        {\n          \"kind\": \"caution\",\n          \"text\": \"이 설계는 돌봄을 보장하지 않습니다.\"\n        }\n      ]\n    }\n  }\n}\n"
+      }
+    ],
+    "args": {
+      "focus": "plan-a"
+    }
+  }
+};
+
+// ---- viewer/catalog.mjs ----
+// schema/ 와 catalog/elements.json 에서 생성된다. 직접 고치지 않는다 — python3 tools/build_viewer.py
+
+const PAGES = [
+  {
+    "id": "intro",
+    "kind": "guide",
+    "group": "시작",
+    "title": "weave 란",
+    "lead": "분석뷰를 선언하는 스키마와 그것을 그리는 참조 구현이다. 보험을 모른다.",
+    "paragraphs": [
+      "분석 템플릿 하나에 subject 마다 값 한 벌이 주입되어 분석뷰가 된다. 렌더는 여러 벌을 한 화면에 그리되 나란히 늘어놓지 않고 한 좌표에 겹친다 — 순위를 문장으로 말하지 않는 대신 비교를 시각이 맡기로 한 설계다. 겹칠 수 없는 것(참거짓·글)만 나란히 가른다.",
+      "템플릿은 facet 의 배열이고, facet 하나는 primitive element 하나와 그것이 요구하는 필드들이다. 필드 선언에 붙은 설명이 곧 분석에게 주는 추출 지시다. 무엇을 그릴지와 무엇을 찾을지를 한 문서가 함께 말한다.",
+      "순위·등급·점수·경고색·확실성 수치를 표현할 문법이 없다. 객관성을 문서가 아니라 스키마로 강제하는 자리다. 문법에 없으므로 나올 수 없다.",
+      "왼쪽에서 primitive element 를 하나씩 보고, 플레이그라운드에서 직접 고쳐 가며 화면이 어떻게 되는지 볼 수 있다."
+    ]
+  },
+  {
+    "id": "stat",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "stat",
+    "compare": "focus",
+    "compareSaid": "focus 를 따라 바뀐다",
+    "draws": "값 하나를 크게. 고른 subject 의 것을 그린다",
+    "blank": "수 하나가 크게 설 자리를 그 크기 그대로 비운다. 필드 이름은 선다. 수가 설 칸과 단위가 서고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "겹칠 자리가 없어 focus 가 무엇을 그릴지 고른다. 고른 것이 없으면 첫 subject 다",
+    "fields": "1",
+    "shapes": [
+      "single",
+      "range"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-stat",
+        "title": "stat 보기",
+        "facets": [
+          {
+            "id": "premium",
+            "title": "초회 보험료",
+            "hint": "이 제안서에서 매달 빠져나가는 금액입니다.",
+            "element": "stat",
+            "fields": [
+              {
+                "key": "premium",
+                "label": "월 보험료",
+                "shape": "single",
+                "type": "money",
+                "description": "첫 달에 내는 월 보험료 총액을 원 단위 정수로 담는다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "tip",
+                "text": "카드 하나가 subject 하나입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-stat",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "premium": {
+              "fields": {
+                "premium": {
+                  "state": "filled",
+                  "value": 87400,
+                  "notes": [
+                    {
+                      "kind": "quote",
+                      "text": "합계보험료 87,400원"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-stat",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "premium": {
+              "fields": {
+                "premium": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "이 제안서에는 보험료가 적혀 있지 않습니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "facts",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "facts",
+    "compare": "focus",
+    "compareSaid": "focus 를 따라 바뀐다",
+    "draws": "라벨과 값 여럿. 고른 subject 의 것을 그린다",
+    "blank": "선언한 줄이 전부 선다. 이름 옆마다 값이 올 자리를 비운다. 줄마다 값의 생김새(수 칸이냐 글줄이냐)를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "한 facet 에 금액·나이·참거짓·글이 섞여도 읽는 규칙은 하나다. 표는 따로 없다 — 계약사항표 한 장도 이것 하나로 짠다",
+    "fields": "1–12",
+    "shapes": [
+      "single",
+      "range"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-facts",
+        "title": "facts 보기",
+        "facets": [
+          {
+            "id": "terms",
+            "title": "계약 조건",
+            "hint": "누구와 언제까지 어떤 방식으로 맺는 계약인지입니다.",
+            "element": "facts",
+            "fields": [
+              {
+                "key": "payment-period",
+                "label": "납입기간",
+                "shape": "single",
+                "type": "duration",
+                "description": "보험료를 내는 총 기간을 개월로 담는다. 20년납이면 240."
+              },
+              {
+                "key": "renews",
+                "label": "갱신 여부",
+                "shape": "single",
+                "type": "boolean",
+                "description": "갱신형이면 참, 비갱신형이면 거짓으로 담는다."
+              },
+              {
+                "key": "entry-age",
+                "label": "가입나이",
+                "shape": "range",
+                "type": "age",
+                "description": "가입할 수 있는 나이 구간을 세로 담는다. 한쪽만 알아도 된다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "note",
+                "text": "행이 항목이고 열이 subject 입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-facts",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "terms": {
+              "fields": {
+                "payment-period": {
+                  "state": "filled",
+                  "value": 240
+                },
+                "renews": {
+                  "state": "filled",
+                  "value": false
+                },
+                "entry-age": {
+                  "state": "filled",
+                  "value": {
+                    "min": 15,
+                    "max": 65
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-facts",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "terms": {
+              "fields": {
+                "payment-period": {
+                  "state": "filled",
+                  "value": 120
+                },
+                "renews": {
+                  "state": "filled",
+                  "value": true
+                },
+                "entry-age": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "표가 잘려 읽지 못했습니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bars",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "bars",
+    "compare": "focus",
+    "compareSaid": "focus 를 따라 바뀐다",
+    "draws": "크기 비교. 고른 subject 의 막대를 그린다",
+    "blank": "필드마다 빈 자가 선다. 길이 0 의 막대가 아니라 채우지 않은 자다. 자마다 빛줄기가 지나갈 표식이 서고, 그것을 움직이는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "라벨·가로 막대·값이 한 줄로 눕고 붙은 말은 맨 앞 라벨 옆에 선다. 자는 facet 하나에 하나다 — 모든 필드·subject·고를 것을 덮으므로 무엇을 눌러도 자가 안 움직이고 한 facet 안의 막대끼리 길이를 견줄 수 있다. 범위가 크게 다른 필드를 한 facet 에 섞으면 작은 것이 짧아지는데, 그것이 축이 둘이라는 신호다",
+    "fields": "1–6",
+    "shapes": [
+      "single"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age"
+    ],
+    "everyType": false,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-bars",
+        "title": "bars 보기",
+        "facets": [
+          {
+            "id": "amounts",
+            "title": "주요 가입금액",
+            "hint": "주요 담보의 가입금액입니다.",
+            "element": "bars",
+            "fields": [
+              {
+                "key": "death",
+                "label": "일반사망",
+                "shape": "single",
+                "type": "money",
+                "description": "일반사망 보험금 가입금액을 원 단위 정수로 담는다."
+              },
+              {
+                "key": "cancer",
+                "label": "암진단비",
+                "shape": "single",
+                "type": "money",
+                "description": "일반암 진단비 가입금액을 원 단위 정수로 담는다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "caution",
+                "text": "가입금액은 최대 금액이고 지급 조건은 약관이 정합니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-bars",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "amounts": {
+              "fields": {
+                "death": {
+                  "state": "filled",
+                  "value": 50000000
+                },
+                "cancer": {
+                  "state": "filled",
+                  "value": 30000000
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-bars",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "amounts": {
+              "fields": {
+                "death": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "note",
+                      "text": "사망보장이 들어 있지 않습니다."
+                    }
+                  ]
+                },
+                "cancer": {
+                  "state": "filled",
+                  "value": 50000000
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "line",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "line",
+    "compare": "overlay",
+    "compareSaid": "겹친다",
+    "draws": "축 위의 변화. subject 마다 선 하나가 한 좌표에 겹친다",
+    "blank": "두 축과 그림이 들어올 면만 선다. 값이 없으면 눈금도 없고 꺾은선도 없다 — 눈금을 지어내면 그것이 가짜 값이고, 고정된 꺾은선 하나는 눈금이 없어도 추세로 읽힌다. 그 면 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "축이 둘이라 선끼리 갈린다. 누가 누구인지는 선 끝의 이름이 말해 아래에 범례를 두지 않고, 무엇을 보는 중인지는 지금·직전·나머지 세 갈래의 색과 굵기가 말한다. 고른 subject 가 선을 못 세웠을 때만 축 아래가 그 사실을 적는다. 가로축은 age·date·duration·number 만 된다",
+    "fields": "1",
+    "shapes": [
+      "series"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age"
+    ],
+    "everyType": false,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-line",
+        "title": "line 보기",
+        "facets": [
+          {
+            "id": "curve",
+            "title": "나이별 예상 보험료",
+            "hint": "나이가 들며 보험료가 어떻게 달라지는지입니다.",
+            "element": "line",
+            "fields": [
+              {
+                "key": "premium-curve",
+                "label": "월 보험료",
+                "shape": "series",
+                "type": "money",
+                "axis": "age",
+                "description": "갱신 예시표에 적힌 나이별 월 보험료를 나이와 금액의 점들로 담는다."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "caution",
+                "text": "예시표의 금액은 예상치입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-line",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "curve": {
+              "fields": {
+                "premium-curve": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "at": 40,
+                      "value": 41200
+                    },
+                    {
+                      "at": 50,
+                      "value": 62800
+                    },
+                    {
+                      "at": 60,
+                      "value": 104500
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-line",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "curve": {
+              "fields": {
+                "premium-curve": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "at": 40,
+                      "value": 33500
+                    },
+                    {
+                      "at": 50,
+                      "value": 55900
+                    },
+                    {
+                      "at": 60,
+                      "value": 99800
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "list",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "list",
+    "compare": "overlay",
+    "compareSaid": "겹친다",
+    "draws": "반복되는 항목을 하나로 합친다. 같은 항목이 한 줄에 서고 subject 가 그 줄에서 갈린다",
+    "blank": "키 열이 서고 그 옆 한 칸이 subject 가 올 자리로 비어 있는다. 열은 subject 가 만든다. 열 머리와 칸이 값의 생김새를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "누가 그 항목을 갖고 누가 안 갖는지가 한 줄에서 읽힌다. 겹치지 않고 고른 것만 펴려면 rows 다. 목록을 못 읽어 모르는 것은 표기(—)로, 읽었고 그 항목이 없다는 아는 사실은 글(없음)로 선다",
+    "fields": "1",
+    "shapes": [
+      "items"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-list",
+        "title": "list 보기",
+        "facets": [
+          {
+            "id": "riders",
+            "title": "특약",
+            "hint": "제안서마다 어떤 특약을 넣었는지 나란히 둔 것입니다.",
+            "element": "list",
+            "fields": [
+              {
+                "key": "rider-list",
+                "label": "특약 목록",
+                "shape": "items",
+                "description": "보장내역 표에 적힌 특약을 하나씩 담는다. 주계약은 뺀다.",
+                "columns": [
+                  {
+                    "key": "name",
+                    "label": "특약명",
+                    "type": "text",
+                    "description": "설계안에 적힌 이름 그대로 담는다."
+                  },
+                  {
+                    "key": "amount",
+                    "label": "가입금액",
+                    "type": "money",
+                    "description": "그 특약의 가입금액을 원 단위 정수로 담는다."
+                  },
+                  {
+                    "key": "renews",
+                    "label": "갱신",
+                    "type": "boolean",
+                    "description": "그 특약이 갱신형이면 참으로 담는다."
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              {
+                "kind": "tip",
+                "text": "채우지 않은 열은 빈 칸입니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-list",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "name": "암진단비(유사암제외)",
+                      "amount": 30000000,
+                      "renews": false
+                    },
+                    {
+                      "name": "질병입원일당",
+                      "amount": 30000,
+                      "renews": true
+                    },
+                    {
+                      "name": "상해수술비",
+                      "amount": 300000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-list",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [],
+                  "notes": [
+                    {
+                      "kind": "tip",
+                      "text": "특약 없이 주계약 하나로만 된 설계입니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "rows",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "rows",
+    "compare": "focus",
+    "compareSaid": "focus 를 따라 바뀐다",
+    "draws": "고른 subject 의 항목을 행으로 편다. 겹치지 않는다",
+    "blank": "열 머리가 전부 선다. 열은 템플릿이 선언한 것이라 subject 없이도 안다. 칸마다 그 열의 생김새를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "list 와 같은 값을 받지만 비교하는 법이 다르다 — list 는 여럿을 한 표에 겹치고 rows 는 지금 보고 있는 하나만 편다. 이름만 보고 어느 쪽인지 알 수 있게 갈라 두었다",
+    "fields": "1",
+    "shapes": [
+      "items"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-rows",
+        "title": "rows 보기",
+        "facets": [
+          {
+            "id": "riders",
+            "title": "담보",
+            "hint": "고른 제안서에 붙은 담보를 설계안 순서 그대로 편 것입니다.",
+            "element": "rows",
+            "fields": [
+              {
+                "key": "rider-list",
+                "label": "담보 목록",
+                "shape": "items",
+                "description": "보장내역 표에 적힌 담보를 적힌 순서 그대로 하나씩 담는다.",
+                "columns": [
+                  {
+                    "key": "name",
+                    "label": "담보",
+                    "type": "text",
+                    "description": "설계안에 적힌 이름 그대로 담는다."
+                  },
+                  {
+                    "key": "amount",
+                    "label": "가입금액",
+                    "type": "money",
+                    "description": "그 담보의 가입금액을 원 단위 정수로 담는다."
+                  },
+                  {
+                    "key": "premium",
+                    "label": "월 보험료",
+                    "type": "money",
+                    "description": "그 담보 몫의 월 보험료를 원 단위 정수로 담는다."
+                  }
+                ],
+                "hint": "설계안에 적힌 순서 그대로예요."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "note",
+                "text": "고른 제안서의 것만 폅니다. 나란히 견주려면 list 를 씁니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-rows",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "name": "암진단비(유사암제외)",
+                      "amount": 30000000,
+                      "premium": 31200
+                    },
+                    {
+                      "name": "질병입원일당",
+                      "amount": 30000,
+                      "premium": 4400
+                    },
+                    {
+                      "name": "상해수술비",
+                      "amount": 300000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-rows",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "보장내역 표가 사진에 담기지 않았습니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "parts",
+    "kind": "element",
+    "group": "primitive element",
+    "title": "parts",
+    "compare": "focus",
+    "compareSaid": "focus 를 따라 바뀐다",
+    "draws": "하나를 쪼갠 조각들. 합치면 한 덩어리가 된다",
+    "blank": "빈 띠가 선다. 조각 이름은 값이 갖고 오는 것이라 지어내지 않는다. 띠 위에 빛줄기가 지나갈 표식이 서고, 그것을 움직이는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "bars 와 다르다 — 막대는 서로 다른 것들의 크기를 견주고 여기 조각들은 한 덩어리의 안쪽이다. 한 subject 의 안을 나눈 것이라 겹칠 수 없어 focus 를 따른다. 파이가 아니라 띠로 그린다: 색으로 가르지 않으므로 조각마다 이름을 옆에 세울 수 있는 쪽이 읽힌다. 둘째 열이 몫이라 수치형이어야 한다",
+    "fields": "1",
+    "shapes": [
+      "items"
+    ],
+    "types": [
+      "number",
+      "money",
+      "ratio",
+      "multiple",
+      "duration",
+      "age",
+      "boolean",
+      "text",
+      "date"
+    ],
+    "everyType": true,
+    "demo": {
+      "template": {
+        "weave": "1",
+        "id": "demo-parts",
+        "title": "parts 보기",
+        "facets": [
+          {
+            "id": "split",
+            "title": "보험료가 어디로 가나",
+            "hint": "월 보험료를 주계약과 특약별 몫으로 쪼갠 것입니다.",
+            "element": "parts",
+            "fields": [
+              {
+                "key": "share",
+                "label": "몫",
+                "shape": "items",
+                "hint": "월 보험료를 쪼갠 것이에요.",
+                "description": "월 보험료를 주계약과 특약으로 쪼개 각 몫을 원 단위 정수로 담는다.",
+                "columns": [
+                  {
+                    "key": "part",
+                    "label": "어디",
+                    "type": "text",
+                    "description": "그 몫이 가는 곳의 이름 그대로 담는다."
+                  },
+                  {
+                    "key": "amount",
+                    "label": "몫",
+                    "type": "money",
+                    "description": "그 몫의 월 보험료를 원 단위 정수로 담는다."
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              {
+                "kind": "note",
+                "text": "조각의 차례는 설계안에 적힌 차례입니다. 크기 순서가 아닙니다."
+              }
+            ]
+          }
+        ]
+      },
+      "values": [
+        {
+          "weave": "1",
+          "templateId": "demo-parts",
+          "subjectId": "a",
+          "subjectLabel": "가",
+          "facets": {
+            "split": {
+              "fields": {
+                "share": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "part": "주계약",
+                      "amount": 7400
+                    },
+                    {
+                      "part": "암 특약",
+                      "amount": 31200
+                    },
+                    {
+                      "part": "뇌혈관 특약",
+                      "amount": 14600
+                    },
+                    {
+                      "part": "그 밖",
+                      "amount": 4200
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "weave": "1",
+          "templateId": "demo-parts",
+          "subjectId": "b",
+          "subjectLabel": "나",
+          "facets": {
+            "split": {
+              "fields": {
+                "share": {
+                  "state": "empty",
+                  "notes": [
+                    {
+                      "kind": "caution",
+                      "text": "담보별 보험료가 적혀 있지 않습니다."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "playground",
+    "kind": "playground",
+    "group": "플레이그라운드",
+    "title": "플레이그라운드",
+    "lead": "템플릿과 값을 고치면 분석뷰가 그 자리에서 바뀐다.",
+    "paragraphs": [
+      "여기는 JSON 으로 읽히는지만 본다. 스키마 판정은 검사기가 한다 — python -m weave template tpl.json · python -m weave values --template tpl.json values-a.json · python -m weave args args.json",
+      "subject 를 더하고 빼는 것은 화면의 동작이다. 더하면 전부 비어 있는 값 한 벌이 생긴다 — subject 마다 값 한 벌이 정확히 하나 있고, 아직 분석하지 않았다는 것도 빈 값과 주석이 말한다."
+    ]
+  }
+];
+
+// ---- viewer/app.mjs ----
+// weave 설명서. 이 한 장이 설명서이고 플레이그라운드는 그 안의 한 자리다.
+//
+// 왼쪽에 목차, 가운데에 본문. element 쪽 본문은 제약과 최소 템플릿 조각과 **그 자리에서 그린 모습**이다.
+// 목차의 정본은 카탈로그다 — primitive element 가 늘거나 줄면 목차가 따라 바뀐다.
+//
+// **판정하지 않는다.** JSON 으로 읽히는지만 보고 스키마 판정은 Python 검사기가 갖는다.
+
+
+const $ = (id) => document.getElementById(id);
+
+// 목차의 primitive element 표시. **구조를 가리킬 뿐 도메인을 가리키지 않는다** —
+// 돈·병원·서류 같은 그림을 두지 않는다. 전부 같은 크기·같은 선 굵기다.
+function elementIcon(id) {
+  const body = ICON[id];
+  if (!body) return "";
+  return `<svg class="toc-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">${body}</svg>`;
+}
+const pretty = (doc) => JSON.stringify(doc, null, 2);
+
+const state = {
+  page: PAGES[0].id,
+  sample: null,
+  templateText: "", // 템플릿 하나. 모든 값이 여기 매인다
+  values: [], // 값 한 벌들의 글. **subject 마다 정확히 하나이고 이것이 곧 명단이다**
+  active: 0, // 0 은 템플릿, 1 부터는 values 의 자리
+  focus: null,
+  // **바로 전에 보던 subject.** 값에서 유도할 수 없는 상호작용 이력이라 앱이 갖는다 —
+  // 겹치는 선은 이것으로 「지금 보는 것 · 직전에 보던 것 · 나머지」를 가른다.
+  previousFocus: null,
+  // 고르는 자리마다 무엇을 골랐는지. 사람이 누른 것이라 값이 아니라 여기 산다.
+  choices: {},
+  // **「아무도 없을 때」를 보는 중인가.** 미리보기이지 편집이 아니다 — 값 한 벌은 그대로 있고
+  // 렌더에 안 건네줄 뿐이다. 다른 subject 를 누르면 그대로 돌아온다.
+  blank: false,
+  seq: 0,
+};
+
+const pageOf = (id) => PAGES.find((p) => p.id === id) ?? PAGES[0];
+
+// ---------------------------------------------------------------- 목차
+
+function drawToc() {
+  const toc = $("toc");
+  toc.innerHTML = "";
+  // **머리글은 여럿을 묶을 때만 선다.** 하나뿐인 묶음에 머리글을 얹으면 이름을 두 번 적는
+  // 것이고, 「플레이그라운드」·「weave 란」은 그 자체가 이름이라 홀로 서도 읽힌다.
+  const size = new Map();
+  for (const page of PAGES) size.set(page.group, (size.get(page.group) ?? 0) + 1);
+  let group = null;
+  for (const page of PAGES) {
+    if (page.group !== group) {
+      group = page.group;
+      if (size.get(group) > 1) {
+        const head = document.createElement("div");
+        head.className = "group";
+        head.textContent = group;
+        toc.appendChild(head);
+      }
+    }
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = page.kind === "element" ? "toc-link has-icon" : "toc-link";
+    link.innerHTML = `${elementIcon(page.id)}${escapeText(page.title)}`;
+    link.setAttribute("aria-pressed", String(page.id === state.page));
+    link.addEventListener("click", () => {
+      state.page = page.id;
+      draw();
+    });
+    toc.appendChild(link);
+  }
+}
+
+// ---------------------------------------------------------------- 설명서 본문
+
+function guidePage(page) {
+  return (
+    `<header class="page-head"><h1>${esc(page.title)}</h1><p class="lead">${esc(page.lead)}</p></header>` +
+    page.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")
+  );
+}
+
+function elementPage(page) {
+  const draw = (focus) => renderView({ template: page.demo.template, values: page.demo.values, focus }).html;
+  const types = page.everyType
+    ? `${page.types.length} 가지 전부`
+    : page.types.map((t) => `<code>${esc(t)}</code>`).join(" · ");
+
+  // focus 를 따라 바뀌는 것은 정지 화면 하나로 못 보인다. 고른 것을 달리한 두 장을 나란히 둔다.
+  const shots =
+    page.compare === "focus"
+      ? page.demo.values
+          .map((doc) => {
+            const who = doc.subjectLabel || doc.subjectId;
+            return `<div class="shot"><div class="shot-said">고른 것 — ${esc(who)}</div>` +
+              `<div class="demo">${draw(doc.subjectId)}</div></div>`;
+          })
+          .join("")
+      : `<div class="demo">${draw(null)}</div>`;
+
+  return (
+    `<header class="page-head"><h1><code>${esc(page.title)}</code></h1>` +
+    `<p class="lead">${esc(page.draws)}</p></header>` +
+    `<dl class="limits">` +
+    `<dt>비교</dt><dd>${esc(page.compareSaid)}</dd>` +
+    `<dt>아무도 없을 때</dt><dd>${esc(page.blank)}</dd>` +
+    `<dt>필드 수</dt><dd>${esc(page.fields)}</dd>` +
+    `<dt>shape</dt><dd>${page.shapes.map((x) => `<code>${esc(x)}</code>`).join(" · ")}</dd>` +
+    `<dt>type</dt><dd>${types}</dd>` +
+    `</dl>` +
+    `<p class="note-line">${esc(page.note)}</p>` +
+    `<h2>그려진 모습</h2>${shots}` +
+    `<h2>그것을 만든 템플릿</h2>` +
+    `<pre>${esc(JSON.stringify(page.demo.template.facets[0], null, 2))}</pre>`
+  );
+}
+
+// ---------------------------------------------------------------- 플레이그라운드
+//
+// **탭은 값 한 벌마다 하나다.** subject 마다 값 한 벌이 정확히 하나 있으므로 탭이 곧 subject 다.
+// 값 한 벌이 없는 subject 라는 것이 없으니 자리와 값을 가르던 상태도 없다.
+// 아직 분석하지 않았다는 것은 **전부 비어 있는 값 한 벌과 주석**이 말한다.
+
+function loadSample(key) {
+  const sample = SAMPLES[key];
+  state.sample = key;
+  state.templateText = sample.template;
+  state.values = sample.values.map((v) => v.text);
+  state.blank = false;
+  state.focus = sample.args.focus ?? null;
+  state.previousFocus = sample.args.previousFocus ?? null;
+  state.choices = { ...(sample.args.choices ?? {}) };
+  state.active = 0;
+  state.seq = state.values.length;
+  // 플레이그라운드의 DOM 은 쪽을 보고 있지 않아도 채워 둔다 — 옮겨 가도 편집 중인 글이 산다.
+  drawTabs();
+  drawEditor();
+  refresh();
+}
+
+function parse(text) {
+  try {
+    return { doc: JSON.parse(text), error: null };
+  } catch (exc) {
+    return { doc: null, error: exc.message };
+  }
+}
+
+/** 탭 이름. 값 한 벌이 스스로 말한다 — 명단을 따로 두지 않는다. */
+function nameOf(text, index) {
+  const { doc } = parse(text);
+  return doc?.subjectLabel || doc?.subjectId || `값 한 벌 ${index + 1}`;
+}
+
+function read() {
+  const problems = [];
+  const take = (label, text) => {
+    if (!text || text.trim() === "") return null;
+    const { doc, error } = parse(text);
+    if (error) problems.push(`${label}: JSON 으로 읽지 못했다 — ${error}`);
+    return doc;
+  };
+  const template = take("템플릿", state.templateText);
+  const values = [];
+  state.values.forEach((text, index) => {
+    const doc = take(nameOf(text, index), text);
+    if (doc) values.push(doc);
+  });
+  return { template, values, problems };
+}
+
+function escapeText(text) {
+  const node = document.createElement("span");
+  node.textContent = text;
+  return node.innerHTML;
+}
+
+function stash() {
+  if (state.active === 0) state.templateText = $("editor").value;
+  else state.values[state.active - 1] = $("editor").value;
+}
+
+/**
+ * 탭 줄이 **더하고 닫는 일까지 한다.** 브라우저가 하는 그대로라 따로 배울 것이 없다 —
+ * 줄 끝이 새 탭을 열고, 탭마다 닫는 자리가 있다. 툴바에서 단추 둘이 빠져 그 줄이 짧아졌다.
+ *
+ * **템플릿 탭은 닫히지 않는다** — subject 가 아니다.
+ *
+ * 닫는 자리는 **지금 고른 탭에만** 선다. 브라우저가 좁은 화면에서 하는 것과 같고, 까닭도
+ * 같다. 닫기는 되돌릴 수 없는데 탭마다 두면 좁은 화면에서 고르려다 닫는 일이 생긴다.
+ * 한 번에 하나만 서면 잘못 누를 후보가 하나뿐이고, 그것도 **이미 보고 있는 탭**의 것이다.
+ * 폭은 28px 로 44px 에 못 미치지만 **높이는 줄 전체(44px)를 채운다** — 표시(ⓘ)와 같은 맞바꿈이다.
+ */
+function drawTabs() {
+  const bar = $("tabs");
+  bar.innerHTML = "";
+  const tabs = [
+    { name: "템플릿", text: state.templateText, template: true },
+    ...state.values.map((text, index) => ({ name: nameOf(text, index), text, template: false })),
+  ];
+  tabs.forEach((tab, index) => {
+    const slot = document.createElement("span");
+    slot.className = "tab-slot";
+    const button = document.createElement("button");
+    button.className = tab.template ? "tab tab-template" : "tab tab-subject";
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(index === state.active));
+    const broken = tab.text && tab.text.trim() !== "" && parse(tab.text).error;
+    button.innerHTML = `${escapeText(tab.name)}${broken ? ' <span class="bad">!</span>' : ""}`;
+    button.addEventListener("click", () => {
+      stash();
+      state.active = index;
+      drawTabs();
+      drawEditor();
+    });
+    slot.appendChild(button);
+    if (!tab.template && index === state.active) {
+      const close = document.createElement("button");
+      close.className = "tab-x";
+      close.type = "button";
+      close.textContent = "×";
+      close.setAttribute("aria-label", `${tab.name} 닫기`);
+      close.setAttribute("title", "이 subject 를 지운다");
+      close.addEventListener("click", () => dropSubject(index - 1));
+      slot.appendChild(close);
+    }
+    bar.appendChild(slot);
+  });
+  const add = document.createElement("button");
+  add.className = "tab-add";
+  add.type = "button";
+  add.textContent = "＋";
+  add.setAttribute("aria-label", "subject 더하기");
+  add.setAttribute("title", "전부 비어 있는 값 한 벌이 생긴다");
+  add.addEventListener("click", addSubject);
+  bar.appendChild(add);
+}
+
+function drawEditor() {
+  const editor = $("editor");
+  editor.value = state.active === 0 ? state.templateText : state.values[state.active - 1];
+  editor.setAttribute("aria-label", state.active === 0 ? "템플릿" : nameOf(editor.value, state.active - 1));
+}
+
+/** 무엇을 볼지 짧게 나열한다. 「아무도 없을 때」와 각 subject 의 이름이다. */
+function drawFocus(seats) {
+  const box = $("focus-buttons");
+  box.innerHTML = "";
+  // 이름만 선다. subject 를 색으로 가르지 않으므로 색 조각을 앞에 두지 않는다.
+  const add = (label, pressed, title, act) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "pick";
+    button.textContent = label;
+    if (title) button.setAttribute("title", title);
+    button.setAttribute("aria-pressed", String(pressed));
+    button.addEventListener("click", () => {
+      act();
+      refresh();
+    });
+    box.appendChild(button);
+  };
+  // **미리보기이지 편집이 아니다.** 값 한 벌을 지우지 않고 렌더에 안 건네준다 — 고르던 것도
+  // 그대로 두므로 다른 subject 를 누르면 보던 화면이 그대로 돌아온다.
+  add("아무도 없을 때", state.blank,
+    "아직 subject 가 하나도 없을 때의 화면. 값 한 벌은 그대로 있다",
+    () => { state.blank = true; });
+  for (const seat of seats) {
+    // **눌린 것을 다시 누르면 풀린다.** 「아무도 고르지 않음」으로 가는 길이 여기다 —
+    // 단추를 하나 더 세우는 대신 이미 있는 단추가 그 일을 한다.
+    const pressed = !state.blank && state.focus === seat.id;
+    add(seat.name, pressed, pressed ? "다시 누르면 고른 것을 놓는다" : seat.id, () => {
+      // 누르는 순간 지금 보던 것이 직전이 된다.
+      const next = pressed ? null : seat.id;
+      if (!state.blank && next === state.focus) return;
+      state.previousFocus = state.focus;
+      state.focus = next;
+      state.blank = false;
+    });
+  }
+}
+
+function refresh() {
+  const { template, values, problems } = read();
+  const args = { focus: state.focus, previousFocus: state.previousFocus, choices: state.choices };
+  // **「아무도 없을 때」는 값 한 벌을 안 주는 것뿐이다.** 렌더에 새 상태를 만들지 않는다.
+  const { html, report, view } = renderView({ template, values: state.blank ? [] : values, ...args });
+  // 자리 계산은 한 벌뿐이다 — 미리보기 중에도 명단은 renderView 가 낸다. 손으로 세지 않는다.
+  const bar = state.blank ? renderView({ template, values, ...args }).view : view;
+  // 오른쪽 판은 분석뷰뿐이다. **이름표는 늘 보인다** — 설명서가 원소를 쪽마다 설명하므로
+  // facet 마다 이름이 서면 둘이 이어진다. 켜고 끄는 것이 없어도 못 하는 일이 없다.
+  // 이름표는 CSS 가 붙이므로 **렌더가 낸 글은 그대로다.**
+  $("view").className = "viewport";
+  $("view").innerHTML = html;
+  drawFocus(bar?.seats ?? []);
+  // 무엇을 보고 있는지는 화면에 한 번. 고른 것이 있으면 눌린 버튼이 이미 말하므로,
+  // 말해 주지 못할 때(고른 것 없음)만 적는다.
+  const watching = (view?.seats ?? []).find((s) => s.id === view?.shown);
+  $("watching").innerHTML =
+    watching && state.focus === null ? `보는 중 <b>${escapeText(watching.name)}</b>` : "";
+
+  const all = [...problems, ...report];
+  const strip = $("strip");
+  strip.innerHTML = all.length
+    ? `<b>렌더가 그리지 못한 자리 ${all.length}</b><ul>${all.map((l) => `<li>${escapeText(l)}</li>`).join("")}</ul>`
+    : "";
+  drawTabs();
+}
+
+// ------------------------------------------------ subject 를 더하고 빼는 것은 화면의 동작이다
+
+/** 더하는 것도 지우는 것도 subject 하나뿐이다. 더할 때 값 한 벌은 **전부 비어** 있다. */
+function addSubject() {
+  stash();
+  const { doc } = parse(state.templateText);
+  state.seq += 1;
+  const id = `subject-${state.seq}`;
+  const blank = { weave: "1", templateId: doc?.id ?? "", subjectId: id, subjectLabel: id, facets: {} };
+  for (const facet of doc?.facets ?? []) {
+    blank.facets[facet.id] = {
+      fields: Object.fromEntries((facet.fields ?? []).map((f) => [f.key, { state: "empty" }])),
+      notes: [{ kind: "caution", text: "아직 분석하지 않았습니다." }],
+    };
+  }
+  state.values.push(pretty(blank));
+  state.active = state.values.length;
+  drawTabs();
+  drawEditor();
+  refresh();
+}
+
+/** `at` 은 `state.values` 의 자리다. 탭의 닫는 자리가 어느 것을 닫을지 이미 알고 부른다. */
+function dropSubject(at) {
+  stash();
+  const index = at ?? (state.active === 0 ? state.values.length - 1 : state.active - 1);
+  if (index < 0 || index >= state.values.length) return;
+  const { doc } = parse(state.values[index]);
+  if (doc?.subjectId && state.focus === doc.subjectId) state.focus = null;
+  if (doc?.subjectId && state.previousFocus === doc.subjectId) state.previousFocus = null;
+  state.values.splice(index, 1);
+  // 닫은 탭의 오른쪽에 있던 것이 그 자리로 온다. 마지막을 닫았으면 왼쪽으로 물러선다.
+  if (state.active > state.values.length) state.active = state.values.length;
+  drawTabs();
+  drawEditor();
+  refresh();
+}
+
+// ---------------------------------------------------------------- 그리기
+
+function draw() {
+  const page = pageOf(state.page);
+  const playing = page.kind === "playground";
+  $("page").hidden = playing;
+  $("playground").hidden = !playing;
+  if (playing) {
+    $("pg-title").textContent = page.title;
+    $("pg-lead").textContent = page.lead;
+    drawTabs();
+    drawEditor();
+    refresh();
+  } else {
+    $("page").innerHTML = page.kind === "element" ? elementPage(page) : guidePage(page);
+  }
+  drawToc();
+}
+
+let timer = null;
+function scheduleRefresh() {
+  stash();
+  clearTimeout(timer);
+  timer = setTimeout(refresh, 140);
+}
+
+function start() {
+  const picker = $("sample");
+  for (const [key, sample] of Object.entries(SAMPLES)) {
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = sample.name;
+    picker.appendChild(option);
+  }
+  picker.addEventListener("change", () => loadSample(picker.value));
+  $("editor").addEventListener("input", scheduleRefresh);
+
+  // **붙은 말을 여는 길 셋.** 가리키기와 초점은 CSS 가 맡고, **누르기는 여기서 맡는다** —
+  // 손가락에는 가리키기가 없고, 글자 위의 초점은 기기마다 달리 돈다. 눌러서 켜는 표시를
+  // 따로 두면 어느 기기에서나 같은 길이 된다.
+  const shut = (mark) => {
+    mark?.classList.remove("is-open");
+    mark?.blur();
+  };
+  const shutAll = () => document.querySelectorAll(".note-mark.is-open").forEach(shut);
+  document.addEventListener("click", (event) => {
+    if (event.target.closest?.(".pop-close")) {
+      shut(event.target.closest(".note-mark"));
+      return;
+    }
+    // 열린 판 안을 누르는 것은 읽는 일이다. 닫지 않는다.
+    if (event.target.closest?.(".note-pop")) return;
+    const mark = event.target.closest?.(".note-mark");
+    const open = mark?.classList.contains("is-open");
+    shutAll(); // 한 번에 하나만 열린다 — 판이 겹치면 어느 값의 말인지 알 수 없다
+    if (mark && !open) mark.classList.add("is-open");
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    shut(document.activeElement?.closest?.(".note-mark"));
+    shutAll();
+  });
+  // **축은 분석뷰 안에 선다.** 렌더가 낸 자리를 눌러 고른다 — 앱은 상태만 갖는다.
+  $("view").addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-option]");
+    const slot = button?.closest?.("[data-choice]");
+    if (!slot) return;
+    state.choices = { ...state.choices, [slot.dataset.choice]: button.dataset.option };
+    refresh();
+  });
+
+  // 전화기에서 어느 판을 세울지. 넓은 화면에서는 이 줄이 CSS 로 감춰져 뜻이 없다.
+  $("pane-pick").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-pane]");
+    if (!button) return;
+    const editing = button.dataset.pane === "edit";
+    $("playground").classList.toggle("editing", editing);
+    for (const one of $("pane-pick").querySelectorAll("button[data-pane]")) {
+      one.setAttribute("aria-pressed", String((one.dataset.pane === "edit") === editing));
+    }
+  });
+
+  const first = Object.keys(SAMPLES)[0];
+  picker.value = first;
+  loadSample(first);
+  draw();
+}
+
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>weave 설명서</title>
+<!--
+  이 파일은 tools/build_viewer.py 가 viewer/ · samples/ · catalog/ 에서 만든다. 손으로 고치지 않는다.
+  의존성이 없다 — CDN 도 서버도 쓰지 않는다. 파일을 브라우저로 열면 바로 돈다.
+-->
+<style>
+/*__STYLE__*/
+</style>
+</head>
+<body>
+<div class="site">
+  <!-- 목차. 정본은 카탈로그다 — primitive element 가 늘거나 줄면 여기가 따라 바뀐다. -->
+  <aside class="nav">
+    <div class="brand">weave</div>
+    <nav id="toc"></nav>
+  </aside>
+
+  <main class="content">
+    <!-- 설명서 쪽. 고른 항목 하나를 그린다. -->
+    <article class="page" id="page"></article>
+
+    <!-- 플레이그라운드. DOM 을 살려 둬야 편집 중인 글이 안 날아간다. -->
+    <section class="playground" id="playground" hidden>
+      <header class="page-head">
+        <h1 id="pg-title"></h1>
+        <p class="lead" id="pg-lead"></p>
+      </header>
+      <!-- 전화기에서는 판 하나만 선다. **분석뷰가 먼저다** — 손가락으로 JSON 을 고치는
+           사람은 없다. 넓은 화면에서는 이 줄이 서지 않고 둘이 나란히 선다. -->
+      <div class="pane-pick" id="pane-pick">
+        <button type="button" class="tab" data-pane="view" aria-pressed="true">분석뷰</button>
+        <button type="button" class="tab" data-pane="edit" aria-pressed="false">템플릿·값</button>
+      </div>
+      <div class="panes">
+        <div class="pane edit">
+          <div class="bar">
+            <label for="sample">샘플</label>
+            <select id="sample"></select>
+          </div>
+          <div class="tabs" id="tabs"></div>
+          <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
+          <div class="strip" id="strip"></div>
+        </div>
+        <div class="pane view">
+          <div class="bar">
+            <span id="focus-buttons"></span>
+            <span class="watching" id="watching"></span>
+          </div>
+          <!-- 스크롤하는 것은 본문뿐이다. 띠는 바깥에 있어 늘 제자리를 지킨다. -->
+          <div class="scroll">
+            <div class="viewport" id="view"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module">
+/*__SCRIPT__*/
+</script>
+</body>
+</html>

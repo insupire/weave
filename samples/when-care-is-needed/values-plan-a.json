@@ -1,0 +1,108 @@
+{
+  "weave": "1",
+  "templateId": "care-1",
+  "subjectId": "plan-a",
+  "subjectLabel": "가 설계",
+  "facets": {
+    "daily": {
+      "fields": {
+        "care-daily": {
+          "state": "filled",
+          "value": {
+            "min": 100000,
+            "max": 150000
+          }
+        }
+      },
+      "notes": [
+        {
+          "kind": "quote",
+          "text": "설계안 2쪽 간병 담보에서 읽었습니다."
+        }
+      ]
+    },
+    "by-grade": {
+      "fields": {
+        "grade-1": {
+          "state": "filled",
+          "value": 30000000
+        },
+        "grade-2": {
+          "state": "filled",
+          "value": 20000000
+        },
+        "grade-3": {
+          "state": "filled",
+          "value": 10000000
+        },
+        "grade-4": {
+          "state": "filled",
+          "value": 5000000
+        },
+        "grade-5": {
+          "state": "filled",
+          "value": 3000000
+        }
+      },
+      "notes": [
+        {
+          "kind": "note",
+          "text": "1등급에서 5등급까지 모두 나옵니다. 대신 한 등급당 금액은 작습니다."
+        }
+      ]
+    },
+    "terms": {
+      "fields": {
+        "cover-period": {
+          "state": "filled",
+          "value": "100세만기"
+        },
+        "day-limit": {
+          "state": "filled",
+          "value": 180
+        },
+        "waiting": {
+          "state": "filled",
+          "value": 24
+        },
+        "integrated": {
+          "state": "filled",
+          "value": true
+        }
+      }
+    },
+    "covers": {
+      "fields": {
+        "state-list": {
+          "state": "filled",
+          "value": [
+            {
+              "state": "장기요양 1~5등급",
+              "amount": 30000000,
+              "once": true
+            },
+            {
+              "state": "중증치매(CDR 3점 이상)",
+              "amount": 20000000,
+              "once": true
+            },
+            {
+              "state": "경증치매(CDR 1점 이상)",
+              "amount": 5000000,
+              "once": true
+            },
+            {
+              "state": "파킨슨병",
+              "amount": 10000000,
+              "once": true
+            },
+            {
+              "state": "간병인 사용 일당",
+              "amount": 150000
+            }
+          ]
+        }
+      }
+    }
+  }
+}

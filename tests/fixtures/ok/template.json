@@ -1,0 +1,241 @@
+{
+  "weave": "1",
+  "id": "fixture-template",
+  "title": "검사기 고정 케이스 템플릿",
+  "facets": [
+    {
+      "id": "monthly-premium",
+      "title": "월 보험료",
+      "hint": "이 제안서에서 매달 빠져나가는 금액입니다.",
+      "element": "stat",
+      "fields": [
+        {
+          "key": "premium",
+          "label": "월 보험료",
+          "shape": "single",
+          "type": "money",
+          "description": "이 설계안의 월 납입 보험료 총액을 원 단위 정수로. 적립보험료가 섞여 있으면 분리하고 보장 보험료만."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "적립보험료를 뺀 보장 보험료입니다."
+        }
+      ]
+    },
+    {
+      "id": "contract-terms",
+      "title": "계약 조건",
+      "hint": "누구와 언제까지 어떤 방식으로 맺는 계약인지입니다.",
+      "element": "facts",
+      "fields": [
+        {
+          "key": "payment-period",
+          "label": "납입기간",
+          "shape": "single",
+          "type": "duration",
+          "description": "보험료를 내는 총 기간을 개월로. 20년납이면 240."
+        },
+        {
+          "key": "renewal",
+          "label": "갱신 여부",
+          "shape": "single",
+          "type": "boolean",
+          "description": "갱신형이면 참, 비갱신형이면 거짓. 일부 담보만 갱신형이면 거짓으로 두고 주의 주석을 단다."
+        },
+        {
+          "key": "maturity-age",
+          "label": "만기나이",
+          "shape": "single",
+          "type": "age",
+          "description": "보장이 끝나는 나이를 세로. 종신이면 값이 없는 것으로 두고 보충 주석에 종신이라고 적는다."
+        },
+        {
+          "key": "entry-age",
+          "label": "가입나이",
+          "shape": "range",
+          "type": "age",
+          "description": "가입할 수 있는 나이 구간을 세로. 한쪽만 적혀 있으면 그쪽만 담는다."
+        },
+        {
+          "key": "start-date",
+          "label": "보장개시일",
+          "shape": "single",
+          "type": "date",
+          "description": "보장이 시작되는 날짜를 YYYY-MM-DD 로. 설계 시점 기준일이 아니라 보장개시일이다."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "계약의 뼈대가 되는 조건들입니다."
+        },
+        {
+          "kind": "tip",
+          "text": "갱신형은 처음 보험료가 싸고 갱신할 때마다 오릅니다. 비갱신형은 처음이 비싼 대신 그대로입니다."
+        }
+      ]
+    },
+    {
+      "id": "coverage-amounts",
+      "title": "주요 가입금액",
+      "hint": "주요 담보의 가입금액입니다.",
+      "element": "bars",
+      "fields": [
+        {
+          "key": "death-benefit",
+          "label": "사망보험금",
+          "shape": "single",
+          "type": "money",
+          "description": "일반사망 보험금 가입금액을 원 단위 정수로. 재해사망은 빼고 일반사망만."
+        },
+        {
+          "key": "cancer-benefit",
+          "label": "암진단비",
+          "shape": "single",
+          "type": "money",
+          "description": "일반암 진단비 가입금액을 원 단위 정수로. 유사암은 빼고 일반암만."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "가입금액은 받을 수 있는 최대 금액이고 지급 조건은 약관이 정합니다."
+        }
+      ]
+    },
+    {
+      "id": "premium-by-age",
+      "title": "나이에 따른 보험료",
+      "hint": "나이가 들며 보험료가 어떻게 달라지는지입니다.",
+      "element": "line",
+      "fields": [
+        {
+          "key": "premium-curve",
+          "label": "월 보험료",
+          "shape": "series",
+          "type": "money",
+          "axis": "age",
+          "description": "예시표에 적힌 나이별 월 보험료를 나이(세)와 금액(원)의 점들로. 표에 있는 나이만 담는다."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "tip",
+          "text": "예시표는 지금 기준으로 계산한 예상치입니다."
+        }
+      ]
+    },
+    {
+      "id": "riders",
+      "title": "특약",
+      "hint": "제안서마다 어떤 특약을 넣었는지 나란히 둔 것입니다.",
+      "element": "list",
+      "fields": [
+        {
+          "key": "rider-list",
+          "label": "특약 목록",
+          "shape": "items",
+          "description": "설계안에 담긴 특약을 하나씩. 주계약은 빼고 특약만 담는다.",
+          "columns": [
+            {
+              "key": "name",
+              "label": "특약명",
+              "type": "text",
+              "description": "설계안에 적힌 특약 이름 그대로. 줄이지 않는다."
+            },
+            {
+              "key": "amount",
+              "label": "가입금액",
+              "type": "money",
+              "description": "그 특약의 가입금액을 원 단위 정수로."
+            },
+            {
+              "key": "renews",
+              "label": "갱신",
+              "type": "boolean",
+              "description": "그 특약이 갱신형이면 참, 비갱신형이면 거짓."
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "설계안에 적힌 특약만 담습니다. 빠진 특약이 있을 수 있습니다."
+        }
+      ]
+    },
+    {
+      "id": "payments",
+      "title": "납입 계획",
+      "hint": "고른 제안서의 납입 구간별 보험료입니다.",
+      "element": "rows",
+      "fields": [
+        {
+          "key": "plan",
+          "label": "구간별 보험료",
+          "shape": "items",
+          "description": "설계안에 적힌 납입 구간을 적힌 순서 그대로 하나씩 담는다.",
+          "columns": [
+            {
+              "key": "phase",
+              "label": "구간",
+              "type": "text",
+              "description": "그 구간을 부르는 말 그대로 담는다."
+            },
+            {
+              "key": "monthly",
+              "label": "월 보험료",
+              "type": "money",
+              "description": "그 구간의 월 보험료를 원 단위 정수로 담는다."
+            }
+          ],
+          "hint": "고른 제안서의 것만 폅니다."
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "지금 고른 제안서의 것만 폅니다."
+        }
+      ]
+    },
+    {
+      "id": "premium-split",
+      "title": "보험료가 어디에 쓰이나",
+      "hint": "월 보험료를 주계약과 특약별 몫으로 쪼갠 것입니다.",
+      "element": "parts",
+      "fields": [
+        {
+          "key": "split",
+          "label": "몫",
+          "shape": "items",
+          "hint": "월 보험료를 쪼갠 것이에요.",
+          "description": "월 보험료를 주계약과 특약으로 쪼개 각 몫을 원 단위 정수로 담는다.",
+          "columns": [
+            {
+              "key": "part",
+              "label": "어디",
+              "type": "text",
+              "description": "그 몫이 가는 곳의 이름 그대로 담는다."
+            },
+            {
+              "key": "amount",
+              "label": "몫",
+              "type": "money",
+              "description": "그 몫의 월 보험료를 원 단위 정수로 담는다."
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "kind": "note",
+          "text": "조각을 다 더하면 월 보험료가 됩니다."
+        }
+      ]
+    }
+  ]
+}

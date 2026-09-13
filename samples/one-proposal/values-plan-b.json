@@ -1,0 +1,139 @@
+{
+  "weave": "1",
+  "templateId": "one-proposal-1",
+  "subjectId": "plan-b",
+  "subjectLabel": "나 설계",
+  "facets": {
+    "premium": {
+      "fields": {
+        "monthly-premium": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "업로드한 문서에 합계보험료가 적혀 있지 않아 읽지 못했습니다."
+        }
+      ]
+    },
+    "overview": {
+      "fields": {
+        "insurer": {
+          "state": "filled",
+          "value": "새길생명"
+        },
+        "product": {
+          "state": "empty"
+        },
+        "pay-period": {
+          "state": "empty"
+        },
+        "cover-period": {
+          "state": "filled",
+          "value": "종신"
+        },
+        "renewal": {
+          "state": "empty"
+        },
+        "refund": {
+          "state": "empty"
+        },
+        "source": {
+          "state": "filled",
+          "value": "직접 업로드"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "설계안에 없어 계산으로 메운 값이 섞여 있습니다."
+        },
+        {
+          "kind": "caution",
+          "text": "직접 올린 사진이라 표가 잘려 있어 상품명과 납입 조건을 읽지 못했습니다."
+        }
+      ]
+    },
+    "payback": {
+      "fields": {
+        "payback-curve": {
+          "byOption": {
+            "cancer": {
+              "state": "empty"
+            },
+            "brain": {
+              "state": "empty"
+            },
+            "heart": {
+              "state": "empty"
+            }
+          }
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "보험료와 가입금액을 모르면 회수 배율을 계산할 수 없습니다."
+        }
+      ]
+    },
+    "covered-total": {
+      "fields": {
+        "covered-amount": {
+          "byOption": {
+            "cancer": {
+              "state": "empty"
+            },
+            "brain": {
+              "state": "empty"
+            },
+            "heart": {
+              "state": "empty"
+            }
+          }
+        }
+      }
+    },
+    "covered-items": {
+      "fields": {
+        "covered-list": {
+          "byOption": {
+            "cancer": {
+              "state": "filled",
+              "value": []
+            },
+            "brain": {
+              "state": "filled",
+              "value": []
+            },
+            "heart": {
+              "state": "filled",
+              "value": []
+            }
+          }
+        }
+      }
+    },
+    "surrender": {
+      "fields": {
+        "surrender-burden": {
+          "state": "empty"
+        }
+      }
+    },
+    "riders": {
+      "fields": {
+        "rider-list": {
+          "state": "empty"
+        }
+      },
+      "notes": [
+        {
+          "kind": "caution",
+          "text": "보장내역 표가 사진에 담기지 않았습니다."
+        }
+      ]
+    }
+  }
+}

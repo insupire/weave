@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "weave-template.schema.json",
+  "title": "분석 템플릿",
+  "description": "무엇을 그릴지와 무엇을 찾을지를 함께 말한다. 생성 Procedure 가 쓴다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["weave", "id", "title", "facets"],
+  "properties": {
+    "weave": { "$ref": "weave-common.schema.json#/$defs/Version" },
+    "id": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "choices": {
+      "description": "고르는 자리. 사람이 하나를 고르면 그것을 타는 필드의 값이 바뀐다. 무엇을 고를 수 있는지만 말하고 **어떻게 생겼는지는 말하지 않는다** — 칩인지 드롭다운인지는 앱이 정한다. 골격이므로 값 한 벌이 아니라 여기 선다: subject 마다 고를 것이 다르면 견줄 수가 없다. 고른 것이 바뀌어도 **어떤 facet 이 서는지는 달라지지 않는다** — 달라지는 것은 그것을 타는 필드의 값뿐이다. 여럿 선언할 수 있으나 선언한 만큼 값을 채워야 한다.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/Choice" }
+    },
+    "facets": {
+      "description": "그리는 순서대로. 순서는 배치일 뿐 우열이 아니다.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 40,
+      "items": { "$ref": "#/$defs/Facet" }
+    }
+  },
+  "$defs": {
+    "Choice": {
+      "description": "고르는 자리 하나. 고를 것이 하나뿐이면 고르는 것이 아니므로 둘부터 선다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "options"],
+      "properties": {
+        "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "options": {
+          "description": "고를 수 있는 것들. 값 한 벌은 이 id 마다 값을 하나씩 채운다.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/Option" }
+        }
+      }
+    },
+    "Option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
+    "Facet": {
+      "description": "분석뷰의 한 조각. primitive element 하나와 그것이 요구하는 필드들.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "element", "fields"],
+      "properties": {
+        "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "hint": {
+          "description": "이 facet 이 무엇인지 한 문장. 제목 아래에 **늘 보인다.** 제목은 짧은 이름이고 설명은 여기 산다 — 제목이 설명까지 지면 화면을 훑을 때 무엇에 대한 자리인지가 한눈에 안 들어온다. 필드의 hint 와 뜻이 같다: 층만 다르다. 필드 것보다 조금 긴 것은 facet 하나를 통째로 말하기 때문이고, 늘 보이는 것은 facet 이 화면에 서넛뿐이라 한 줄씩 붙어도 길어지지 않기 때문이다.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[^\\n\\r]+$"
+        },
+        "element": { "$ref": "weave-common.schema.json#/$defs/Element" },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/Field" }
+        },
+        "notes": {
+          "description": "템플릿 저작자가 다는 주석. facet 의 설명 글도 여기 산다 — description 필드는 따로 없다. subject 와 무관한 지식은 값이 아니라 여기 둔다.",
+          "$ref": "weave-common.schema.json#/$defs/Annotations"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "element": { "const": "stat" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": { "properties": { "shape": { "enum": ["single", "range"] } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "facts" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 12,
+                "items": { "properties": { "shape": { "enum": ["single", "range"] } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "bars" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 6,
+                "items": {
+                  "properties": {
+                    "shape": { "const": "single" },
+                    "type": { "$ref": "weave-common.schema.json#/$defs/NumericType" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "line" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": {
+                  "properties": {
+                    "shape": { "const": "series" },
+                    "type": { "$ref": "weave-common.schema.json#/$defs/NumericType" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "list" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": { "properties": { "shape": { "const": "items" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "rows" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": { "properties": { "shape": { "const": "items" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "element": { "const": "parts" } }, "required": ["element"] },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxItems": 1,
+                "items": {
+                  "properties": {
+                    "shape": { "const": "items" },
+                    "columns": { "minItems": 2, "maxItems": 2 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Field": {
+      "description": "필드 선언이 곧 추출 지시다. description 이 무엇을 찾을지 말한다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "shape", "description"],
+      "properties": {
+        "key": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "shape": { "$ref": "weave-common.schema.json#/$defs/Shape" },
+        "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
+        "axis": { "$ref": "weave-common.schema.json#/$defs/AxisType" },
+        "choice": {
+          "description": "이 필드가 타는 고르는 자리의 id. 있으면 그 자리의 고를 것마다 값이 따로 있다. 템플릿이 선언하지 않은 id 는 쓸 수 없다. 한 필드는 한 자리만 탄다 — 둘을 타면 값이 곱해진다.",
+          "$ref": "weave-common.schema.json#/$defs/Key"
+        },
+        "hint": {
+          "description": "읽는 사람에게 **늘 보이는 한 줄.** 이 필드가 무엇인지를 말한다 — 값이 없어도 필요한 말이다. 주석과 다르다: 주석은 **이 값에 대해 할 말**이고 hint 는 **이 필드가 무엇인가**다. description 과도 다르다 — 그쪽은 분석에게 주는 추출 지시이고 화면에 나오지 않는다. 한 줄이고 필드에 매인다: 값과 무관한 자유 문장을 여기 두지 않는다.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[^\\n\\r]+$"
+        },
+        "allowed": {
+          "description": "값이 이 목록 안에 있어야 한다. 자유 글에서 오타와 변종을 막는 자리다. text 를 담는 single 필드에만 쓴다.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/Column" }
+        },
+        "description": {
+          "description": "분석 Procedure 에게 주는 자연어 지시. 기본 단위까지 적는다.",
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 600
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "shape": { "const": "single" } }, "required": ["shape"] },
+          "then": {
+            "required": ["type"],
+            "not": { "anyOf": [{ "required": ["axis"] }, { "required": ["columns"] }] }
+          }
+        },
+        {
+          "if": { "properties": { "shape": { "const": "range" } }, "required": ["shape"] },
+          "then": {
+            "required": ["type"],
+            "properties": { "type": { "$ref": "weave-common.schema.json#/$defs/OrderedType" } },
+            "not": { "anyOf": [{ "required": ["axis"] }, { "required": ["columns"] }] }
+          }
+        },
+        {
+          "if": { "properties": { "shape": { "const": "series" } }, "required": ["shape"] },
+          "then": {
+            "required": ["type", "axis"],
+            "properties": { "type": { "$ref": "weave-common.schema.json#/$defs/NumericType" } },
+            "not": { "required": ["columns"] }
+          }
+        },
+        {
+          "if": { "properties": { "shape": { "const": "items" } }, "required": ["shape"] },
+          "then": {
+            "required": ["columns"],
+            "not": { "anyOf": [{ "required": ["type"] }, { "required": ["axis"] }] }
+          }
+        },
+        {
+          "if": { "required": ["allowed"] },
+          "then": {
+            "properties": { "shape": { "const": "single" }, "type": { "const": "text" } },
+            "required": ["shape", "type"]
+          }
+        }
+      ]
+    },
+    "Column": {
+      "description": "items 한 칸의 선언. 열도 추출 지시를 갖는다.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "description"],
+      "properties": {
+        "key": { "$ref": "weave-common.schema.json#/$defs/Key" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
+        "description": { "type": "string", "minLength": 10, "maxLength": 600 }
+      }
+    }
+  }
+}

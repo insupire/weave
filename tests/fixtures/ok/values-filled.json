@@ -1,0 +1,179 @@
+{
+  "weave": "1",
+  "templateId": "fixture-template",
+  "subjectId": "proposal-a",
+  "subjectLabel": "가 제안서",
+  "facets": {
+    "monthly-premium": {
+      "fields": {
+        "premium": {
+          "state": "filled",
+          "value": 87400,
+          "notes": [
+            {
+              "kind": "quote",
+              "text": "합계보험료 87,400원 (보장보험료 87,400원 / 적립보험료 0원)"
+            },
+            {
+              "kind": "caution",
+              "text": "적립보험료가 0원이라 해지환급금이 거의 없습니다."
+            }
+          ]
+        }
+      }
+    },
+    "contract-terms": {
+      "fields": {
+        "payment-period": {
+          "state": "filled",
+          "value": 240
+        },
+        "renewal": {
+          "state": "filled",
+          "value": false,
+          "notes": [
+            {
+              "kind": "tip",
+              "text": "비갱신형은 낸 보험료가 오르지 않는 대신 처음 보험료가 갱신형보다 높습니다."
+            }
+          ]
+        },
+        "maturity-age": {
+          "state": "filled",
+          "value": 100
+        },
+        "entry-age": {
+          "state": "filled",
+          "value": {
+            "min": 15,
+            "max": 65
+          }
+        },
+        "start-date": {
+          "state": "filled",
+          "value": "2026-10-01"
+        }
+      },
+      "notes": [
+        {
+          "kind": "note",
+          "text": "설계안 2쪽 계약사항 표에서 읽었습니다."
+        }
+      ]
+    },
+    "coverage-amounts": {
+      "fields": {
+        "death-benefit": {
+          "state": "filled",
+          "value": 50000000,
+          "notes": [
+            {
+              "kind": "caution",
+              "text": "감액기간이 있어 처음 2년은 이 금액의 절반만 나옵니다."
+            }
+          ]
+        },
+        "cancer-benefit": {
+          "state": "filled",
+          "value": 30000000
+        }
+      }
+    },
+    "premium-by-age": {
+      "fields": {
+        "premium-curve": {
+          "state": "filled",
+          "value": [
+            {
+              "at": 40,
+              "value": 87400
+            },
+            {
+              "at": 50,
+              "value": 131000
+            },
+            {
+              "at": 60,
+              "value": 208500
+            }
+          ],
+          "notes": [
+            {
+              "kind": "quote",
+              "text": "갱신 예상표를 그대로 옮겼습니다."
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "note",
+          "text": "갱신 예상표는 40·50·60세 셋만 적혀 있습니다."
+        }
+      ]
+    },
+    "riders": {
+      "fields": {
+        "rider-list": {
+          "state": "filled",
+          "value": [
+            {
+              "name": "암진단비(유사암제외)",
+              "amount": 30000000,
+              "renews": false
+            },
+            {
+              "name": "질병입원일당",
+              "amount": 30000,
+              "renews": true
+            },
+            {
+              "name": "상해수술비",
+              "amount": 300000
+            }
+          ]
+        }
+      },
+      "notes": [
+        {
+          "kind": "quote",
+          "text": "보장내역 표에서 특약만 골라 옮겼습니다."
+        }
+      ]
+    },
+    "payments": {
+      "fields": {
+        "plan": {
+          "state": "filled",
+          "value": [
+            {
+              "phase": "처음",
+              "monthly": 87400
+            }
+          ]
+        }
+      }
+    },
+    "premium-split": {
+      "fields": {
+        "split": {
+          "state": "filled",
+          "value": [
+            {
+              "part": "주계약",
+              "amount": 21000
+            },
+            {
+              "part": "암 특약",
+              "amount": 43400
+            },
+            {
+              "part": "그 밖의 특약",
+              "amount": 23000
+            }
+          ]
+        }
+      }
+    }
+  }
+}
