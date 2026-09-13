@@ -512,7 +512,7 @@ function line(ctx, facet) {
   // **축만 남는다.** 값이 없으면 눈금도 없다 — 눈금을 지어내면 그것이 가짜 값이다.
   // 두 축이 서는 것만으로 「여기에 선이 그려진다」가 읽힌다.
   const body = ctx.subjects.length === 0
-    ? `<div class="chart-scroll">${emptyAxes(facet.id)}</div>`
+    ? `<div class="chart-scroll">${emptyAxes()}</div>`
     : series.length
       ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
       : `<div class="blank">${missMark()}</div>`;
@@ -530,26 +530,32 @@ function line(ctx, facet) {
 }
 
 /**
- * 아직 아무도 오지 않은 축. **눈금도 수도 없다** — 축에 숫자가 서는 순간 그 모양이 값이 된다.
+ * 아직 아무도 오지 않은 축. **눈금도 수도 이름도 없다** — 그 셋 가운데 하나라도 붙으면
+ * 그 모양이 값이 된다. 그것이 값이 되는 유일한 길이라 셋을 다 막는다.
  *
- * 축 위에 선 하나가 흐른다. 이것이 값으로 읽히지 않는 까닭은 슬롯머신과 같다 —
- * **멈추지 않고 계속 바뀌기 때문**이다. 읽을 수 있으려면 한 번은 서 있어야 한다.
- * 파형의 마디가 축 폭과 맞아떨어져 흘러도 이음매가 안 보인다.
+ * 꺾은선을 **여럿 미리 그려 둔다.** 실제 `line` 이 꺾은선이니 자리도 그 모양이어야 하고,
+ * 뷰어가 그중 하나씩만 보이게 갈아 끼운다 — 한 모양이 고정되면 그것이 「이 subject 의 선」으로
+ * 읽히지만, 계속 갈리면 어느 것도 그렇게 읽히지 않는다. **갈아 끼우는 것은 뷰어의 일이라
+ * 여기엔 시간도 프레임도 없다.**
  */
-function emptyAxes(facetId) {
+function emptyAxes() {
   const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
-  const mid = (T + H - B) / 2, span = W - R - L, step = span / 4;
-  // 마디 하나를 더 그려 왼쪽으로 한 마디 흘려도 빈자리가 안 생긴다.
-  let d = `M ${L - span} ${mid}`;
-  for (let i = 0; i < 8; i += 1) {
-    const x = L - span + step * (i + 1);
-    d += ` Q ${x - step / 2} ${mid + (i % 2 ? 62 : -62)} ${x} ${mid}`;
-  }
+  const span = W - R - L, top = T + 12, bottom = H - B - 12;
+  // **정해진 수에서 나온 모양이다.** 값에서 오지 않으므로 무엇을 그려도 값이 아니다.
+  const SHAPES = [
+    [0.62, 0.28, 0.74, 0.41, 0.18, 0.55, 0.33],
+    [0.24, 0.66, 0.35, 0.82, 0.47, 0.21, 0.59],
+    [0.81, 0.44, 0.19, 0.63, 0.72, 0.36, 0.88],
+    [0.37, 0.52, 0.88, 0.26, 0.61, 0.79, 0.44],
+  ];
+  const shapes = SHAPES.map((ys) => {
+    const points = ys.map((y, i) =>
+      `${(L + (span * i) / (ys.length - 1)).toFixed(1)},${(bottom - (bottom - top) * y).toFixed(1)}`);
+    return `<polyline class="wave" points="${points.join(" ")}"/>`;
+  });
   return (
     `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
-    // 한 화면에 line facet 이 둘일 수 있다 — id 는 facet 마다 갈린다.
-    `<clipPath id="plot-${esc(facetId)}"><rect x="${L}" y="${T}" width="${span}" height="${H - B - T}"/></clipPath>` +
-    `<g clip-path="url(#plot-${esc(facetId)})"><path class="wave" d="${d}"/></g>` +
+    `${shapes.join("")}` +
     `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
     `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
   );

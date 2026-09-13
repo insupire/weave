@@ -718,10 +718,14 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
     assert.ok(!chart.includes(drawn), `선 위에 무언가 그렸다: ${drawn}`);
   }
   assert.ok(!/>[^<]*[0-9][^<]*</.test(chart), "그림 안에 수가 섰다");
-  // 그려진 선은 **모양이 바뀌는 표식 하나뿐**이다. 값에서 온 선이 끼면 여기서 걸린다.
-  const paths = [...chart.matchAll(/<path[^>]*>/g)].map((m) => m[0]);
-  assert.equal(paths.length, 1, `선이 여럿이다: ${paths.length}`);
-  assert.match(paths[0], /class="wave"/, "값에서 온 선이 섰다");
+  // **모양을 여럿 미리 그려 둔다.** 하나뿐이면 그 모양이 고정되어 「이 subject 의 선」으로
+  // 읽힌다 — 갈아 끼울 것이 있어야 계속 갈린다. 그려진 선은 전부 그 표식이어야 한다.
+  const drawnLines = [...chart.matchAll(/<(polyline|path)[^>]*>/g)].map((m) => m[0]);
+  assert.ok(drawnLines.length >= 2, `갈아 끼울 모양이 없다: ${drawnLines.length}`);
+  for (const one of drawnLines) assert.match(one, /class="wave"/, `값에서 온 선이 섰다: ${one}`);
+  // 서로 달라야 갈린다 — 같은 것을 여러 벌 두면 갈아 끼워도 그대로다.
+  const shapes = new Set(drawnLines.map((one) => one.match(/points="([^"]*)"/)?.[1]));
+  assert.equal(shapes.size, drawnLines.length, "같은 모양을 여러 벌 뒀다");
 
   // list — 열은 subject 가 만든다. 키 열만 서고 그 옆이 「제안서가 오면 여기」라는 자리다.
   const items = at("list");
@@ -767,7 +771,7 @@ test("움직임은 뷰어가 얹는다 — 산출물에는 한 글자도 없다"
   const zero = drawn[0];
   assert.match(zero, /class="slot[ "]/, "굴릴 자리 표식이 없다");
   assert.match(zero, /class="wave"/, "모양이 바뀔 표식이 없다");
-  assert.match(zero, /<path class="wave"/, "축 위에 흐를 표식이 없다");
+  assert.match(zero, /<polyline class="wave"/, "축 위에 세울 꺾은선이 없다");
 
   // **굴리는 쪽은 스타일시트 하나뿐이다.** 앱 스크립트가 몰래 굴리면 그것도 산출물의 움직임이다.
   const app = fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8");
@@ -836,6 +840,25 @@ test("움직임을 끈 사람에게도 자리가 선다", () => {
     assert.ok(covered, `멈춘 릴에 숫자가 남는다 — 같은 선택자로 덮지 않았다: ${one}`);
   }
   assert.match(body, /animation:none/, "릴이 안 멈춘다");
+
+  // **움직이던 것이 하나도 안 남는다.** 멈춘 자리에 남은 길이·모양은 그대로 값이 된다 —
+  // 써 넣던 줄이 임의 길이로 굳어 서 있던 적이 있다. 움직이는 자리마다 끈 자리가 있어야 한다.
+  const moving = [...bareCss.slice(0, quietStart).matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, sel, rule]) => /\.slot|\.wave/.test(sel) && /animation:[^;]*infinite/.test(rule))
+    .map(([, sel]) => sel.trim());
+  assert.ok(moving.length >= 4, `움직이는 자리를 못 찾았다 — 판정이 헛돈다: ${moving.length}`);
+  const quietText = quietRules.map(([, sel, rule]) => [sel, rule]);
+  for (const one of moving) {
+    // 끈 자리가 조상 쪽이어도 된다 — `.wave { display:none }` 하나가 `.track .wave` 까지 덮는다.
+    const parts = one.split(/\s+/);
+    const off = quietText.some(([sel, rule]) =>
+      /animation:none|display:none/.test(rule)
+      && sel.split(",").some((x) => {
+        const bits = x.trim().split(/\s+/);
+        return bits.length > 0 && bits.every((bit) => parts.includes(bit));
+      }));
+    assert.ok(off, `조용한 자리에 움직이던 것이 남았다: ${one}`);
+  }
   // **멈추는 것이 아니라 사라진다.** 멈춘 그림은 값처럼 읽힌다.
   assert.match(body, /\.wave \{[^}]*display:none/, "모양이 바뀌는 표식이 안 사라진다");
   // 그래도 「여기 값이 온다」가 읽혀야 한다 — 릴 상자의 모양은 그대로 남는다.
@@ -1520,7 +1543,8 @@ test("장식으로 위계를 만들지 않는다", () => {
   assert.ok(!css.includes("repeating-linear-gradient"), "빗금 텍스처");
   // 가운데 정렬은 **내용의 위계**를 막자는 것이다. 릴 한 칸(글자 폭 하나) 안에서 숫자가
   // 가운데 서는 것은 위계가 아니라 글리프 자리라, 규칙을 지우지 않고 선택자로 가른다.
-  for (const [, sel, body] of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+  // **주석을 걷고 센다** — 주석이 선택자에 붙어 오면 이름으로 거르는 판정이 헛돈다.
+  for (const [, sel, body] of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]*)\{([^}]*)\}/g)) {
     if (!/text-align:\s*center/.test(body)) continue;
     assert.match(sel.trim(), /^\.slot(\[|\s|$)/, `가운데 정렬: ${sel.trim()}`);
   }

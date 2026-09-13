@@ -193,7 +193,7 @@ col.is-focus { border:2px solid var(--ink); }
    무엇을 말하지 않는가. **모든 자리가 같은 속도로 돈다** — 어느 자리가 더 빨리 돌면 그것이
    강조다. 한 자리 안의 릴만 위상을 어긋내고(속도가 아니라 시작점), 릴 수는 **타입마다 고정**이라
    자릿수가 크기를 말하지 않는다. */
-.slot { --reel:1.15em; --spin:1100ms;
+.slot { --reel:1.15em; --spin:2800ms;
   display:inline-flex; gap:1px; align-items:center; vertical-align:-.18em;
   height:var(--reel); max-width:100%; }
 /* **잘린 글리프를 보이지 않는다.** 칸을 세 줄 높이로 잡아 위아래로 넘치게 두고(바깥 여백을
@@ -203,8 +203,11 @@ col.is-focus { border:2px solid var(--ink); }
   overflow:hidden; font-style:normal;
   -webkit-mask-image:linear-gradient(to bottom, transparent 18%, #000 50%, transparent 82%);
   mask-image:linear-gradient(to bottom, transparent 18%, #000 50%, transparent 82%); }
+/* **transform 하나만 움직인다.** 층을 미리 잡아 두어 글자를 매 프레임 다시 그리지 않는다 —
+   마스크가 걸린 자리라 그러지 않으면 메인 스레드가 글자를 계속 다시 앉히고, 그것이 버벅임이다.
+   속도도 늦췄다. 한 자리에 110ms 는 읽히지도 않으면서 눈만 어지럽다. */
 .slot i::before { display:block; line-height:var(--reel); text-align:center;
-  padding-top:calc(var(--reel) * .5); color:var(--ink);
+  padding-top:calc(var(--reel) * .5); color:var(--ink); will-change:transform;
   animation:reel var(--spin) linear infinite var(--phase); }
 
 /* **줄마다 시작점을 어긋낸다.** 안 그러면 모든 줄의 릴이 한 박자로 돌아 같은 숫자가 나란히
@@ -229,19 +232,36 @@ col.is-focus { border:2px solid var(--ink); }
 .slot[data-slot="num"] i:nth-child(6)::before { animation-delay:calc(var(--phase) - 946ms); }
 .slot-unit { font-weight:400; color:var(--mute); align-self:center; margin-left:2px; }
 
-/* 글이 설 자리 — 굴릴 숫자가 없으니 **글줄 길이**가 구른다. 글자를 지어내지 않는다. */
-.slot[data-slot="text"] i { width:7em; }
-.slot[data-slot="text"] i::before { content:""; height:calc(var(--reel) * 5);
-  background-repeat:no-repeat; background-size:100% .34em;
-  background-image:
-    linear-gradient(to right, var(--line) 0 62%, transparent 62%),
-    linear-gradient(to right, var(--line) 0 84%, transparent 84%),
-    linear-gradient(to right, var(--line) 0 45%, transparent 45%),
-    linear-gradient(to right, var(--line) 0 71%, transparent 71%),
-    linear-gradient(to right, var(--line) 0 62%, transparent 62%);
-  background-position:0 .38em, 0 calc(var(--reel) + .38em), 0 calc(var(--reel) * 2 + .38em),
-    0 calc(var(--reel) * 3 + .38em), 0 calc(var(--reel) * 4 + .38em); }
-.slot[data-slot="text"] i::before { animation-name:reel-text; }
+/* 글이 설 자리 — **써 넣는 것처럼 자리가 자란다.** 쓰다 멈추다 다시 쓰고, 다 쓰면 지우고
+   처음부터 쓴다. 그래서 어느 길이도 고정되지 않는다.
+
+   **글자를 찍지 않는다.** 찍는 순간 그것이 가짜 값이다 — 자라는 것은 자리의 폭뿐이고
+   읽을 것이 하나도 없다. 길이도 계속 달라지므로 길이가 무엇을 말하지도 못한다.
+
+   자라는 줄(`::before`)과 그 끝을 따라가는 커서(`::after`)가 **같은 시간표**를 쓴다.
+   둘 다 transform 이라 층에서 돌고, 폭(`width`)을 움직이면 매 프레임 배치가 다시 잡혀 버벅인다. */
+.slot[data-slot="text"] i { width:7em; position:relative; overflow:visible;
+  -webkit-mask-image:none; mask-image:none; height:var(--reel); margin-block:0; }
+.slot[data-slot="text"] i::before { content:""; position:absolute;
+  left:0; top:calc(50% - .17em); width:100%; height:.34em;
+  background:var(--line); transform-origin:left center; will-change:transform;
+  animation:type var(--spin) steps(1, end) infinite var(--phase); }
+.slot[data-slot="text"] i::after { content:""; position:absolute;
+  left:0; top:calc(50% - .42em); width:1px; height:.84em;
+  background:var(--mute); transform-origin:left center; will-change:transform;
+  animation:caret var(--spin) steps(1, end) infinite var(--phase); }
+/* 글자 수만큼 끊어 쓴다 — 한 칸씩 늘고, 사이에 쉬고, 다 쓰면 지운다. */
+@keyframes type {
+  0% { transform:scaleX(0); } 8% { transform:scaleX(.14); } 16% { transform:scaleX(.23); }
+  26% { transform:scaleX(.41); } 34% { transform:scaleX(.48); } 46% { transform:scaleX(.67); }
+  58% { transform:scaleX(.79); } 70%, 88% { transform:scaleX(.94); } 92%, 100% { transform:scaleX(0); }
+}
+@keyframes caret {
+  0% { transform:translateX(0); } 8% { transform:translateX(.98em); } 16% { transform:translateX(1.61em); }
+  26% { transform:translateX(2.87em); } 34% { transform:translateX(3.36em); } 46% { transform:translateX(4.69em); }
+  58% { transform:translateX(5.53em); } 70%, 88% { transform:translateX(6.58em); }
+  92%, 100% { transform:translateX(0); }
+}
 
 @keyframes reel { from { transform:translateY(0); } to { transform:translateY(calc(var(--reel) * -10)); } }
 @keyframes reel-text { from { transform:translateY(0); } to { transform:translateY(calc(var(--reel) * -4)); } }
@@ -250,16 +270,22 @@ col.is-focus { border:2px solid var(--ink); }
 .big .slot i { width:.62em; }
 td .slot, th .slot { max-width:100%; }
 
-/* **모양이 계속 바뀌는 표식.**
+/* **모양이 계속 갈리는 표식.**
 
-   여기가 「가짜 값을 그리지 마라」와 부딪히는 것처럼 보이는 자리다. 빠져나가는 논리는
-   슬롯머신과 같다 — **읽을 수 있으려면 한 번은 서 있어야 하는데 이것은 멈추지 않는다.**
-   그리고 **눈금도 수도 붙이지 않는다** — 축에 숫자가 서는 순간 그 모양이 값이 된다.
+   여기가 「가짜 값을 그리지 마라」와 부딪히는 것처럼 보이는 자리다. 막아야 하는 것은
+   **값으로 읽히는 것**이지 움직임 자체가 아니다. 값이 되는 길은 둘뿐이라 둘을 막는다.
+
+   하나. **눈금도 수도 이름도 붙지 않는다.** 그것이 없으면 꺾은선 모양만으로는 어떤 값도
+   읽을 수 없다. 잠깐 서 있어도 읽을 것이 없다.
+
+   둘. **한 모양이 고정되지 않는다.** 고정되면 그것이 「이 subject 의 선」으로 읽힌다.
+   정지 구간이 있어도 **다음 것이 오면** 된다 — 오히려 통째로 갈리는 편이 「이건 값이 아니다」를
+   더 분명히 말한다.
 
    크기·순서도 말하지 않는다. 흔들리는 폭과 속도가 **모든 자리에서 같고** 시작점만 어긋난다.
    그래서 어느 막대가 긴지가 끊임없이 뒤집힌다 — 한 번도 고정되지 않는 순서는 순서가 아니다. */
 .track, .band { position:relative; overflow:hidden; }
-.wave { --pass:2600ms; }
+.wave { --pass:4000ms; }  /* 넷이 나눠 쓰므로 한 모양이 1초쯤 선다 */
 .track .wave { position:absolute; left:0; top:0; bottom:0; width:100%;
   background:var(--line); transform-origin:left center;
   animation:stretch var(--pass) ease-in-out infinite var(--phase); }
@@ -268,22 +294,31 @@ td .slot, th .slot { max-width:100%; }
   55% { transform:scaleX(.38); } 78% { transform:scaleX(.67); } 100% { transform:scaleX(.22); }
 }
 /* 띠는 **어디서 나뉠지**를 말한다. 마디가 흐르면서 조각 폭이 함께 바뀐다. */
-.band .wave { position:absolute; inset:0; background-repeat:repeat-x;
+/* 띠도 **transform 만 움직인다.** background-position 을 움직이면 매 프레임 다시 칠해져
+   막대·선과 달리 혼자 버벅인다. 마디는 미리 깔아 두고 그것을 밀고 늘인다. */
+.band .wave { position:absolute; left:0; top:0; bottom:0; width:250%;
+  background-repeat:repeat-x; background-size:14% 100%;
   background-image:linear-gradient(90deg, var(--line) 0 46%, transparent 46% 54%, var(--line) 54% 100%);
+  transform-origin:left center; will-change:transform;
   animation:split var(--pass) ease-in-out infinite var(--phase); }
 @keyframes split {
-  0% { background-size:70% 100%; background-position:0 0; }
-  50% { background-size:38% 100%; background-position:-34% 0; }
-  100% { background-size:70% 100%; background-position:-100% 0; }
+  0% { transform:translateX(0) scaleX(1); }
+  50% { transform:translateX(-21%) scaleX(.62); }
+  100% { transform:translateX(-42%) scaleX(1); }
 }
-/* 선은 흐르면서 **높이가 함께 바뀐다.** 마디가 축 폭과 맞아떨어져 이음매가 안 보인다. */
-svg.line .wave { fill:none; stroke:var(--line); stroke-width:1.5;
-  transform-box:view-box; transform-origin:center;
-  animation:flow var(--pass) linear infinite var(--phase); }
-@keyframes flow {
-  0% { transform:translateX(0) scaleY(1); }
-  50% { transform:translateX(276px) scaleY(.42); }
-  100% { transform:translateX(552px) scaleY(1); }
+/* 선은 **미리 그려 둔 꺾은선을 하나씩 갈아 끼운다.** 한 모양이 고정되면 그것이 「이 subject 의
+   선」으로 읽히지만, 1초쯤마다 통째로 갈리면 어느 것도 그렇게 읽히지 않는다. 게다가 눈금도
+   수도 이름도 없어 모양만으로는 어떤 값도 읽을 수 없다.
+
+   **바뀌는 것은 opacity 뿐**이다 — 층에서 도는 값이라 갈아 끼울 때 걸리지 않는다.
+   넷이 같은 시간표를 쓰고 **시작점만 넷으로 나뉜다.** */
+svg.line .wave { fill:none; stroke:var(--line); stroke-width:1.5; opacity:0;
+  will-change:opacity; animation:swap var(--pass) linear infinite var(--phase); }
+svg.line .wave:nth-child(2) { animation-delay:calc(var(--pass) / -4); }
+svg.line .wave:nth-child(3) { animation-delay:calc(var(--pass) / -2); }
+svg.line .wave:nth-child(4) { animation-delay:calc(var(--pass) / -4 * 3); }
+@keyframes swap {
+  0%, 21% { opacity:1; } 25%, 96% { opacity:0; } 100% { opacity:1; }
 }
 
 /* **움직임을 끈 사람에게는 조용한 자리가 선다.** 굴리던 것이 멈추는 것이 아니라 사라진다 —
@@ -301,6 +336,9 @@ svg.line .wave { fill:none; stroke:var(--line); stroke-width:1.5;
     -webkit-mask-image:none; mask-image:none; }
   /* **멈추는 것이 아니라 사라진다.** 멈춘 그림은 값처럼 읽힌다. 자·축·띠의 모양은 남는다. */
   .wave { display:none; }
+  /* 써 넣던 줄도 사라진다 — 멈춘 자리에서 **길이가 그대로 남으면 그 길이가 값이 된다.**
+     칸의 뿌연 바탕만 남아 「여기에 글이 온다」를 말한다. */
+  .slot[data-slot="text"] i::before, .slot[data-slot="text"] i::after { display:none; }
 }
 
 /* 틀이 아니라 자리다 */
