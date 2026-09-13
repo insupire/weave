@@ -26,7 +26,7 @@ const parseJson = (t) => JSON.parse(t);
 
 // ---------------------------------------------------------------- 재료
 
-/** 값 상태 조합의 fixture. primitive element 다섯을 전부 쓰고 채움·빔·섞임 한 벌씩.
+/** 값 상태 조합의 fixture. primitive element 를 전부 쓰고 채움·빔·섞임 한 벌씩.
  *  **subject 마다 값 한 벌이 정확히 하나 있다** — 그중 하나(proposal-b)가 전부 비어 있다. */
 const FIX = {
   template: read("tests/fixtures/ok/template.json"),
@@ -985,7 +985,7 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
   assert.ok(at > 0, "붙은 말이 있어야 한다");
   assert.ok(html.lastIndexOf('class="note-pop"', at) > html.lastIndexOf('class="body"', at),
     "필드에 붙은 말이 본문에 펼쳐져 있다");
-  // **다섯 element 가 모두 같다.** 겹치는 쪽만 본문 아래에 펴면 그것이 subject 주석처럼
+  // **모든 element 가 같다.** 겹치는 쪽만 본문 아래에 펴면 그것이 subject 주석처럼
   // 읽혀 순서가 둘이 된다 — 그 자리를 여기서 막는다.
   let checkedFields = 0;
   for (const doc of FIX.values) {
@@ -1024,7 +1024,7 @@ test("아이콘은 lucide 실물을 옮겨 온 것이다", () => {
   const src = fs.readFileSync(path.join(ROOT, "viewer/icons.mjs"), "utf-8");
   assert.match(src, /lucide-static@\d+\.\d+\.\d+/, "어느 버전에서 왔는지 적혀 있어야 한다");
   assert.match(src, /ISC/, "라이선스 고지");
-  // 갈래를 가리키는 것만 — 주석 넷과 primitive element 다섯.
+  // 갈래를 가리키는 것만 — 주석 갈래와 primitive element.
   assert.deepEqual(
     Object.keys(ICON).sort(),
     [...Object.keys(KIND_LABEL), ...Object.keys(ELEMENTS)].sort(),
@@ -1034,7 +1034,7 @@ test("아이콘은 lucide 실물을 옮겨 온 것이다", () => {
   for (const banned of ["banknote", "coins", "wallet", "hospital", "stethoscope", "receipt"]) {
     assert.ok(!src.includes(banned), `도메인 아이콘: ${banned}`);
   }
-  // 주석 넷은 통용되는 UI 시맨틱을 따른다 — 사람이 준 예 그대로.
+  // 주석 갈래는 통용되는 UI 시맨틱을 따른다 — 사람이 준 예 그대로.
   assert.ok(src.includes("circle-alert"), "주의는 warning 의 통용 표시다");
   assert.ok(src.includes("`info`"), "보충은 info 의 통용 표시다");
 });
@@ -1051,7 +1051,7 @@ test("주석 갈래를 정본 이름으로 부른다", () => {
 test("말은 데이터 뒤에 한자리에 모인다", () => {
   // facet 제목 → 본문 → facet 주석 → subject 주석. 예외를 두지 않는다 —
   // 읽는 규칙이 둘이면 매번 어디 있는지 찾게 된다.
-  // **다섯 element 에서 같은지 본다.** 하나만 보면 「몇몇은 또 그렇지 않다」를 못 잡는다.
+  // **모든 element 에서 같은지 본다.** 하나만 보면 「몇몇은 또 그렇지 않다」를 못 잡는다.
   // subject 도 옮겨 가며 본다 — 어느 조합에서도 규칙은 하나여야 한다.
   let checked = 0;
   for (const doc of FIX.values) {
@@ -1135,7 +1135,7 @@ test("짧은 선은 두 묶음 사이에만 선다", () => {
 
 test("subject 의 말은 언제나 고른 subject 것이다", () => {
   // **규칙이 하나다.** 겹쳐 그리든 하나만 그리든, 아래에 서는 subject 의 말은 고른 것뿐이다.
-  // element 로 갈리지 않으므로 다섯 자리에서 같은 것을 본다.
+  // element 로 갈리지 않으므로 모든 element 에서 같은 것을 본다.
   //
   // 판정이 실제로 무언가를 보는지부터 — 고정 케이스에 subject 마다 facet 주석이 있어야
   // 「남의 말이 빠졌는지」를 물을 수 있다. (없으면 빈 반복문이 초록으로 지나간다.)
@@ -1242,7 +1242,7 @@ test("평가를 시각으로 말하지 않는다", () => {
     assert.ok(TRACE.map((name) => `.trace-${name}`).includes(sel),
       `상태가 아닌 것에 선 색을 준다: ${sel}`);
   }
-  // 상태 선언은 셋뿐이고 이름이 렌더의 갈래와 같다 — 하나 더 끼워 넣을 자리가 없다.
+  // 상태 선언은 렌더의 갈래와 이름이 그대로 같다 — 하나 더 끼워 넣을 자리가 없다.
   const traces = [...css.matchAll(/\.trace-([a-z]+)\s*\{\s*--trace:/g)].map((m) => m[1]);
   assert.deepEqual(traces, TRACE, "선 갈래 선언이 렌더의 갈래와 다르다");
 
@@ -1284,7 +1284,7 @@ test("평가를 시각으로 말하지 않는다", () => {
   assert.ok(!/\.note \.text \{[^}]*var\(--kind/.test(css), "갈래 색이 글까지 물들인다");
   assert.ok(!/\.big \{[^}]*var\(--kind/.test(css) && !/\.val \{[^}]*var\(--kind/.test(css),
     "갈래 색이 값까지 물들인다");
-  // 갈래 넷이 모두 그려진다.
+  // 갈래가 모두 그려진다.
   const icons = [...fix().html.matchAll(/<svg class="kind-icon note-([a-z]+)"/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(icons)].sort(), [...kinds].sort());
 
@@ -1620,7 +1620,7 @@ test("타입마다 표시 단위가 있다", () => {
   ];
   for (const [type, value, shown] of cases) assert.equal(formatScalar(type, value), shown, `${type} ${value}`);
   // **어휘가 닫혀 있다.** 표시 단위를 자유 글로 열면 「1위」·「A등급」이 들어온다 —
-  // 그래서 단위가 필요하면 타입을 더한다. 스키마의 여덟 아닌 것이 여기 서면 걸린다.
+  // 그래서 단위가 필요하면 타입을 더한다. 스키마에 없는 것이 여기 서면 걸린다.
   const enums = read("schema/weave-common.schema.json").$defs.Type.enum;
   assert.deepEqual([...new Set(cases.map((one) => one[0]))].sort(), [...enums].sort());
   assert.notEqual(formatScalar("multiple", 4.9), formatScalar("ratio", 4.9));
@@ -1968,7 +1968,7 @@ test("샘플을 다 합치면 primitive element 를 전부 쓴다", () => {
     Object.keys(ELEMENTS).sort(), "고정 케이스가 어휘를 다 쓰지 않는다");
 });
 
-test("샘플 넷이 전부 그려지고 아무것도 던지지 않는다", () => {
+test("샘플이 전부 그려지고 아무것도 던지지 않는다", () => {
   for (const name of sampleNames) {
     const { html, report } = drawSample(sample(name));
     assert.ok(html.length > 300, name);

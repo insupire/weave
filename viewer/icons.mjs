@@ -6,8 +6,8 @@
 //   다시 받기 npm pack lucide-static@1.44.0 로 풀어 icons/ 에서 아래 이름을 꺼낸다
 //
 // CDN 도 아이콘 폰트도 쓰지 않는다 — 파일 하나로 열려야 하므로 여기 인라인한다.
-// 주석 넷은 **통용되는 UI 시맨틱**을 따른다 — 주의는 warning, 보충은 info.
-// primitive element 일곱은 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
+// 주석 갈래는 **통용되는 UI 시맨틱**을 따른다 — 주의는 warning, 보충은 info.
+// primitive element 는 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
 
 export const LUCIDE_VERSION = "1.44.0";
 

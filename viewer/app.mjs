@@ -13,7 +13,7 @@ import { ICON } from "./icons.mjs";
 const $ = (id) => document.getElementById(id);
 
 // 목차의 primitive element 표시. **구조를 가리킬 뿐 도메인을 가리키지 않는다** —
-// 돈·병원·서류 같은 그림을 두지 않는다. 다섯이 같은 크기·같은 선 굵기다.
+// 돈·병원·서류 같은 그림을 두지 않는다. 전부 같은 크기·같은 선 굵기다.
 function elementIcon(id) {
   const body = ICON[id];
   if (!body) return "";

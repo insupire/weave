@@ -540,8 +540,8 @@ td .note .kind { display:inline; margin-right:5px; line-height:inherit; }
 //   다시 받기 npm pack lucide-static@1.44.0 로 풀어 icons/ 에서 아래 이름을 꺼낸다
 //
 // CDN 도 아이콘 폰트도 쓰지 않는다 — 파일 하나로 열려야 하므로 여기 인라인한다.
-// 주석 넷은 **통용되는 UI 시맨틱**을 따른다 — 주의는 warning, 보충은 info.
-// primitive element 일곱은 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
+// 주석 갈래는 **통용되는 UI 시맨틱**을 따른다 — 주의는 warning, 보충은 info.
+// primitive element 는 구조를 가리킨다. 도메인(돈·병원·서류) 그림은 두지 않는다.
 
 const LUCIDE_VERSION = "1.44.0";
 
@@ -584,7 +584,7 @@ const ICON = {
 // 자리를 표시하고 무엇이 이상한지 적기만 한다.
 
 
-// 주석 갈래 넷의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
+// 주석 갈래의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
 // 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
 const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
 
@@ -848,7 +848,7 @@ function drawCell(report, where, decl, value) {
   return esc(shown);
 }
 
-// ---------------------------------------------------------------- primitive element 다섯
+// ---------------------------------------------------------------- primitive element
 
 // ---------------------------------------------------------------- 비교하는 법 둘
 //
@@ -931,7 +931,7 @@ function oneRead(ctx, facet, decl, subject) {
   return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen) };
 }
 
-// ---------------------------------------------------------------- primitive element 다섯
+// ---------------------------------------------------------------- primitive element
 
 /** 값 하나를 크게. focus 가 고른 subject 의 것을 그린다. */
 function stat(ctx, facet) {
@@ -2560,7 +2560,7 @@ const PAGES = [
 const $ = (id) => document.getElementById(id);
 
 // 목차의 primitive element 표시. **구조를 가리킬 뿐 도메인을 가리키지 않는다** —
-// 돈·병원·서류 같은 그림을 두지 않는다. 다섯이 같은 크기·같은 선 굵기다.
+// 돈·병원·서류 같은 그림을 두지 않는다. 전부 같은 크기·같은 선 굵기다.
 function elementIcon(id) {
   const body = ICON[id];
   if (!body) return "";

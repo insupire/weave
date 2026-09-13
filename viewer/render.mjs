@@ -12,7 +12,7 @@
 
 import { ICON } from "./icons.mjs";
 
-// 주석 갈래 넷의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
+// 주석 갈래의 **정본 이름**이다(glossary §2.4). 참조 뷰어는 언어를 배우는 자리라
 // 읽기 좋은 딴 이름을 쓰지 않는다 — 제품 화면의 라벨은 앱이 따로 정한다.
 export const KIND_LABEL = { quote: "인용", tip: "팁", note: "보충", caution: "주의" };
 
@@ -276,7 +276,7 @@ function drawCell(report, where, decl, value) {
   return esc(shown);
 }
 
-// ---------------------------------------------------------------- primitive element 다섯
+// ---------------------------------------------------------------- primitive element
 
 // ---------------------------------------------------------------- 비교하는 법 둘
 //
@@ -359,7 +359,7 @@ function oneRead(ctx, facet, decl, subject) {
   return { subject, ...cell(ctx.byId.get(subject.id), facet.id, decl, ctx.chosen) };
 }
 
-// ---------------------------------------------------------------- primitive element 다섯
+// ---------------------------------------------------------------- primitive element
 
 /** 값 하나를 크게. focus 가 고른 subject 의 것을 그린다. */
 function stat(ctx, facet) {

@@ -1,6 +1,6 @@
 """샘플과 primitive element 카탈로그의 고정 케이스.
 
-샘플은 **템플릿 샘플**이다 — 분석뷰를 어떻게 짤 수 있는지를 넷으로 보인다. 가르는 축은
+샘플은 **템플릿 샘플**이다 — 분석뷰를 어떻게 짤 수 있는지를 여럿으로 보인다. 가르는 축은
 템플릿의 짜임이지 값의 상태가 아니다. 값 상태 조합의 판정은 `tests/fixtures/ok/` 를 쓰는
 `tests/viewer.test.mjs` 가 갖는다.
 
@@ -338,9 +338,13 @@ class CountsAreNotWrittenOutInProse(unittest.TestCase):
     """**닫힌 어휘의 개수를 글로 적지 않는다.**
 
     적으면 어휘가 늘 때 두 군데를 고쳐야 하고, 한쪽이 빠지면 문서가 조용히 거짓말을 한다.
-    실제로 그렇게 굳어 있었다 — 설명서에 「타입 여덟」이라 적혀 있었지만 아홉이었고,
-    「아이콘 아홉」은 열하나였다. **수를 고치는 것이 아니라 걷는 것이 고침이다** — 고쳐 봐야
-    다음에 또 갈린다.
+    실제로 그렇게 굳어 있었다 — 설명서가 적어 둔 타입의 개수는 실제보다 하나 적었고,
+    아이콘의 개수는 둘이나 적었으며, 렌더 주석의 primitive element 개수는 옛 수 그대로였다.
+    **수를 고치는 것이 아니라 걷는 것이 고침이다** — 고쳐 봐야 다음에 또 갈린다.
+
+    **찾는 꼴을 이 파일에 통째로 적지 않는다** — 적으면 스스로 걸린다. 예외를 두면
+    「저장소에 그런 자리가 없다」가 더는 참이 아니게 되므로, 형제 저장소 이름을 막는
+    판정과 같이 조각으로 이어 붙인다.
 
     수가 없어도 뜻이 사는 문장이면 걷는다. 「고를 것이 여섯이면 값도 여섯이다」처럼
     **수 자체가 예시인 문장**은 어휘의 개수가 아니므로 여기 걸리지 않는다.
@@ -349,14 +353,32 @@ class CountsAreNotWrittenOutInProse(unittest.TestCase):
     WORDS = "둘|셋|넷|다섯|여섯|일곱|여덟|아홉|열"
     # 개수의 정본이 있는 어휘만 본다. 정본이 없으면 판정이 무엇과 견줄지 모른다.
     TERMS = ["타입", "모양", "primitive element", "주석 갈래"]
-    WHERE = ["AGENTS.md", "docs/weave.md", "catalog/elements.json", "catalog/guide.json"]
+    # **글이 있는 자리는 전부 본다.** 문서만 막으면 「왜 여기만 막나」가 나오고 코드 쪽은
+    # 계속 갈린다. 코드를 고치러 온 사람이 제일 먼저 읽는 것이 주석이다.
+    #
+    # **자리를 손으로 적지 않고 찾는다.** 적어 두면 한 줄 지워 훑는 범위를 줄일 수 있고,
+    # 그러면 판정이 조용히 좁아진다 — 이 판정이 막으려는 병과 같은 꼴이다.
+    SKIP = {".git", ".venv", "__pycache__", "node_modules"}
+    SUFFIXES = {".md", ".json", ".mjs", ".js", ".py", ".css", ".yml", ".html"}
+
+    def _texts(self) -> dict[str, str]:
+        out = {}
+        for path in ROOT.rglob("*"):
+            if not path.is_file() or set(path.relative_to(ROOT).parts) & self.SKIP:
+                continue
+            if path.suffix not in self.SUFFIXES:
+                continue
+            try:
+                out[str(path.relative_to(ROOT))] = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+        return out
 
     def test_no_closed_vocabulary_is_counted_in_words(self) -> None:
         import re
 
         hits = []
-        for name in self.WHERE:
-            text = (ROOT / name).read_text(encoding="utf-8")
+        for name, text in self._texts().items():
             for term in self.TERMS:
                 for pattern in (rf"{re.escape(term)}\s*(?:는|은|이|가)?\s*({self.WORDS})",
                                 rf"({self.WORDS})\s+{re.escape(term)}\b"):
@@ -371,17 +393,24 @@ class CountsAreNotWrittenOutInProse(unittest.TestCase):
 
         # `\b` 는 한글 뒤에 서지 않는다 — 「다섯이고」에는 경계가 없어 그것을 믿으면 판정이 눈을 감는다.
         pattern = rf"primitive element\s*(?:는|은|이|가)?\s*({self.WORDS})"
-        self.assertTrue(re.search(pattern, "primitive element 는 다섯이고"), "패턴이 안 문다")
-        self.assertTrue(re.search(rf"({self.WORDS})\s+primitive element\b", "다섯 primitive element"))
-        # 수가 예시인 문장은 안 문다 — 그것까지 막으면 쓸 수 있는 말이 줄어든다.
-        self.assertIsNone(re.search(pattern, "고를 것이 여섯이면 값도 여섯이다"))
-        # **훑는 범위가 비면 위 판정은 아무것도 안 보고 통과한다.** 어휘와 자리가 살아 있는지 본다.
+        # 미끼는 **조각으로 잇는다** — 통째로 적으면 이 파일이 스스로 걸린다.
+        bait = "primitive element 는 " + "다" + "섯이고"
+        self.assertTrue(re.search(pattern, bait), "패턴이 안 문다")
+        self.assertTrue(re.search(rf"({self.WORDS})\s+primitive element\b", "다" + "섯 primitive element"))
+        # **수가 예시이거나 실제 값인 자리는 안 문다** — 그것까지 막으면 쓸 수 있는 말이 줄어든다.
+        for safe in ["고를 것이 여섯이면 값도 여섯이다", "주석을 아홉 개 단다",
+                     "색이 나오는 자리는 둘뿐이다", "세 갈래를 보려면 선이 셋이어야 한다"]:
+            for one in (pattern, rf"({self.WORDS})\s+primitive element\b"):
+                self.assertIsNone(re.search(one, safe), safe)
+        # **훑는 범위가 좁아지면 위 판정은 조용히 눈을 감는다.** 어휘와 자리가 살아 있는지 본다.
         self.assertGreaterEqual(len(self.TERMS), 4, "볼 어휘가 없다")
-        self.assertGreaterEqual(len(self.WHERE), 4, "훑을 자리가 없다")
-        texts = {}
-        for name in self.WHERE:
-            self.assertTrue((ROOT / name).exists(), name)
-            texts[name] = (ROOT / name).read_text(encoding="utf-8")
+        texts = self._texts()
+        # 글이 사는 자리 — 문서·렌더·앱·아이콘·고정 케이스·도구가 전부 훑기에 들어야 한다.
+        for name in ("AGENTS.md", "docs/weave.md", "catalog/elements.json",
+                     "viewer/render.mjs", "viewer/app.mjs", "viewer/icons.mjs",
+                     "tests/viewer.test.mjs", "tests/test_samples.py", "tools/catalog.py"):
+            self.assertIn(name, texts, f"훑기가 {name} 를 안 본다")
+        self.assertGreater(len(texts), 30, "훑은 파일이 너무 적다")
         # 어휘가 그 자리에 실제로 쓰이는 말인지 — 죽은 글자를 훑으면 영원히 아무것도 못 찾는다.
         for term in self.TERMS:
             self.assertTrue(any(term in text for text in texts.values()), f"쓰이지 않는 말을 훑는다: {term}")
