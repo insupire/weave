@@ -247,9 +247,12 @@ function slot(said = "값이 올 자리", type = "text", big = false) {
     `role="img" aria-label="${esc(said)}">${reels}${tail}</span>`;
 }
 
-/** 축과 띠 위를 **지나가는 표식**. 자리가 어디까지 뻗는지만 말하고 크기는 말하지 않는다. */
-function sweep() {
-  return `<span class="sweep" aria-hidden="true"></span>`;
+/**
+ * **모양이 계속 바뀌는 표식.** 자와 띠가 어디까지 뻗는지만 말하고 크기는 말하지 않는다.
+ * 무엇으로 바뀌는지는 뷰어가 정한다 — 여기엔 시간도 프레임도 없다.
+ */
+function wave() {
+  return `<span class="wave" aria-hidden="true"></span>`;
 }
 
 /** 모른다는 **표기**. 왜 없는지는 주석이 글로 말한다. */
@@ -421,7 +424,7 @@ function bars(ctx, facet) {
   if (ctx.subjects.length === 0) {
     return facet.fields.map((decl) =>
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}${hintMark(decl)}</span>` +
-      `<span class="track">${sweep()}</span>` +
+      `<span class="track">${wave()}</span>` +
       `<span class="val">${slot("값이 올 자리", decl.type)}</span></div>`).join("");
   }
   const subject = shownOf(ctx);
@@ -509,7 +512,7 @@ function line(ctx, facet) {
   // **축만 남는다.** 값이 없으면 눈금도 없다 — 눈금을 지어내면 그것이 가짜 값이다.
   // 두 축이 서는 것만으로 「여기에 선이 그려진다」가 읽힌다.
   const body = ctx.subjects.length === 0
-    ? `<div class="chart-scroll">${emptyAxes()}</div>`
+    ? `<div class="chart-scroll">${emptyAxes(facet.id)}</div>`
     : series.length
       ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
       : `<div class="blank">${missMark()}</div>`;
@@ -526,15 +529,29 @@ function line(ctx, facet) {
   );
 }
 
-/** 아직 아무도 오지 않은 축. 눈금도 선도 없다 — 자리만 있다. */
-function emptyAxes() {
+/**
+ * 아직 아무도 오지 않은 축. **눈금도 수도 없다** — 축에 숫자가 서는 순간 그 모양이 값이 된다.
+ *
+ * 축 위에 선 하나가 흐른다. 이것이 값으로 읽히지 않는 까닭은 슬롯머신과 같다 —
+ * **멈추지 않고 계속 바뀌기 때문**이다. 읽을 수 있으려면 한 번은 서 있어야 한다.
+ * 파형의 마디가 축 폭과 맞아떨어져 흘러도 이음매가 안 보인다.
+ */
+function emptyAxes(facetId) {
   const W = 760, H = 240, L = 78, R = 130, T = 18, B = 34;
+  const mid = (T + H - B) / 2, span = W - R - L, step = span / 4;
+  // 마디 하나를 더 그려 왼쪽으로 한 마디 흘려도 빈자리가 안 생긴다.
+  let d = `M ${L - span} ${mid}`;
+  for (let i = 0; i < 8; i += 1) {
+    const x = L - span + step * (i + 1);
+    d += ` Q ${x - step / 2} ${mid + (i % 2 ? 62 : -62)} ${x} ${mid}`;
+  }
   return (
     `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
+    // 한 화면에 line facet 이 둘일 수 있다 — id 는 facet 마다 갈린다.
+    `<clipPath id="plot-${esc(facetId)}"><rect x="${L}" y="${T}" width="${span}" height="${H - B - T}"/></clipPath>` +
+    `<g clip-path="url(#plot-${esc(facetId)})"><path class="wave" d="${d}"/></g>` +
     `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
-    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/>` +
-    // 가로축을 따라 지나가는 표식. **높이를 말하지 않는다** — 값이 어디에 설지는 아직 없다.
-    `<line class="sweep" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
   );
 }
 
@@ -619,13 +636,14 @@ function list(ctx, facet) {
   // list 는 값이 subject 열에 선다 — 값 주석 표시는 그 열 머리로 간다.
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>`;
   // **열은 subject 가 만든다.** 아직 아무도 없으니 키 열만 서고 그 옆 한 칸이
-  // 「제안서가 오면 여기에 한 열씩 선다」는 자리로 비어 있는다. 이름을 지어내지 않는다.
+  // 「subject 가 오면 여기에 한 열씩 선다」는 자리로 비어 있는다. 이름을 지어내지 않는다.
+  // **도메인 말을 쓰지 않는다** — 이 글은 산출물에 실려 나가는 계약 면이다.
   if (ctx.subjects.length === 0) {
     return (
       label +
       `<div class="table-scroll"><table class="items"><colgroup><col><col></colgroup>` +
       `<thead><tr><th class="corner">${esc(key.label ?? key.key)}</th>` +
-      `<th>${slot("제안서가 올 자리", key.type)}</th></tr></thead>` +
+      `<th>${slot("subject 가 올 자리", key.type)}</th></tr></thead>` +
       `<tbody><tr><th class="row-label" scope="row">${slot("항목이 올 자리", key.type)}</th>` +
       `<td>${rest.map((c) => slot("값이 올 자리", c.type)).join("") || slot()}</td>` +
       `</tr></tbody></table></div>`
@@ -752,7 +770,7 @@ function parts(ctx, facet) {
   const [name, share] = columns;
   // **빈 띠가 자리를 말한다.** 조각의 이름은 값이 갖고 오는 것이라 지어내지 않는다.
   if (ctx.subjects.length === 0) {
-    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${sweep()}</div>`;
+    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${wave()}</div>`;
   }
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 

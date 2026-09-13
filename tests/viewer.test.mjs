@@ -247,14 +247,20 @@ test("걷어낸 것들은 화면 상태로 나가 뷰어가 바깥에 적는다"
 });
 
 test("primitive element 는 이름표가 아니라 구조로 남는다", () => {
-  // 뷰어가 켜면 CSS 가 data-element 를 읽어 이름을 붙인다. 렌더가 낸 글은 그대로다.
+  // **이름은 기본으로 보인다.** 켜고 끄는 것을 걷었다 — 설명서가 쪽마다 원소를 설명하므로
+  // facet 마다 이름이 서면 둘이 이어지고, 「없으면 못 하는 일이 있는가」에 답이 「아니오」였다.
+  // 그래도 **렌더가 낸 글은 그대로다** — CSS 가 data-element 를 읽어 붙인다.
   const { html } = fix();
   for (const facet of FIX.template.facets) {
     assert.ok(html.includes(`<h2 data-element="${facet.element}">`), facet.id);
     assert.ok(html.includes(`element-${facet.element}`), facet.id);
   }
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
-  assert.match(css, /\.show-elements h2\[data-element\]::after \{ content:attr\(data-element\)/);
+  assert.match(css, /\.viewport h2\[data-element\]::after \{ content:attr\(data-element\)/);
+  // 켜는 길이 사라졌으므로 켜고 끄던 자리도 남아 있으면 안 된다.
+  assert.ok(!css.includes(".show-elements"), "켜고 끄던 자리가 남았다");
+  const app = fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8");
+  assert.ok(!app.includes("showElements"), "앱이 아직 켜고 끈다");
 });
 
 // ---------------------------------------------------------------- 값 상태
@@ -679,6 +685,10 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
   // 움직임은 여기 없다 — 아래 「움직임은 뷰어가 얹는다」가 그 선을 따로 본다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   assert.match(css, /\.slot i \{[^}]*background/, "릴이 모양을 안 갖고 있다");
+  // **잘린 글리프를 보이지 않는다.** 칸을 넘치게 두고 가장자리를 마스크로 지운다 —
+  // 자르면 반 토막 난 숫자가 보이고, 그것은 자리가 아니라 흠으로 읽힌다.
+  assert.match(css, /\.slot i \{[^}]*mask-image:linear-gradient/, "릴이 잘린 채로 보인다");
+  assert.match(css, /\.slot i \{[^}]*height:calc\(var\(--reel\) \* 2\)/, "칸이 넘치지 않아 잘린다");
 
   // stat — 수 하나가 크게 설 자리를 그 크기 그대로 비운다.
   assert.match(at("stat"), /class="big"/);
@@ -703,9 +713,15 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
   const chart = at("line").match(/<svg class="line"[\s\S]*?<\/svg>/)?.[0];
   assert.ok(chart, "선이 설 자리가 없다");
   assert.equal((chart.match(/class="axis"/g) ?? []).length, 2, "축 둘만 선다");
-  for (const drawn of ["<path", "<circle", "series-label", "class=\"tick"]) {
+  // **눈금도 수도 없다.** 축에 숫자가 서는 순간 그 모양이 값이 된다 — 그림 안에 글자가 없다.
+  for (const drawn of ["<circle", "series-label", "class=\"tick", "<text"]) {
     assert.ok(!chart.includes(drawn), `선 위에 무언가 그렸다: ${drawn}`);
   }
+  assert.ok(!/>[^<]*[0-9][^<]*</.test(chart), "그림 안에 수가 섰다");
+  // 그려진 선은 **모양이 바뀌는 표식 하나뿐**이다. 값에서 온 선이 끼면 여기서 걸린다.
+  const paths = [...chart.matchAll(/<path[^>]*>/g)].map((m) => m[0]);
+  assert.equal(paths.length, 1, `선이 여럿이다: ${paths.length}`);
+  assert.match(paths[0], /class="wave"/, "값에서 온 선이 섰다");
 
   // list — 열은 subject 가 만든다. 키 열만 서고 그 옆이 「제안서가 오면 여기」라는 자리다.
   const items = at("list");
@@ -750,8 +766,8 @@ test("움직임은 뷰어가 얹는다 — 산출물에는 한 글자도 없다"
   // 표식은 있어야 한다 — 없으면 뷰어가 굴릴 것이 없고 위 판정은 공짜로 통과한다.
   const zero = drawn[0];
   assert.match(zero, /class="slot[ "]/, "굴릴 자리 표식이 없다");
-  assert.match(zero, /class="sweep"/, "지나갈 표식이 없다");
-  assert.match(zero, /<line class="sweep"/, "축 위를 지나갈 표식이 없다");
+  assert.match(zero, /class="wave"/, "모양이 바뀔 표식이 없다");
+  assert.match(zero, /<path class="wave"/, "축 위에 흐를 표식이 없다");
 
   // **굴리는 쪽은 스타일시트 하나뿐이다.** 앱 스크립트가 몰래 굴리면 그것도 산출물의 움직임이다.
   const app = fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8");
@@ -772,6 +788,17 @@ test("읽을 수 있는 정지 숫자를 두지 않는다", () => {
   }
   // 단위는 값이 아니다. 숫자가 없으므로 정지해 있어도 값으로 읽히지 않는다.
   assert.match(html, /class="slot-unit">개월</, "기간 자리가 기간인 줄 모른다");
+
+  // **산출물이 도메인을 모른다.** 자리에 적히는 말과 표기는 렌더가 스스로 내는 글이라
+  // 값에서 오지 않는다 — 여기에 보험 말이 섞이면 다른 상품군에서 다시 못 쓴다(규칙 1).
+  // 주석은 보지 않는다. 주석은 보기를 들 수 있고 화면으로 나가지 않는다.
+  const source = fs.readFileSync(path.join(ROOT, "viewer/render.mjs"), "utf-8");
+  const said = [...source.matchAll(/\bslot\(\s*"([^"]*)"/g)].map((m) => m[1])
+    .concat([NO_VALUE, NO_ITEM, NO_ITEMS, UNDRAWABLE, NO_VALUE_MARK]);
+  assert.ok(said.length >= 4, "렌더가 스스로 내는 글을 못 찾았다 — 판정이 헛돈다");
+  for (const word of ["보험", "제안서", "담보", "약관", "설계안", "가입"]) {
+    for (const one of said) assert.ok(!one.includes(word), `산출물에 도메인 말이 섰다: ${one}`);
+  }
 
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   // 숫자를 내는 자리는 **도는 릴 하나뿐**이고, 멈추면 그 글자가 사라진다.
@@ -809,7 +836,8 @@ test("움직임을 끈 사람에게도 자리가 선다", () => {
     assert.ok(covered, `멈춘 릴에 숫자가 남는다 — 같은 선택자로 덮지 않았다: ${one}`);
   }
   assert.match(body, /animation:none/, "릴이 안 멈춘다");
-  assert.match(body, /\.sweep \{[^}]*display:none/, "지나가는 표식이 안 멈춘다");
+  // **멈추는 것이 아니라 사라진다.** 멈춘 그림은 값처럼 읽힌다.
+  assert.match(body, /\.wave \{[^}]*display:none/, "모양이 바뀌는 표식이 안 사라진다");
   // 그래도 「여기 값이 온다」가 읽혀야 한다 — 릴 상자의 모양은 그대로 남는다.
   assert.match(body, /\.slot i \{[^}]*background:var\(--surface\)/, "조용한 자리가 안 보인다");
   // 모양을 내는 것은 산출물 쪽(릴 수 · 단위 · 자 · 축)이라 움직임을 꺼도 그대로 선다.
@@ -822,11 +850,13 @@ test("움직임을 끈 사람에게도 자리가 선다", () => {
   // 속도를 적는 자리를 세는 것으로는 모자란다 — 어디에 적히든 `--spin` 하나에서만 나와야 한다.
   // **주석을 걷고 센다** — 주석이 선택자에 붙어 오면 이름으로 거르는 판정이 전부 헛돈다.
   let spun = 0;
+  let waved = 0;
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const [, sel, rule] of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
     const name = sel.trim();
-    // 자리와 지나가는 표식을 건드리는 규칙은 **어느 이름으로 적혔든** 잡는다.
-    if (!/\.slot|\.sweep/.test(name)) continue;
+    // 자리와 그림 표식을 건드리는 규칙은 **어느 이름으로 적혔든** 잡는다.
+    if (!/\.slot|\.wave/.test(name)) continue;
+    if (/\.wave/.test(name) && /animation/.test(rule)) waved += 1;
     const timed = rule.match(/animation(?:-duration)?:\s*([^;]+)/);
     if (timed) {
       // 릴은 `--spin`, 지나가는 표식은 `--pass`. **갈래마다 하나뿐**이라 인스턴스가 못 흔든다.
@@ -847,6 +877,9 @@ test("움직임을 끈 사람에게도 자리가 선다", () => {
     }
   }
   assert.ok(spun >= 1, "도는 자리를 하나도 못 찾았다 — 판정이 헛돈다");
+  // **표식 이름을 바꾸면 판정이 조용히 좁아진다.** 실제로 `.sweep` 을 찾던 채로 남아
+  // 그림 쪽 규칙을 한동안 안 보고 있었다. 두 갈래를 다 보고 있는지 여기서 못 박는다.
+  assert.ok(waved >= 3, `그림 표식을 못 찾았다 — 판정이 헛돈다: ${waved}`);
 });
 
 test("subject 0 에서도 고르는 자리는 서고 focus 는 가리킬 것이 없어도 안 무너진다", () => {
@@ -2071,7 +2104,14 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   await import(pathToFileURL(file).href);
 
   // 설명서가 상위다 — 열면 설명서가 서고 플레이그라운드는 목차의 한 자리다.
-  assert.ok(nodes.get("toc").children.length >= PAGES.length, "목차가 서야 한다");
+  // **머리글은 여럿을 묶을 때만 선다.** 하나뿐인 묶음에 머리글을 얹으면 이름을 두 번 적는다.
+  const sizes = new Map();
+  for (const page of PAGES) sizes.set(page.group, (sizes.get(page.group) ?? 0) + 1);
+  const heads = [...sizes.values()].filter((n) => n > 1).length;
+  assert.ok([...sizes.values()].some((n) => n === 1), "하나뿐인 묶음이 있어야 이 규칙을 잰다");
+  assert.ok(heads >= 1, "여럿인 묶음이 있어야 머리글이 서는 쪽도 잰다");
+  assert.equal(nodes.get("toc").children.length, PAGES.length + heads, "목차의 머리글 수가 다르다");
+  assert.equal(nodes.get("toc").children.filter((c) => c.className === "group").length, heads);
   assert.ok(nodes.get("page").innerHTML.includes(PAGES[0].title), "첫 쪽이 그려져야 한다");
   assert.equal(nodes.get("page").hidden, false);
   assert.equal(nodes.get("playground").hidden, true, "플레이그라운드는 고른 뒤에 선다");
@@ -2130,13 +2170,16 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   for (const gone of ["focus-free", 'class="legend"', 'id="status"', 'id="about"', "명단"]) {
     assert.ok(!markup.includes(gone), `걷어낸 것이 돌아왔다: ${gone}`);
   }
-  // 명단은 사람이 JSON 으로 쓰는 탭이 아니라 화면의 동작이다.
-  assert.ok(markup.includes('id="add-subject"') && markup.includes('id="drop-subject"'));
+  // 명단은 사람이 JSON 으로 쓰는 탭이 아니라 화면의 동작이다. **그 동작이 탭 줄로 들어갔다** —
+  // 브라우저가 하는 그대로라 툴바의 단추 둘이 빠지고 그 줄이 짧아졌다.
+  assert.ok(!markup.includes('id="add-subject"') && !markup.includes('id="drop-subject"'),
+    "툴바에 단추가 남았다");
   for (const tab of nodes.get("tabs").children) assert.ok(!String(tab.innerHTML).includes("명단"));
 
   // **탭은 값 한 벌마다 하나다.** subject 마다 값 한 벌이 정확히 하나이므로 탭이 곧 subject 다.
   const sample0 = sample(sampleNames[0]);
-  const tabNames = () => nodes.get("tabs").children.map((t) => String(t.innerHTML));
+  const slots = () => nodes.get("tabs").children.filter((t) => t.className === "tab-slot");
+  const tabNames = () => slots().map((t) => String(t.children[0].innerHTML));
   assert.equal(tabNames().length, sample0.values.length + 1, "템플릿 하나 + 값 한 벌마다 하나");
   for (const doc of sample0.values) {
     assert.ok(tabNames().some((n) => n.includes(doc.subjectLabel ?? doc.subjectId)), `탭이 없다: ${doc.subjectId}`);
@@ -2146,9 +2189,19 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   assert.ok(!markup.includes("no-values") && !markup.includes("drop-values"),
     "값 한 벌만 지우고 만드는 길이 되살아났다");
 
-  const click = (id) => nodes.get(id)._on.click();
-  const seats = () => nodes.get("focus-buttons").children.length; // none + 자리들
-  const tabs = () => nodes.get("tabs").children.length; // 템플릿 + 값 한 벌마다 하나
+  // **탭 줄 끝이 새 탭을 열고, 탭마다 닫는 자리가 있다.** 브라우저가 하는 그대로다.
+  const addTab = () => nodes.get("tabs").children.find((t) => t.className === "tab-add");
+  const closeOf = (slot) => slot.children.find((c) => c.className === "tab-x");
+  const seats = () => nodes.get("focus-buttons").children.length; // 아무도 없을 때 + 자리들
+  const tabs = () => slots().length; // 템플릿 + 값 한 벌마다 하나
+  // 처음에는 템플릿 탭이 고른 것이 아니다 — 샘플을 올리면 첫 탭(템플릿)이 선다.
+  const state0Closable = slots().filter((one) => closeOf(one)).length;
+  assert.ok(state0Closable <= 1, "닫는 자리가 여럿 섰다");
+  assert.ok(addTab(), "새 탭을 여는 자리가 없다");
+  // **템플릿 탭은 닫히지 않는다** — subject 가 아니다.
+  assert.equal(closeOf(slots()[0]), undefined, "템플릿 탭에 닫는 자리가 섰다");
+  // 닫는 자리는 **지금 고른 탭에만** 선다 — 좁은 화면에서 고르려다 닫는 일을 줄인다.
+
   const blanks = () => (nodes.get("view").innerHTML.match(new RegExp(NO_VALUE, "g")) ?? []).length;
   const before = seats();
   const beforeTabs = tabs();
@@ -2157,7 +2210,7 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   // **더하고 지우는 것은 subject 하나뿐이다.** 더하면 전부 비어 있는 값 한 벌이 생긴다 —
   // 그것이 「아직 분석하지 않았다」를 만드는 길이다.
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"), "새 자리는 아직 없다");
-  click("add-subject");
+  addTab()._on.click();
   assert.equal(seats(), before + 1, "자리가 하나 늘어야 한다");
   assert.equal(tabs(), beforeTabs + 1, "탭이 함께 생겨야 한다");
   assert.ok(nodes.get("view").innerHTML.includes(">subject-"), "새 자리가 분석뷰에 서야 한다");
@@ -2168,8 +2221,10 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   assert.ok(Object.values(made.facets).every((f) => (f.notes ?? []).length > 0),
     "왜 비었는지 주석이 말해야 한다");
 
-  // 지우는 길은 하나다.
-  click("drop-subject");
+  // 지우는 길은 하나다 — 지금 고른 탭의 닫는 자리다.
+  const here = slots().find((one) => closeOf(one));
+  assert.ok(here, "고른 탭에 닫는 자리가 없다");
+  closeOf(here)._on.click();
   assert.equal(seats(), before, "자리가 도로 줄어야 한다");
   assert.equal(tabs(), beforeTabs, "탭도 도로 줄어야 한다");
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"));

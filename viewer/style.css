@@ -112,7 +112,7 @@ label:has(input) { display:inline-flex; align-items:center; gap:5px; }
 /* 탭은 고른 것을 **굵기와 색조**로 말한다. 밑줄도 상자도 두르지 않는다 —
    밑줄로 활성을 말하는 것은 왼쪽 띠를 아래로 옮긴 것뿐이다.
    `.tabs` 의 아래 선은 활성 표시가 아니라 편집기와의 판 구분선이다. */
-.tabs { display:flex; flex-wrap:wrap; gap:2px; align-items:baseline;
+.tabs { display:flex; flex-wrap:wrap; gap:2px; align-items:stretch;
   padding:0 10px; border-bottom:1px solid var(--line); }
 .tab { border:none; background:none; padding:9px 10px; font-size:12.5px; color:var(--mute); }
 .tab:hover { background:none; color:var(--ink); }
@@ -120,7 +120,15 @@ label:has(input) { display:inline-flex; align-items:center; gap:5px; }
 .tab .bad { font-weight:700; }
 /* 탭 하나가 곧 subject 다. 템플릿은 하나뿐이라 홀로 앞에 서고, 사이를 자리(간격)가 가른다.
    묶는 말을 두지 않는다 — 탭이 이미 subject 인데 그 위에 또 적으면 같은 말을 두 번 한다. */
-.tab-subject:first-of-type { margin-left:16px; }
+.tab-slot { display:inline-flex; align-items:stretch; }
+/* 템플릿은 subject 가 아니다 — 자리(간격)가 그것을 가른다. */
+.tab-slot:has(.tab-template) { margin-right:16px; }
+/* **닫는 자리는 지금 고른 탭에만 선다.** 폭은 28px 로 44px 에 못 미치지만 높이는 줄 전체를
+   채운다 — 닫기는 되돌릴 수 없어 후보를 하나로 줄이는 쪽을 골랐다. 표시(ⓘ)와 같은 맞바꿈이다. */
+.tab-x, .tab-add { border:none; background:none; color:var(--mute);
+  padding:0; width:28px; align-self:stretch; font-size:14px; line-height:1; }
+.tab-x:hover, .tab-add:hover { background:none; color:var(--ink); }
+.tab-add { margin-left:6px; }
 
 textarea { flex:1; width:100%; margin:0; border:none; padding:14px;
   resize:none; background:#ffffff; color:var(--ink);
@@ -136,8 +144,10 @@ textarea:focus { outline:2px solid var(--ink); outline-offset:-2px; }
 /* ---------------------------------------------------------------- 분석뷰 */
 
 h2 { font-size:17px; margin:0 0 10px; display:flex; align-items:baseline; gap:8px; letter-spacing:-.01em; }
-/* primitive element 이름은 설명서가 켤 때만 붙는다. 알약이 아니라 작은 글이다. */
-.show-elements h2[data-element]::after { content:attr(data-element);
+/* primitive element 이름은 **분석뷰 옆에 늘 선다.** 설명서가 쪽마다 원소를 설명하므로
+   facet 마다 이름이 서면 둘이 이어진다. 알약이 아니라 작은 글이다.
+   **렌더 출력에는 들어가지 않는다** — CSS 가 `data-element` 를 읽어 붙인다. */
+.viewport h2[data-element]::after { content:attr(data-element);
   font:11px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--mute); font-weight:400; }
 /* focus 는 색이 아니라 테두리와 굵기로 말한다.
    **표에서는 열을 통째로 잡는다** — 칸마다 두르면 열 안에 가로선이 생겨 한 덩어리로
@@ -183,18 +193,28 @@ col.is-focus { border:2px solid var(--ink); }
    무엇을 말하지 않는가. **모든 자리가 같은 속도로 돈다** — 어느 자리가 더 빨리 돌면 그것이
    강조다. 한 자리 안의 릴만 위상을 어긋내고(속도가 아니라 시작점), 릴 수는 **타입마다 고정**이라
    자릿수가 크기를 말하지 않는다. */
-.slot { --reel:1.15em; --spin:1100ms; --phase:0ms;
-  display:inline-flex; gap:1px; align-items:stretch; vertical-align:-.18em;
-  height:var(--reel); max-width:100%; overflow:hidden; }
-.slot i { display:block; overflow:hidden; background:var(--surface); font-style:normal; }
+.slot { --reel:1.15em; --spin:1100ms;
+  display:inline-flex; gap:1px; align-items:center; vertical-align:-.18em;
+  height:var(--reel); max-width:100%; }
+/* **잘린 글리프를 보이지 않는다.** 칸을 세 줄 높이로 잡아 위아래로 넘치게 두고(바깥 여백을
+   음수로 되돌려 줄 높이는 그대로다) 가장자리를 마스크로 지운다 — 숫자가 위아래로 흐리게
+   나타났다 사라진다. 자르는 것과 사라지는 것이 다르다. */
+.slot i { display:block; height:calc(var(--reel) * 2); margin-block:calc(var(--reel) * -.5);
+  overflow:hidden; font-style:normal;
+  -webkit-mask-image:linear-gradient(to bottom, transparent 18%, #000 50%, transparent 82%);
+  mask-image:linear-gradient(to bottom, transparent 18%, #000 50%, transparent 82%); }
 .slot i::before { display:block; line-height:var(--reel); text-align:center;
-  color:var(--mute); animation:reel var(--spin) linear infinite var(--phase); }
+  padding-top:calc(var(--reel) * .5); color:var(--ink);
+  animation:reel var(--spin) linear infinite var(--phase); }
 
 /* **줄마다 시작점을 어긋낸다.** 안 그러면 모든 줄의 릴이 한 박자로 돌아 같은 숫자가 나란히
    서고, 그것이 「값이 전부 같다」로 읽힌다. 바꾸는 것은 시작점뿐이고 속도는 전부 같다. */
-.bar-row:nth-child(2n) .slot, .fact:nth-child(2n) .slot, tbody tr:nth-child(2n) .slot { --phase:-163ms; }
-.bar-row:nth-child(3n) .slot, .fact:nth-child(3n) .slot, tbody tr:nth-child(3n) .slot { --phase:-379ms; }
-.bar-row:nth-child(5n) .slot, .fact:nth-child(5n) .slot, tbody tr:nth-child(5n) .slot { --phase:-617ms; }
+.viewport, .demo { --phase:0ms; }
+.bar-row:nth-child(2n), .fact:nth-child(2n), tbody tr:nth-child(2n) { --phase:-163ms; }
+.bar-row:nth-child(3n), .fact:nth-child(3n), tbody tr:nth-child(3n) { --phase:-379ms; }
+.bar-row:nth-child(4n), .fact:nth-child(4n), tbody tr:nth-child(4n) { --phase:-902ms; }
+.bar-row:nth-child(5n), .fact:nth-child(5n), tbody tr:nth-child(5n) { --phase:-617ms; }
+.bar-row:nth-child(7n), .fact:nth-child(7n), tbody tr:nth-child(7n) { --phase:-1231ms; }
 
 /* 수가 설 자리 — 릴이 숫자를 굴린다. */
 .slot[data-slot="num"] i { width:.68em; }
@@ -230,16 +250,41 @@ col.is-focus { border:2px solid var(--ink); }
 .big .slot i { width:.62em; }
 td .slot, th .slot { max-width:100%; }
 
-/* **지나가는 표식.** 자가 어디까지 뻗는지·띠가 어디서 나뉠지만 말하고 크기는 말하지 않는다. */
+/* **모양이 계속 바뀌는 표식.**
+
+   여기가 「가짜 값을 그리지 마라」와 부딪히는 것처럼 보이는 자리다. 빠져나가는 논리는
+   슬롯머신과 같다 — **읽을 수 있으려면 한 번은 서 있어야 하는데 이것은 멈추지 않는다.**
+   그리고 **눈금도 수도 붙이지 않는다** — 축에 숫자가 서는 순간 그 모양이 값이 된다.
+
+   크기·순서도 말하지 않는다. 흔들리는 폭과 속도가 **모든 자리에서 같고** 시작점만 어긋난다.
+   그래서 어느 막대가 긴지가 끊임없이 뒤집힌다 — 한 번도 고정되지 않는 순서는 순서가 아니다. */
 .track, .band { position:relative; overflow:hidden; }
-.sweep { --pass:2000ms; }
-.track .sweep, .band .sweep { position:absolute; top:0; bottom:0; width:28%;
-  background:linear-gradient(to right, transparent, var(--line), transparent);
-  animation:sweep var(--pass) linear infinite; }
-@keyframes sweep { from { left:-28%; } to { left:100%; } }
-/* 지나가는 표식은 **한 속도뿐**이다. 축이 더 멀리 가는 것은 축이 길어서이지 더 빨라서가 아니다. */
-svg.line .sweep { stroke:var(--line); stroke-width:1; animation:sweep-x var(--pass) linear infinite; }
-@keyframes sweep-x { from { transform:translateX(0); } to { transform:translateX(552px); } }
+.wave { --pass:2600ms; }
+.track .wave { position:absolute; left:0; top:0; bottom:0; width:100%;
+  background:var(--line); transform-origin:left center;
+  animation:stretch var(--pass) ease-in-out infinite var(--phase); }
+@keyframes stretch {
+  0% { transform:scaleX(.22); } 28% { transform:scaleX(.86); }
+  55% { transform:scaleX(.38); } 78% { transform:scaleX(.67); } 100% { transform:scaleX(.22); }
+}
+/* 띠는 **어디서 나뉠지**를 말한다. 마디가 흐르면서 조각 폭이 함께 바뀐다. */
+.band .wave { position:absolute; inset:0; background-repeat:repeat-x;
+  background-image:linear-gradient(90deg, var(--line) 0 46%, transparent 46% 54%, var(--line) 54% 100%);
+  animation:split var(--pass) ease-in-out infinite var(--phase); }
+@keyframes split {
+  0% { background-size:70% 100%; background-position:0 0; }
+  50% { background-size:38% 100%; background-position:-34% 0; }
+  100% { background-size:70% 100%; background-position:-100% 0; }
+}
+/* 선은 흐르면서 **높이가 함께 바뀐다.** 마디가 축 폭과 맞아떨어져 이음매가 안 보인다. */
+svg.line .wave { fill:none; stroke:var(--line); stroke-width:1.5;
+  transform-box:view-box; transform-origin:center;
+  animation:flow var(--pass) linear infinite var(--phase); }
+@keyframes flow {
+  0% { transform:translateX(0) scaleY(1); }
+  50% { transform:translateX(276px) scaleY(.42); }
+  100% { transform:translateX(552px) scaleY(1); }
+}
 
 /* **움직임을 끈 사람에게는 조용한 자리가 선다.** 굴리던 것이 멈추는 것이 아니라 사라진다 —
    멈춘 릴에 숫자가 남으면 그것이 읽을 수 있는 정지 숫자가 된다. 자리의 모양은 그대로 남는다. */
@@ -249,9 +294,13 @@ svg.line .sweep { stroke:var(--line); stroke-width:1; animation:sweep-x var(--pa
      실제로 한 번 그렇게 서 있었고 눈으로 잡았다. */
   .slot i::before,
   .slot[data-slot="num"] i::before,
-  .slot[data-slot="text"] i::before { animation:none; content:""; background-image:none; height:auto; }
-  .slot i { background:var(--surface); }
-  .sweep { display:none; }
+  .slot[data-slot="text"] i::before { animation:none; content:""; background-image:none;
+    height:auto; padding-top:0; }
+  /* 넘치게 두던 칸을 제자리로 돌리고 마스크를 걷는다 — 조용한 자리는 흐려질 것이 없다. */
+  .slot i { height:var(--reel); margin-block:0; background:var(--surface);
+    -webkit-mask-image:none; mask-image:none; }
+  /* **멈추는 것이 아니라 사라진다.** 멈춘 그림은 값처럼 읽힌다. 자·축·띠의 모양은 남는다. */
+  .wave { display:none; }
 }
 
 /* 틀이 아니라 자리다 */

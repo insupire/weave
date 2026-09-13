@@ -160,7 +160,7 @@ def pages() -> list[dict]:
                 "demo": row["demo"],
             }
         )
-    out.append({"id": "playground", "kind": "playground", "group": "해 보기", **texts["playground"]})
+    out.append({"id": "playground", "kind": "playground", "group": "플레이그라운드", **texts["playground"]})
     return out
 
 

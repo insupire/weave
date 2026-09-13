@@ -37,7 +37,6 @@ const state = {
   // 렌더에 안 건네줄 뿐이다. 다른 subject 를 누르면 그대로 돌아온다.
   blank: false,
   seq: 0,
-  showElements: false, // primitive element 이름. 분석뷰의 것이 아니라 설명서의 것이라 기본은 끔
 };
 
 const pageOf = (id) => PAGES.find((p) => p.id === id) ?? PAGES[0];
@@ -47,14 +46,20 @@ const pageOf = (id) => PAGES.find((p) => p.id === id) ?? PAGES[0];
 function drawToc() {
   const toc = $("toc");
   toc.innerHTML = "";
+  // **머리글은 여럿을 묶을 때만 선다.** 하나뿐인 묶음에 머리글을 얹으면 이름을 두 번 적는
+  // 것이고, 「플레이그라운드」·「weave 란」은 그 자체가 이름이라 홀로 서도 읽힌다.
+  const size = new Map();
+  for (const page of PAGES) size.set(page.group, (size.get(page.group) ?? 0) + 1);
   let group = null;
   for (const page of PAGES) {
     if (page.group !== group) {
       group = page.group;
-      const head = document.createElement("div");
-      head.className = "group";
-      head.textContent = group;
-      toc.appendChild(head);
+      if (size.get(group) > 1) {
+        const head = document.createElement("div");
+        head.className = "group";
+        head.textContent = group;
+        toc.appendChild(head);
+      }
     }
     const link = document.createElement("button");
     link.type = "button";
@@ -178,6 +183,17 @@ function stash() {
   else state.values[state.active - 1] = $("editor").value;
 }
 
+/**
+ * 탭 줄이 **더하고 닫는 일까지 한다.** 브라우저가 하는 그대로라 따로 배울 것이 없다 —
+ * 줄 끝이 새 탭을 열고, 탭마다 닫는 자리가 있다. 툴바에서 단추 둘이 빠져 그 줄이 짧아졌다.
+ *
+ * **템플릿 탭은 닫히지 않는다** — subject 가 아니다.
+ *
+ * 닫는 자리는 **지금 고른 탭에만** 선다. 브라우저가 좁은 화면에서 하는 것과 같고, 까닭도
+ * 같다. 닫기는 되돌릴 수 없는데 탭마다 두면 좁은 화면에서 고르려다 닫는 일이 생긴다.
+ * 한 번에 하나만 서면 잘못 누를 후보가 하나뿐이고, 그것도 **이미 보고 있는 탭**의 것이다.
+ * 폭은 28px 로 44px 에 못 미치지만 **높이는 줄 전체(44px)를 채운다** — 표시(ⓘ)와 같은 맞바꿈이다.
+ */
 function drawTabs() {
   const bar = $("tabs");
   bar.innerHTML = "";
@@ -186,6 +202,8 @@ function drawTabs() {
     ...state.values.map((text, index) => ({ name: nameOf(text, index), text, template: false })),
   ];
   tabs.forEach((tab, index) => {
+    const slot = document.createElement("span");
+    slot.className = "tab-slot";
     const button = document.createElement("button");
     button.className = tab.template ? "tab tab-template" : "tab tab-subject";
     button.type = "button";
@@ -198,8 +216,27 @@ function drawTabs() {
       drawTabs();
       drawEditor();
     });
-    bar.appendChild(button);
+    slot.appendChild(button);
+    if (!tab.template && index === state.active) {
+      const close = document.createElement("button");
+      close.className = "tab-x";
+      close.type = "button";
+      close.textContent = "×";
+      close.setAttribute("aria-label", `${tab.name} 닫기`);
+      close.setAttribute("title", "이 subject 를 지운다");
+      close.addEventListener("click", () => dropSubject(index - 1));
+      slot.appendChild(close);
+    }
+    bar.appendChild(slot);
   });
+  const add = document.createElement("button");
+  add.className = "tab-add";
+  add.type = "button";
+  add.textContent = "＋";
+  add.setAttribute("aria-label", "subject 더하기");
+  add.setAttribute("title", "전부 비어 있는 값 한 벌이 생긴다");
+  add.addEventListener("click", addSubject);
+  bar.appendChild(add);
 }
 
 function drawEditor() {
@@ -229,13 +266,13 @@ function drawFocus(seats) {
   // **미리보기이지 편집이 아니다.** 값 한 벌을 지우지 않고 렌더에 안 건네준다 — 고르던 것도
   // 그대로 두므로 다른 subject 를 누르면 보던 화면이 그대로 돌아온다.
   add("아무도 없을 때", state.blank,
-    "아직 제안서가 하나도 없을 때의 화면 — 값 한 벌은 그대로 있고 미리 보기만 한다",
+    "아직 subject 가 하나도 없을 때의 화면. 값 한 벌은 그대로 있다",
     () => { state.blank = true; });
   for (const seat of seats) {
     // **눌린 것을 다시 누르면 풀린다.** 「아무도 고르지 않음」으로 가는 길이 여기다 —
     // 단추를 하나 더 세우는 대신 이미 있는 단추가 그 일을 한다.
     const pressed = !state.blank && state.focus === seat.id;
-    add(seat.name, pressed, pressed ? "다시 누르면 아무도 고르지 않음으로 돌아간다" : seat.id, () => {
+    add(seat.name, pressed, pressed ? "다시 누르면 고른 것을 놓는다" : seat.id, () => {
       // 누르는 순간 지금 보던 것이 직전이 된다.
       const next = pressed ? null : seat.id;
       if (!state.blank && next === state.focus) return;
@@ -253,8 +290,10 @@ function refresh() {
   const { html, report, view } = renderView({ template, values: state.blank ? [] : values, ...args });
   // 자리 계산은 한 벌뿐이다 — 미리보기 중에도 명단은 renderView 가 낸다. 손으로 세지 않는다.
   const bar = state.blank ? renderView({ template, values, ...args }).view : view;
-  // 오른쪽 판은 분석뷰뿐이다. 이름표는 CSS 가 붙이므로 렌더가 낸 글은 그대로다.
-  $("view").className = state.showElements ? "viewport show-elements" : "viewport";
+  // 오른쪽 판은 분석뷰뿐이다. **이름표는 늘 보인다** — 설명서가 원소를 쪽마다 설명하므로
+  // facet 마다 이름이 서면 둘이 이어진다. 켜고 끄는 것이 없어도 못 하는 일이 없다.
+  // 이름표는 CSS 가 붙이므로 **렌더가 낸 글은 그대로다.**
+  $("view").className = "viewport";
   $("view").innerHTML = html;
   drawFocus(bar?.seats ?? []);
   // 무엇을 보고 있는지는 화면에 한 번. 고른 것이 있으면 눌린 버튼이 이미 말하므로,
@@ -293,14 +332,16 @@ function addSubject() {
   refresh();
 }
 
-function dropSubject() {
+/** `at` 은 `state.values` 의 자리다. 탭의 닫는 자리가 어느 것을 닫을지 이미 알고 부른다. */
+function dropSubject(at) {
   stash();
-  const index = state.active === 0 ? state.values.length - 1 : state.active - 1;
-  if (index < 0) return;
+  const index = at ?? (state.active === 0 ? state.values.length - 1 : state.active - 1);
+  if (index < 0 || index >= state.values.length) return;
   const { doc } = parse(state.values[index]);
   if (doc?.subjectId && state.focus === doc.subjectId) state.focus = null;
   if (doc?.subjectId && state.previousFocus === doc.subjectId) state.previousFocus = null;
   state.values.splice(index, 1);
+  // 닫은 탭의 오른쪽에 있던 것이 그 자리로 온다. 마지막을 닫았으면 왼쪽으로 물러선다.
   if (state.active > state.values.length) state.active = state.values.length;
   drawTabs();
   drawEditor();
@@ -387,12 +428,6 @@ export function start() {
     for (const one of $("pane-pick").querySelectorAll("button[data-pane]")) {
       one.setAttribute("aria-pressed", String((one.dataset.pane === "edit") === editing));
     }
-  });
-  $("add-subject").addEventListener("click", addSubject);
-  $("drop-subject").addEventListener("click", dropSubject);
-  $("show-elements").addEventListener("change", (event) => {
-    state.showElements = Boolean(event.target.checked);
-    refresh();
   });
 
   const first = Object.keys(SAMPLES)[0];
