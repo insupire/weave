@@ -332,3 +332,52 @@ class BuiltViewerIsNotStale(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
+    """**소비자를 이름으로 알지 않는다. 역할만 안다.**
+
+    보험을 모르기로 한 것과 같은 이유다 — 특정 앱을 알면 소비자가 늘거나 바뀔 때 굳는다.
+    공유 계약은 소비자가 바뀌어도 안 바뀐다. 누가 그 자리에 있는지는 PM 이 갖는다.
+
+    **찾는 이름을 이 파일에 통째로 적지 않는다** — 적으면 스스로 걸리고, 예외를 두면
+    「이 저장소에 그 이름이 없다」가 더는 참이 아니게 된다. 조각으로 이어 붙인다.
+    """
+
+    HALVES = [
+        ("claim", "-mobile"), ("claim", "-web"), ("claim", "-chat"),
+        ("claim", "-design-system"), ("eightytwo", "-judge"),
+        ("insurance", "-policy-search"), ("ip", "ix"),
+    ]
+    SKIP = {".git", ".venv", "__pycache__"}
+    SUFFIXES = {".md", ".py", ".mjs", ".js", ".json", ".css", ".html", ".yml", ".txt", ""}
+
+    def _texts(self) -> dict[str, str]:
+        out = {}
+        for path in ROOT.rglob("*"):
+            if not path.is_file() or set(path.relative_to(ROOT).parts) & self.SKIP:
+                continue
+            if path.suffix not in self.SUFFIXES:
+                continue
+            try:
+                out[str(path.relative_to(ROOT))] = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+        return out
+
+    def test_no_sibling_repository_is_named(self) -> None:
+        texts = self._texts()
+        for head, tail in self.HALVES:
+            name = head + tail
+            hits = sorted(where for where, text in texts.items() if name in text)
+            with self.subTest(name):
+                self.assertEqual(hits, [], f"형제 저장소 이름이 남아 있다: {name} — {hits}")
+
+    def test_the_scan_actually_reads_the_repository(self) -> None:
+        """**대조군.** 훑는 자리가 비어 있으면 위 판정은 아무것도 안 보고 통과한다."""
+        texts = self._texts()
+        self.assertIn("AGENTS.md", texts)
+        self.assertGreater(len(texts), 30, "훑은 파일이 너무 적다")
+        # 있는 것은 찾아낸다 — 같은 훑기로 확실히 있는 말을 집어 본다.
+        found = [where for where, text in texts.items() if "primitive element" in text]
+        self.assertGreater(len(found), 3, "훑기가 글을 못 읽는다")
