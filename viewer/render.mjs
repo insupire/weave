@@ -217,15 +217,21 @@ function notesHtml(notes, where = "") {
  * subject 가 하나도 없을 때 값이 설 곳에 선다. 표기(`—`)를 쓰지 않는다 — 그것은
  * **어떤 subject 의 값을 모른다**는 말인데, 여기엔 모를 subject 자체가 없다.
  *
- * **가짜 값을 그리지 않는다.** 예시 숫자나 흐린 더미 값은 진짜 값으로 읽히는 순간
- * 우리가 지켜온 것이 무너진다. 그려도 되는 것은 **자리**뿐이라 빈 칸에 줄만 긋는다.
- * 깜빡이거나 움직이지 않는다 — 「기다리는 중」은 앱이 얹을 말이고 언어의 것이 아니다.
+ * **가짜 값을 그리지 않는다.** 그려도 되는 것은 **자리**뿐이다. 지키는 선은 하나다 —
+ * **빈 자리에 눈금도 수도 이름도 글자도 그리지 않는다.** 읽을 것이 없으면 값도 없다.
+ *
+ * 예전에는 「한 모양이 고정되지 않는다」가 함께 섰다. 그것은 움직이는 가짜 값이 읽히는 것을
+ * 막으려던 **수단**이었고, 읽힐 것을 아예 안 그리는 지금은 필요가 없다 — 고정된 회색
+ * 덩어리는 값으로 읽히지 않는다.
+ *
+ * 밑그림은 원소마다 다르고, 그 위를 쓸고 지나가는 빛줄기 하나는 **뷰어의 것**이다.
+ * 산출물은 표식(`.slot` · `.track` · `.band` · `.plot` · `.sheen`)만 낸다.
  */
 /** 수로 서는 타입. 자리의 생김새를 값의 생김새에 맞추는 유일한 기준이다. */
 const NUMERIC = new Set(["number", "money", "ratio", "multiple", "duration", "age"]);
 
 /**
- * 자리 하나의 릴 수와 뒤에 붙는 단위. **타입마다 고정**이다 — 값에서 끌어오면
+ * 자리 하나의 칸 수와 뒤에 붙는 단위. **타입마다 고정**이다 — 값에서 끌어오면
  * 자릿수 자체가 크기를 말해 버린다. 금액 자리는 늘 여섯 칸이고, 87,400 이든 8,740,000 이든 같다.
  */
 const SLOT_SHAPE = {
@@ -236,23 +242,27 @@ const SLOT_SHAPE = {
 function slot(said = "값이 올 자리", type = "text", big = false) {
   const kind = NUMERIC.has(type) ? "num" : "text";
   const [count, unit] = SLOT_SHAPE[type] ?? SLOT_SHAPE.text;
-  // **산출물은 자리만 낸다.** 표식(`.slot` · 릴 `<i>`)이 서고 **뷰어 스타일시트가 그것을 굴린다** —
-  // 여기에 시간도 프레임도 애니메이션 지시도 한 글자 없다. 앱은 이 표식 위에 제 방식을 얹는다.
+  // **산출물은 자리만 낸다.** 표식(`.slot` · 칸 `<i>` · 빛줄기가 설 `.sheen`)이 서고
+  // **뷰어 스타일시트가 그 위로 빛줄기를 지나가게 한다** — 여기에 시간도 프레임도
+  // 애니메이션 지시도 한 글자 없다. 앱은 이 표식 위에 제 방식을 얹는다.
   //
   // 단위는 **값이 아니라 생김새**다. 「여기에 금액이 온다」를 수 없이 말할 수 있는 유일한 글자라
-  // 정지해 있어도 값으로 오독되지 않는다 — 읽을 수 있는 정지 **숫자**만 두지 않으면 된다.
-  const reels = "<i></i>".repeat(count);
+  // 값으로 오독되지 않는다 — 읽을 수 있는 **숫자**를 두지 않으면 된다.
+  const cells = "<i></i>".repeat(count);
   const tail = unit ? `<b class="slot-unit">${esc(unit)}</b>` : "";
   return `<span class="slot${big ? " slot-big" : ""}" data-slot="${kind}" ` +
-    `role="img" aria-label="${esc(said)}">${reels}${tail}</span>`;
+    `role="img" aria-label="${esc(said)}">${cells}${tail}${sheen()}</span>`;
 }
 
 /**
- * **모양이 계속 바뀌는 표식.** 자와 띠가 어디까지 뻗는지만 말하고 크기는 말하지 않는다.
- * 무엇으로 바뀌는지는 뷰어가 정한다 — 여기엔 시간도 프레임도 없다.
+ * **빛줄기가 지나갈 자리.** 원소마다 밑그림은 달라도 움직임은 이 표식 하나뿐이라
+ * 모든 자리가 같은 방향·같은 속도·같은 세기로 움직인다. 여기엔 시간도 프레임도 없다.
+ *
+ * `box` 는 밑그림이 상자 전체가 아닐 때 그 상자를 가리키는 **길이뿐인** 값이다
+ * (지금은 `line` 의 그림 자리 하나). 자에서 나온 수라 스타일시트가 좌표를 따로 갖지 않는다.
  */
-function wave() {
-  return `<span class="wave" aria-hidden="true"></span>`;
+function sheen(box = "") {
+  return `<span class="sheen" aria-hidden="true"${box ? ` style="${box}"` : ""}></span>`;
 }
 
 /** 모른다는 **표기**. 왜 없는지는 주석이 글로 말한다. */
@@ -424,7 +434,7 @@ function bars(ctx, facet) {
   if (ctx.subjects.length === 0) {
     return facet.fields.map((decl) =>
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}${hintMark(decl)}</span>` +
-      `<span class="track">${wave()}</span>` +
+      `<span class="track">${sheen()}</span>` +
       `<span class="val">${slot("값이 올 자리", decl.type)}</span></div>`).join("");
   }
   const subject = shownOf(ctx);
@@ -532,47 +542,34 @@ function line(ctx, facet) {
 /**
  * 그림 한 장의 자 — viewBox 와 네 여백. **이 저장소에서 한 번만 적는다.**
  *
- * 값이 있는 그림과 아직 아무도 없는 축이 같은 자를 써야 자리가 안 흔들린다. 뷰어가 갈아 끼울
- * 모양의 좌표도 여기서 나온다 — 스타일시트는 그 좌표를 옮겨 적기만 하고 제 수를 두지 않는다.
+ * 값이 있는 그림과 아직 아무도 없는 축이 같은 자를 써야 자리가 안 흔들린다. 빈 자리의
+ * 그림 자리도 여기서 나온다 — **스타일시트는 그림의 좌표를 한 수도 갖지 않는다.**
  */
 const CHART = { W: 760, H: 240, L: 78, R: 130, T: 18, B: 34 };
 
-/** 꼭짓점 목록을 꺾은선 path 로. **이 한 줄이 폴리라인과 path 의 같은 모양을 보증한다.** */
-const MORPH_PATH = (corners) => `M ${corners.join(" L ")}`;
-
 /**
- * 아직 아무도 오지 않은 축. **눈금도 수도 이름도 없다** — 그 셋 가운데 하나라도 붙으면
- * 그 모양이 값이 된다. 그것이 값이 되는 유일한 길이라 셋을 다 막는다.
+ * 아직 아무도 오지 않은 축. **눈금도 수도 이름도 글자도 없다** — 그 가운데 하나라도 붙으면
+ * 그 모양이 값이 된다. 그것이 값이 되는 유일한 길이라 전부 막는다.
  *
- * 꺾은선을 **하나로 낸다.** 실제 `line` 이 꺾은선이니 자리도 그 모양이어야 하고, 한 선이
- * 다음 모양으로 **이어서 흘러간다** — 끊었다 다시 나타나면 그 사이가 빈 자리로 읽힌다.
- * 한 모양이 고정되면 그것이 「이 subject 의 선」으로 읽히지만, 끊임없이 변형되면 어느 것도
- * 그렇게 읽히지 않는다. **흘리는 것은 뷰어의 일이라 여기엔 시간도 프레임도 없다.**
+ * **꺾은선을 그리지 않는다.** 고정된 꺾은선 하나는 눈금이 없어도 **추세로 읽힌다** —
+ * 「오르는 중」은 눈금이 없어도 값이다. 그래서 자리에는 축 둘과 **그림이 들어올 면**만 선다.
+ * 면은 어떤 추세도 말하지 않는다.
  *
- * 꼭짓점 수가 같은 `<polyline>` 넷도 함께 낸다. `d` 를 못 받는 브라우저에서 그 넷을 교대시키면
- * 선이 아예 안 보이는 자리가 생기지 않는다 — 어느 쪽을 세울지는 뷰어의 `@supports` 가 고른다.
+ * 빛줄기는 그 면 위만 지나간다. 상자를 가리키는 수는 **여기 자(`CHART`)에서 나온다** —
+ * 스타일시트가 좌표를 따로 갖지 않는다.
  */
 function emptyAxes() {
   const { W, H, L, R, T, B } = CHART;
-  const span = W - R - L, top = T + 12, bottom = H - B - 12;
-  // **정해진 수에서 나온 모양이다.** 값에서 오지 않으므로 무엇을 그려도 값이 아니다.
-  const SHAPES = [
-    [0.62, 0.28, 0.74, 0.41, 0.18, 0.55, 0.33],
-    [0.24, 0.66, 0.35, 0.82, 0.47, 0.21, 0.59],
-    [0.81, 0.44, 0.19, 0.63, 0.72, 0.36, 0.88],
-    [0.37, 0.52, 0.88, 0.26, 0.61, 0.79, 0.44],
-  ];
-  const cornersOf = (ys) => ys.map((y, i) =>
-    `${(L + (span * i) / (ys.length - 1)).toFixed(1)},${(bottom - (bottom - top) * y).toFixed(1)}`);
-  const shapes = SHAPES.map((ys) => `<polyline class="wave" points="${cornersOf(ys).join(" ")}"/>`);
-  // 흐르는 선은 **첫 모양으로 선다.** 다음 모양으로 옮기는 것은 뷰어이고, 그 좌표는
-  // 여기 꼭짓점을 그대로 옮겨 적은 것이라 고정 케이스가 둘을 대조한다.
-  const morph = `<path class="wave wave-morph" d="${MORPH_PATH(cornersOf(SHAPES[0]))}"/>`;
+  const pct = (part, whole) => `${((part / whole) * 100).toFixed(2)}%`;
+  const box = `left:${pct(L, W)};right:${pct(R, W)};top:${pct(T, H)};bottom:${pct(B, H)}`;
   return (
+    // 자리 상자가 그림과 **같은 폭**이어야 빛줄기가 면 위에 정확히 앉는다.
+    `<div class="chart-blank">` +
     `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
-    `${shapes.join("")}${morph}` +
+    `<rect class="plot" x="${L}" y="${T}" width="${W - R - L}" height="${H - B - T}"/>` +
     `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
-    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>` +
+    `${sheen(box)}</div>`
   );
 }
 
@@ -791,7 +788,7 @@ function parts(ctx, facet) {
   const [name, share] = columns;
   // **빈 띠가 자리를 말한다.** 조각의 이름은 값이 갖고 오는 것이라 지어내지 않는다.
   if (ctx.subjects.length === 0) {
-    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${wave()}</div>`;
+    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${sheen()}</div>`;
   }
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 

@@ -31,7 +31,13 @@
   --mute:#6b6b6b;      /* 딸린 말 */
   --line:#d9d9d9;      /* 구조선 */
   --surface:#f6f6f6;   /* 옅은 면 */
+  --bed:#e9e9e9;       /* 아직 아무도 오지 않은 자리의 밑그림 */
   --r:3px;             /* 하나뿐인 모서리. 진짜 컨테이너에만 */
+
+  /* **움직임의 자는 하나다.** 빈 자리의 빛줄기가 쓰는 유일한 시간과 거리 —
+     갈래마다 따로 두면 한 벌로 안 읽힌다. 한 바퀴에 이 거리만큼 나아간다. */
+  --sheen:1500ms;
+  --sheen-span:420px;
 
   /* **세로 리듬은 자 셋에서만 나온다.** 값이 제각각이면 어디서 끊기는지 눈이 못 읽는다.
      한 자를 고치면 그 층 전체가 함께 움직인다. */
@@ -191,225 +197,83 @@ col.is-focus { border:2px solid var(--ink); }
    빈 칸으로 두면 렌더가 깨진 것과 구별되지 않는다. 뜻은 이름표가 글로 갖는다. */
 .miss { font-size:12.5px; color:var(--mute); }
 .miss.value { cursor:help; }
-/* **아직 아무도 오지 않은 자리 — 여기가 굴린다.**
+/* **아직 아무도 오지 않은 자리 — 밑그림 하나와 빛줄기 하나.**
 
-   산출물(renderView)은 표식만 낸다: `.slot` 과 그 안의 릴 `<i>`, 그리고 `.sweep`.
-   시간도 프레임도 애니메이션 지시도 산출물에는 한 글자 없다. **움직임은 전부 이 파일의 것**이라
-   앱은 같은 표식 위에 제 방식을 얹으면 된다. 「산출물에 디자인이 없다」가 그대로 선다.
+   산출물(renderView)은 표식만 낸다: `.slot` 과 그 안의 칸 `<i>`, `.track` · `.band` ·
+   `.plot`, 그리고 빛줄기가 설 `.sheen`. 시간도 프레임도 애니메이션 지시도 산출물에는 한
+   글자 없다 — **움직임은 전부 이 파일의 것**이라 앱은 같은 표식 위에 제 방식을 얹으면 된다.
+   「산출물에 디자인이 없다」가 그대로 선다.
 
-   왜 도는가. 정지한 회색 0 은 이 도메인에서 **진짜 값**으로 읽힌다 — 미보장이 0원이다.
-   도는 숫자는 멈춰 있지 않아 값으로 읽힐 수가 없고, 이 자리는 진짜로 「곧 옵니다」가 맞는
-   순간이다. 움직임이 오히려 정직한 쪽이다.
+   **밑그림은 원소마다 다르다.** stat 은 큰 덩어리 하나, facts 는 줄 여럿, bars 는 가로 막대
+   여럿, line 은 축과 그림 자리, list·rows 는 칸, parts 는 띠. 무엇이 올 자리인지는 계속 보여야
+   하므로 이 밑그림은 움직이지 않고 사라지지도 않는다.
 
-   무엇을 말하지 않는가. **모든 자리가 같은 속도로 돈다** — 어느 자리가 더 빨리 돌면 그것이
-   강조다. 한 자리 안의 릴만 위상을 어긋내고(속도가 아니라 시작점), 릴 수는 **타입마다 고정**이라
-   자릿수가 크기를 말하지 않는다. */
-.slot { --reel:1.15em; --spin:2800ms; --cell:.62em; --type:6750ms;
-  display:inline-flex; gap:1px; align-items:center; vertical-align:-.18em;
-  height:var(--reel); max-width:100%; }
-/* **잘린 글리프를 보이지 않는다.** 칸을 세 줄 높이로 잡아 위아래로 넘치게 두고(바깥 여백을
-   음수로 되돌려 줄 높이는 그대로다) 가장자리를 마스크로 지운다 — 숫자가 위아래로 흐리게
-   나타났다 사라진다. 자르는 것과 사라지는 것이 다르다. */
-.slot i { display:block; height:calc(var(--reel) * 2); margin-block:calc(var(--reel) * -.5);
-  overflow:hidden; font-style:normal;
-  -webkit-mask-image:linear-gradient(to bottom, transparent 18%, #000 50%, transparent 82%);
-  mask-image:linear-gradient(to bottom, transparent 18%, #000 50%, transparent 82%); }
-/* **transform 하나만 움직인다.** 층을 미리 잡아 두어 글자를 매 프레임 다시 그리지 않는다 —
-   마스크가 걸린 자리라 그러지 않으면 메인 스레드가 글자를 계속 다시 앉히고, 그것이 버벅임이다.
-   속도도 늦췄다. 한 자리에 110ms 는 읽히지도 않으면서 눈만 어지럽다. */
-.slot i::before { display:block; line-height:var(--reel); text-align:center;
-  padding-top:calc(var(--reel) * .5); color:var(--ink); will-change:transform;
-  animation:reel var(--spin) linear infinite var(--phase); }
+   **움직임은 빛줄기 하나뿐이다.** 자리마다 다른 효과를 박자로 맞춰서 한 벌이 되는 것이
+   아니라 **효과를 하나로 줄여서** 된다. 모든 원소가 같은 방향·같은 속도·같은 세기로 움직이고
+   **속도는 `--sheen` 하나에서만 나온다.** 위상도 어긋내지 않는다 — 전부 같이 움직이는 것이
+   자리 표시가 한 벌로 읽히는 까닭이다.
 
-/* **줄마다 시작점을 어긋낸다.** 안 그러면 모든 줄의 릴이 한 박자로 돌아 같은 숫자가 나란히
-   서고, 그것이 「값이 전부 같다」로 읽힌다. 바꾸는 것은 시작점뿐이고 속도는 전부 같다. */
-.viewport, .demo { --phase:0ms; }
-.bar-row:nth-child(2n), .fact:nth-child(2n), tbody tr:nth-child(2n) { --phase:-163ms; }
-.bar-row:nth-child(3n), .fact:nth-child(3n), tbody tr:nth-child(3n) { --phase:-379ms; }
-.bar-row:nth-child(4n), .fact:nth-child(4n), tbody tr:nth-child(4n) { --phase:-902ms; }
-.bar-row:nth-child(5n), .fact:nth-child(5n), tbody tr:nth-child(5n) { --phase:-617ms; }
-.bar-row:nth-child(7n), .fact:nth-child(7n), tbody tr:nth-child(7n) { --phase:-1231ms; }
+   **선은 하나다 — 빈 자리에 눈금도 수도 이름도 글자도 그리지 않는다.** 예전에는 「한 모양이
+   고정되지 않는다」가 함께 섰다. 그것은 **움직이는 가짜 값이 읽히는 것**을 막으려던 수단이었고,
+   읽힐 것을 아예 안 그리는 지금은 필요가 없다 — 고정된 회색 덩어리는 값으로 읽히지 않는다. */
 
-/* 수가 설 자리 — 릴이 숫자를 굴린다. */
+/* 자리의 밑그림 — **값의 생김새를 따른다.** 칸 수는 타입마다 고정이라 자릿수가 크기를
+   말하지 않고, 글 자리의 폭도 타입이 정한다(값에서 오면 그 폭이 곧 값이다). */
+.slot { --cell:1.15em;
+  position:relative; display:inline-flex; gap:1px; align-items:center;
+  vertical-align:-.18em; height:var(--cell); max-width:100%; }
+.slot i { display:block; height:var(--cell); }
 .slot[data-slot="num"] i { width:.68em; }
-.slot[data-slot="num"] i::before { content:"0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0"; white-space:pre; }
-/* 시작점만 어긋난다. 음수라 첫 프레임부터 이미 갈려 있다 — 속도는 전부 같다. */
-/* 위상 차이는 **한 칸(110ms)의 배수가 아니다.** 배수로 어긋내면 어느 순간에도 릴이
-   1·2·3·4… 로 나란히 서서 수열처럼 읽힌다. 일부러 어긋난 값을 쓴다. */
-.slot[data-slot="num"] i:nth-child(2)::before { animation-delay:calc(var(--phase) - 63ms); }
-.slot[data-slot="num"] i:nth-child(3)::before { animation-delay:calc(var(--phase) - 291ms); }
-.slot[data-slot="num"] i:nth-child(4)::before { animation-delay:calc(var(--phase) - 537ms); }
-.slot[data-slot="num"] i:nth-child(5)::before { animation-delay:calc(var(--phase) - 812ms); }
-.slot[data-slot="num"] i:nth-child(6)::before { animation-delay:calc(var(--phase) - 946ms); }
-.slot-unit { font-weight:400; color:var(--mute); align-self:center; margin-left:2px; }
-
-/* 글이 설 자리 — **한 글자씩 끊어서 찍는다.** 다 찍으면 멈추고, 멈춘 뒤 지우고, 다음 낱말을
-   찍는다. 낱말 길이가 셋이라 어느 폭도 고정되지 않는다.
-
-   **글자를 찍지 않는다.** 찍는 순간 그것이 가짜 값이다 — 자라는 것은 자리의 폭뿐이고
-   읽을 것이 하나도 없다. 폭도 계속 달라지므로 폭이 무엇을 말하지도 못한다.
-
-   **매끄럽게 자라면 타이핑이 아니라 로딩 막대로 읽힌다.** 한 칸(`--cell`)씩 `steps()` 로
-   뛴다. 한 칸 찍는 데 100ms, 다 찍으면 1000ms 멈추고, 지울 때는 한 칸 50ms.
-
-   그래서 **폭(`width`)을 직접 움직여도 된다.** 여기서 transform 을 고집하던 까닭은 매 프레임
-   배치가 다시 잡히는 것이었는데, `steps()` 가 걸리면 한 주기에 스무 번 남짓만 바뀐다. 대신
-   칸무늬가 안 늘어난다 — `scaleX` 로 줄이면 무늬까지 눌려 칸이 칸으로 안 읽힌다.
-
-   커서는 자란 줄의 **오른쪽 테두리**다. 따로 따라다니게 하면 시간표가 둘이 되어 어긋난다. */
-.slot[data-slot="text"] i { width:calc(var(--cell) * 11); position:relative; overflow:visible;
-  -webkit-mask-image:none; mask-image:none; height:var(--reel); margin-block:0; }
-.slot[data-slot="text"] i::before { content:""; position:absolute; box-sizing:content-box;
-  left:0; top:calc(50% - .17em); width:0; height:.34em;
-  border-right:1px solid var(--mute);
-  background-image:linear-gradient(90deg, var(--line) 0 74%, transparent 74% 100%);
-  background-size:var(--cell) 100%; background-repeat:repeat-x;
-  animation:type var(--type) linear infinite calc(var(--phase) * 5),
-            blink var(--type) steps(1, end) infinite calc(var(--phase) * 5); }
-/* **한 칸씩 끊어 뛴다.** 구간마다 칸 수가 달라 `steps()` 를 구간에 적는다.
-   6칸 → 11칸 → 8칸 을 돌고 한 바퀴가 6750ms 다 (100·n + 1000 + 50·n 셋의 합). */
-@keyframes type {
-  0% { width:0; animation-timing-function:steps(6, end); }
-  8.889% { width:calc(var(--cell) * 6); animation-timing-function:steps(1, end); }
-  23.704% { width:calc(var(--cell) * 6); animation-timing-function:steps(6, end); }
-  28.148% { width:0; animation-timing-function:steps(11, end); }
-  44.444% { width:calc(var(--cell) * 11); animation-timing-function:steps(1, end); }
-  59.259% { width:calc(var(--cell) * 11); animation-timing-function:steps(11, end); }
-  67.407% { width:0; animation-timing-function:steps(8, end); }
-  79.259% { width:calc(var(--cell) * 8); animation-timing-function:steps(1, end); }
-  94.074% { width:calc(var(--cell) * 8); animation-timing-function:steps(8, end); }
-  100% { width:0; }
-}
-/* **커서는 찍는 동안 서 있고 멈춘 동안 깜빡인다.** 멈춘 1000ms 를 넷으로 나눠 두 번 꺼진다. */
-@keyframes blink {
-  0% { border-right-color:var(--mute); }
-  8.889% { border-right-color:transparent; }
-  12.593% { border-right-color:var(--mute); }
-  16.296% { border-right-color:transparent; }
-  20% { border-right-color:var(--mute); }
-  44.444% { border-right-color:transparent; }
-  48.148% { border-right-color:var(--mute); }
-  51.852% { border-right-color:transparent; }
-  55.556% { border-right-color:var(--mute); }
-  79.259% { border-right-color:transparent; }
-  82.963% { border-right-color:var(--mute); }
-  86.667% { border-right-color:transparent; }
-  90.37% { border-right-color:var(--mute); }
-  100% { border-right-color:var(--mute); }
-}
-
-@keyframes reel { from { transform:translateY(0); } to { transform:translateY(calc(var(--reel) * -10)); } }
-@keyframes reel-text { from { transform:translateY(0); } to { transform:translateY(calc(var(--reel) * -4)); } }
-
-.big .slot { --reel:1.05em; }
-/* 큰 자리의 **숫자 칸**만 좁힌다. 글 자리의 칸은 `--cell` 이 갖는다 — 여기서 같이 좁히면
-   자란 줄이 칸 밖으로 넘쳐 옆 글자 위에 눕는다. */
+.slot[data-slot="text"] i { width:6.9em; }
+/* 단위는 **값이 아니라 생김새**다. 빛줄기 위에 서서 씻기지 않는다. */
+.slot-unit { position:relative; z-index:1; font-weight:400; color:var(--mute);
+  align-self:center; margin-left:2px; }
+.big .slot { --cell:1.05em; }
+/* 큰 자리의 **숫자 칸**만 좁힌다 — 글 자리의 폭은 글줄 하나라 여기서 건드리지 않는다. */
 .big .slot[data-slot="num"] i { width:.62em; }
 td .slot, th .slot { max-width:100%; }
 
-/* **모양이 계속 갈리는 표식.**
+/* 빛줄기가 앉을 자리. 자·띠·그림 자리는 이미 밑그림이라 상자만 잡아 준다. */
+.track, .band, .chart-blank { position:relative; }
+/* 그림 자리 — 축 둘과 **그림이 들어올 면**뿐이다. 꺾은선을 그리지 않는다:
+   고정된 꺾은선 하나는 눈금이 없어도 **추세로 읽힌다**. 면은 어떤 추세도 말하지 않는다. */
+svg.line .plot { fill:var(--bed); stroke:none; }
+/* 축은 **면 위에 선다.** 값이 있는 그림에서는 흰 바탕 위라 구조선 색으로 읽히지만, 밑그림
+   위에서는 면과 밝기가 거의 같아 축이 사라진다 — 「축과 그림 자리」에서 축이 빠지는 것이다. */
+.chart-blank .axis { stroke:var(--mute); }
 
-   여기가 「가짜 값을 그리지 마라」와 부딪히는 것처럼 보이는 자리다. 막아야 하는 것은
-   **값으로 읽히는 것**이지 움직임 자체가 아니다. 값이 되는 길은 둘뿐이라 둘을 막는다.
+/* **빛줄기 하나.** 모든 자리에서 같은 방향(왼쪽 → 오른쪽)·같은 속도·같은 세기다.
 
-   하나. **눈금도 수도 이름도 붙지 않는다.** 그것이 없으면 꺾은선 모양만으로는 어떤 값도
-   읽을 수 없다. 잠깐 서 있어도 읽을 것이 없다.
+   한 바퀴에 `--sheen-span` 만큼 나아가므로 **자리가 넓든 좁든 초당 같은 거리**를 간다.
+   폭에 맞춰 늘이면 넓은 자리가 더 빨라 보이고, 그것이 강조다. 무늬가 `--sheen-span` 주기로
+   되풀이되고 정확히 한 주기만 밀리므로 이음매가 없다.
 
-   둘. **한 모양이 고정되지 않는다.** 고정되면 그것이 「이 subject 의 선」으로 읽힌다.
-   정지 구간이 있어도 **다음 것이 오면** 된다 — 오히려 통째로 갈리는 편이 「이건 값이 아니다」를
-   더 분명히 말한다.
-
-   크기·순서도 말하지 않는다. 흔들리는 폭과 속도가 **모든 자리에서 같고** 시작점만 어긋난다.
-   그래서 어느 막대가 긴지가 끊임없이 뒤집힌다 — 한 번도 고정되지 않는 순서는 순서가 아니다. */
-.track, .band { position:relative; overflow:hidden; }
-.wave { --pass:4000ms; }  /* 넷이 나눠 쓰므로 한 모양이 1초쯤 선다 */
-.track .wave { position:absolute; left:0; top:0; bottom:0; width:100%;
-  background:var(--line); transform-origin:left center;
-  animation:stretch var(--pass) ease-in-out infinite var(--phase); }
-@keyframes stretch {
-  0% { transform:scaleX(.22); } 28% { transform:scaleX(.86); }
-  55% { transform:scaleX(.38); } 78% { transform:scaleX(.67); } 100% { transform:scaleX(.22); }
-}
-/* 띠는 **어디서 나뉠지**를 말한다. 마디가 흐르면서 조각 폭이 함께 바뀐다. */
-/* 띠도 **transform 만 움직인다.** background-position 을 움직이면 매 프레임 다시 칠해져
-   막대·선과 달리 혼자 버벅인다. 마디는 미리 깔아 두고 그것을 밀고 늘인다. */
-.band .wave { position:absolute; left:0; top:0; bottom:0; width:250%;
-  background-repeat:repeat-x; background-size:14% 100%;
-  background-image:linear-gradient(90deg, var(--line) 0 46%, transparent 46% 54%, var(--line) 54% 100%);
-  transform-origin:left center; will-change:transform;
-  animation:split var(--pass) ease-in-out infinite var(--phase); }
-@keyframes split {
-  0% { transform:translateX(0) scaleX(1); }
-  50% { transform:translateX(-21%) scaleX(.62); }
-  100% { transform:translateX(-42%) scaleX(1); }
-}
-/* 선은 **끊기지 않고 이어서 변형된다.** 한 선이 다음 모양으로 흘러간다 — 페이드 교대가 아니다.
-   한 모양이 고정되면 그것이 「이 subject 의 선」으로 읽히지만, 끊임없이 변형되면 어느 것도
-   그렇게 읽히지 않는다. 게다가 눈금도 수도 이름도 없어 모양만으로는 어떤 값도 읽을 수 없다.
-
-   **`d` 를 보간한다.** 꼭짓점 수가 같은 꺾은선 사이라 좌표가 짝지어 움직인다. 이 환경의
-   chromium 에서 실제로 보간되는 것을 재고 썼다 — 4000ms 선형 구간의 절반에서 y 가 100 에서
-   50.42 로, 12.5% 지점에서 87.92 로 왔다(기대값 50 · 87.5, 차이는 프레임 경계).
-
-   **좌표는 여기서 나온 수가 아니다.** `render.mjs` 의 `CHART` 와 `emptyAxes()` 의 SHAPES 가
-   낸 꼭짓점을 그대로 옮겨 적은 것이고, 둘이 어긋나면 `viewer.test.mjs` 가 문다.
-
-   못 받는 브라우저에서는 **꺾은선 넷의 교대가 그대로 남는다.** 어느 쪽을 세울지는 아래
-   `@supports` 가 고르고, 한쪽은 반드시 선다 — 선이 아예 없는 자리는 만들지 않는다. */
-/* 못 받는 자리의 넷. **바뀌는 것은 opacity 뿐**이라 갈아 끼울 때 걸리지 않는다.
-   넷이 같은 시간표를 쓰고 **시작점만 넷으로 나뉜다.** */
-svg.line .wave { fill:none; stroke:var(--line); stroke-width:1.5; opacity:0;
-  will-change:opacity; animation:swap var(--pass) linear infinite var(--phase); }
-svg.line .wave:nth-child(2) { animation-delay:calc(var(--pass) / -4); }
-svg.line .wave:nth-child(3) { animation-delay:calc(var(--pass) / -2); }
-svg.line .wave:nth-child(4) { animation-delay:calc(var(--pass) / -4 * 3); }
-@keyframes swap {
-  0%, 21% { opacity:1; } 25%, 96% { opacity:0; } 100% { opacity:1; }
-}
-/* **흐르는 선은 교대 규칙 뒤에 적는다.** 같은 표식(`.wave`)을 달고 있어 무게가 같고, 앞에
-   적으면 교대 쪽 `opacity:0` 과 `animation:swap` 이 이겨 **흐르는 선이 안 보이고 안 흐른다.**
-   실제로 그렇게 서 있었고 계산값을 물어 잡았다. */
-svg.line .wave-morph { fill:none; stroke:var(--line); stroke-width:1.5; opacity:1;
-  animation:morph var(--pass) linear infinite var(--phase); }
-@keyframes morph {
-  0%, 100% { d:path("M 78.0,92.3 L 170.0,148.1 L 262.0,72.6 L 354.0,126.8 L 446.0,164.5 L 538.0,103.8 L 630.0,139.9"); }
-  25% { d:path("M 78.0,154.6 L 170.0,85.8 L 262.0,136.6 L 354.0,59.5 L 446.0,116.9 L 538.0,159.6 L 630.0,97.2"); }
-  50% { d:path("M 78.0,61.2 L 170.0,121.8 L 262.0,162.8 L 354.0,90.7 L 446.0,75.9 L 538.0,135.0 L 630.0,49.7"); }
-  75% { d:path("M 78.0,133.3 L 170.0,108.7 L 262.0,49.7 L 354.0,151.4 L 446.0,94.0 L 538.0,64.4 L 630.0,121.8"); }
-}
-/* **둘 중 하나만 선다.** 보간되면 흐르는 선 하나, 아니면 교대하는 넷. 둘 다 서면 겹쳐 보이고
-   둘 다 안 서면 자리가 빈다. 뒤에 오는 조용한 자리가 이 둘을 다시 덮는다 — 같은 무게로 적어
-   차례가 이기게 둔다. */
-@supports (d:path("M 0 0")) {
-  /* 꺾은선 넷은 **요소 이름으로** 감춘다. `.wave` 로 감추면 같은 표식을 단 흐르는 선까지
-     같은 무게로 걸려 그쪽이 먼저 적힌 만큼 져 버린다 — 실제로 그렇게 사라졌다. */
-  svg.line polyline { display:none; }
-}
-@supports not (d:path("M 0 0")) {
-  svg.line .wave-morph { display:none; animation:none; }
+   **transform 하나만 움직인다** — background-position 을 밀면 매 프레임 다시 칠해져 버벅인다.
+   상자는 빛줄기가 스스로 자른다(`overflow`). 밑그림 쪽에 자르기를 걸면 값이 있는 화면의
+   막대·조각까지 함께 잘린다. */
+.sheen { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+/* 자와 띠는 밑그림이 상자 전체라 빛줄기가 바탕까지 함께 깐다. 칸(`.slot i`)과 그림 자리
+   (`.plot`)는 저마다 모양이 있어 그 쪽이 바탕을 갖는다. */
+.slot i, .track > .sheen, .band > .sheen { background:var(--bed); }
+.sheen::before { content:""; position:absolute; top:0; bottom:0; left:0;
+  width:calc(100% + var(--sheen-span));
+  background-image:linear-gradient(90deg,
+    transparent 0 34%, rgba(255,255,255,.78) 50%, transparent 66% 100%);
+  background-size:var(--sheen-span) 100%; background-repeat:repeat-x;
+  will-change:transform;
+  animation:sheen var(--sheen) linear infinite; }
+@keyframes sheen {
+  from { transform:translateX(calc(var(--sheen-span) * -1)); }
+  to { transform:translateX(0); }
 }
 
-/* **움직임을 끈 사람에게는 조용한 자리가 선다.** 굴리던 것이 멈추는 것이 아니라 사라진다 —
-   멈춘 릴에 숫자가 남으면 그것이 읽을 수 있는 정지 숫자가 된다. 자리의 모양은 그대로 남는다. */
+/* **조용한 자리 — 멎는 것은 빛줄기뿐이다.**
+
+   예전에는 움직이던 것을 통째로 감췄다. 멈춘 릴에 숫자가, 멈춘 줄에 임의의 길이가 남으면
+   그것이 읽을 수 있는 값이었기 때문이다. 지금은 읽힐 것을 아예 안 그리므로 **감출 것이
+   빛줄기뿐**이고, 밑그림까지 사라지면 「여기에 무엇이 온다」가 통째로 사라진다. */
 @media (prefers-reduced-motion: reduce) {
-  /* **숫자를 내던 선택자를 그대로 다시 적는다.** 덜 구체적인 `.slot i::before` 로 덮으려 하면
-     `.slot[data-slot="num"] i::before` 가 캐스케이드에서 이겨 멈춘 릴에 0 이 남는다.
-     실제로 한 번 그렇게 서 있었고 눈으로 잡았다. */
-  .slot i::before,
-  .slot[data-slot="num"] i::before,
-  .slot[data-slot="text"] i::before { animation:none; content:""; background-image:none;
-    height:auto; padding-top:0; }
-  /* 넘치게 두던 칸을 제자리로 돌리고 마스크를 걷는다 — 조용한 자리는 흐려질 것이 없다. */
-  .slot i { height:var(--reel); margin-block:0; background:var(--surface);
-    -webkit-mask-image:none; mask-image:none; }
-  /* **멈추는 것이 아니라 사라진다.** 멈춘 그림은 값처럼 읽힌다. 자·축·띠의 모양은 남는다. */
-  .wave { display:none; }
-  /* 써 넣던 줄도 사라진다 — 멈춘 자리에서 **길이가 그대로 남으면 그 길이가 값이 된다.**
-     칸의 뿌연 바탕만 남아 「여기에 글이 온다」를 말한다. */
-  .slot[data-slot="text"] i::before { display:none; }
-  /* 흐르던 선도 사라진다 — `.wave` 하나로도 덮이지만 `@supports` 가 같은 무게로 다시 세우는
-     자리라 **같은 선택자로 또 적어** 차례로 이긴다. */
-  svg.line .wave-morph { display:none; animation:none; }
+  .sheen::before { animation:none; display:none; }
 }
 
 /* 틀이 아니라 자리다 */
@@ -476,7 +340,8 @@ th.corner, th.row-label { font-weight:600; width:140px; color:var(--mute); }
    **좁아지면 상자가 굴러간다** — 그림을 통째로 줄이면 축 라벨과 선 끝 이름이 읽을 수
    없게 작아진다. `list` 표와 같은 규칙이다: 페이지가 아니라 그 상자가 굴러간다. */
 .chart-scroll { overflow-x:auto; }
-svg.line { display:block; width:100%; min-width:560px; height:auto; background:#ffffff; }
+svg.line, .chart-blank { min-width:560px; }
+svg.line { display:block; width:100%; height:auto; background:#ffffff; }
 svg .axis { stroke:var(--line); stroke-width:1; }
 svg .tick { font-size:11px; fill:var(--mute); }
 svg .ty { text-anchor:end; }
@@ -931,15 +796,21 @@ function notesHtml(notes, where = "") {
  * subject 가 하나도 없을 때 값이 설 곳에 선다. 표기(`—`)를 쓰지 않는다 — 그것은
  * **어떤 subject 의 값을 모른다**는 말인데, 여기엔 모를 subject 자체가 없다.
  *
- * **가짜 값을 그리지 않는다.** 예시 숫자나 흐린 더미 값은 진짜 값으로 읽히는 순간
- * 우리가 지켜온 것이 무너진다. 그려도 되는 것은 **자리**뿐이라 빈 칸에 줄만 긋는다.
- * 깜빡이거나 움직이지 않는다 — 「기다리는 중」은 앱이 얹을 말이고 언어의 것이 아니다.
+ * **가짜 값을 그리지 않는다.** 그려도 되는 것은 **자리**뿐이다. 지키는 선은 하나다 —
+ * **빈 자리에 눈금도 수도 이름도 글자도 그리지 않는다.** 읽을 것이 없으면 값도 없다.
+ *
+ * 예전에는 「한 모양이 고정되지 않는다」가 함께 섰다. 그것은 움직이는 가짜 값이 읽히는 것을
+ * 막으려던 **수단**이었고, 읽힐 것을 아예 안 그리는 지금은 필요가 없다 — 고정된 회색
+ * 덩어리는 값으로 읽히지 않는다.
+ *
+ * 밑그림은 원소마다 다르고, 그 위를 쓸고 지나가는 빛줄기 하나는 **뷰어의 것**이다.
+ * 산출물은 표식(`.slot` · `.track` · `.band` · `.plot` · `.sheen`)만 낸다.
  */
 /** 수로 서는 타입. 자리의 생김새를 값의 생김새에 맞추는 유일한 기준이다. */
 const NUMERIC = new Set(["number", "money", "ratio", "multiple", "duration", "age"]);
 
 /**
- * 자리 하나의 릴 수와 뒤에 붙는 단위. **타입마다 고정**이다 — 값에서 끌어오면
+ * 자리 하나의 칸 수와 뒤에 붙는 단위. **타입마다 고정**이다 — 값에서 끌어오면
  * 자릿수 자체가 크기를 말해 버린다. 금액 자리는 늘 여섯 칸이고, 87,400 이든 8,740,000 이든 같다.
  */
 const SLOT_SHAPE = {
@@ -950,23 +821,27 @@ const SLOT_SHAPE = {
 function slot(said = "값이 올 자리", type = "text", big = false) {
   const kind = NUMERIC.has(type) ? "num" : "text";
   const [count, unit] = SLOT_SHAPE[type] ?? SLOT_SHAPE.text;
-  // **산출물은 자리만 낸다.** 표식(`.slot` · 릴 `<i>`)이 서고 **뷰어 스타일시트가 그것을 굴린다** —
-  // 여기에 시간도 프레임도 애니메이션 지시도 한 글자 없다. 앱은 이 표식 위에 제 방식을 얹는다.
+  // **산출물은 자리만 낸다.** 표식(`.slot` · 칸 `<i>` · 빛줄기가 설 `.sheen`)이 서고
+  // **뷰어 스타일시트가 그 위로 빛줄기를 지나가게 한다** — 여기에 시간도 프레임도
+  // 애니메이션 지시도 한 글자 없다. 앱은 이 표식 위에 제 방식을 얹는다.
   //
   // 단위는 **값이 아니라 생김새**다. 「여기에 금액이 온다」를 수 없이 말할 수 있는 유일한 글자라
-  // 정지해 있어도 값으로 오독되지 않는다 — 읽을 수 있는 정지 **숫자**만 두지 않으면 된다.
-  const reels = "<i></i>".repeat(count);
+  // 값으로 오독되지 않는다 — 읽을 수 있는 **숫자**를 두지 않으면 된다.
+  const cells = "<i></i>".repeat(count);
   const tail = unit ? `<b class="slot-unit">${esc(unit)}</b>` : "";
   return `<span class="slot${big ? " slot-big" : ""}" data-slot="${kind}" ` +
-    `role="img" aria-label="${esc(said)}">${reels}${tail}</span>`;
+    `role="img" aria-label="${esc(said)}">${cells}${tail}${sheen()}</span>`;
 }
 
 /**
- * **모양이 계속 바뀌는 표식.** 자와 띠가 어디까지 뻗는지만 말하고 크기는 말하지 않는다.
- * 무엇으로 바뀌는지는 뷰어가 정한다 — 여기엔 시간도 프레임도 없다.
+ * **빛줄기가 지나갈 자리.** 원소마다 밑그림은 달라도 움직임은 이 표식 하나뿐이라
+ * 모든 자리가 같은 방향·같은 속도·같은 세기로 움직인다. 여기엔 시간도 프레임도 없다.
+ *
+ * `box` 는 밑그림이 상자 전체가 아닐 때 그 상자를 가리키는 **길이뿐인** 값이다
+ * (지금은 `line` 의 그림 자리 하나). 자에서 나온 수라 스타일시트가 좌표를 따로 갖지 않는다.
  */
-function wave() {
-  return `<span class="wave" aria-hidden="true"></span>`;
+function sheen(box = "") {
+  return `<span class="sheen" aria-hidden="true"${box ? ` style="${box}"` : ""}></span>`;
 }
 
 /** 모른다는 **표기**. 왜 없는지는 주석이 글로 말한다. */
@@ -1138,7 +1013,7 @@ function bars(ctx, facet) {
   if (ctx.subjects.length === 0) {
     return facet.fields.map((decl) =>
       `<div class="bar-row"><span class="who">${esc(decl.label ?? decl.key)}${hintMark(decl)}</span>` +
-      `<span class="track">${wave()}</span>` +
+      `<span class="track">${sheen()}</span>` +
       `<span class="val">${slot("값이 올 자리", decl.type)}</span></div>`).join("");
   }
   const subject = shownOf(ctx);
@@ -1246,47 +1121,34 @@ function line(ctx, facet) {
 /**
  * 그림 한 장의 자 — viewBox 와 네 여백. **이 저장소에서 한 번만 적는다.**
  *
- * 값이 있는 그림과 아직 아무도 없는 축이 같은 자를 써야 자리가 안 흔들린다. 뷰어가 갈아 끼울
- * 모양의 좌표도 여기서 나온다 — 스타일시트는 그 좌표를 옮겨 적기만 하고 제 수를 두지 않는다.
+ * 값이 있는 그림과 아직 아무도 없는 축이 같은 자를 써야 자리가 안 흔들린다. 빈 자리의
+ * 그림 자리도 여기서 나온다 — **스타일시트는 그림의 좌표를 한 수도 갖지 않는다.**
  */
 const CHART = { W: 760, H: 240, L: 78, R: 130, T: 18, B: 34 };
 
-/** 꼭짓점 목록을 꺾은선 path 로. **이 한 줄이 폴리라인과 path 의 같은 모양을 보증한다.** */
-const MORPH_PATH = (corners) => `M ${corners.join(" L ")}`;
-
 /**
- * 아직 아무도 오지 않은 축. **눈금도 수도 이름도 없다** — 그 셋 가운데 하나라도 붙으면
- * 그 모양이 값이 된다. 그것이 값이 되는 유일한 길이라 셋을 다 막는다.
+ * 아직 아무도 오지 않은 축. **눈금도 수도 이름도 글자도 없다** — 그 가운데 하나라도 붙으면
+ * 그 모양이 값이 된다. 그것이 값이 되는 유일한 길이라 전부 막는다.
  *
- * 꺾은선을 **하나로 낸다.** 실제 `line` 이 꺾은선이니 자리도 그 모양이어야 하고, 한 선이
- * 다음 모양으로 **이어서 흘러간다** — 끊었다 다시 나타나면 그 사이가 빈 자리로 읽힌다.
- * 한 모양이 고정되면 그것이 「이 subject 의 선」으로 읽히지만, 끊임없이 변형되면 어느 것도
- * 그렇게 읽히지 않는다. **흘리는 것은 뷰어의 일이라 여기엔 시간도 프레임도 없다.**
+ * **꺾은선을 그리지 않는다.** 고정된 꺾은선 하나는 눈금이 없어도 **추세로 읽힌다** —
+ * 「오르는 중」은 눈금이 없어도 값이다. 그래서 자리에는 축 둘과 **그림이 들어올 면**만 선다.
+ * 면은 어떤 추세도 말하지 않는다.
  *
- * 꼭짓점 수가 같은 `<polyline>` 넷도 함께 낸다. `d` 를 못 받는 브라우저에서 그 넷을 교대시키면
- * 선이 아예 안 보이는 자리가 생기지 않는다 — 어느 쪽을 세울지는 뷰어의 `@supports` 가 고른다.
+ * 빛줄기는 그 면 위만 지나간다. 상자를 가리키는 수는 **여기 자(`CHART`)에서 나온다** —
+ * 스타일시트가 좌표를 따로 갖지 않는다.
  */
 function emptyAxes() {
   const { W, H, L, R, T, B } = CHART;
-  const span = W - R - L, top = T + 12, bottom = H - B - 12;
-  // **정해진 수에서 나온 모양이다.** 값에서 오지 않으므로 무엇을 그려도 값이 아니다.
-  const SHAPES = [
-    [0.62, 0.28, 0.74, 0.41, 0.18, 0.55, 0.33],
-    [0.24, 0.66, 0.35, 0.82, 0.47, 0.21, 0.59],
-    [0.81, 0.44, 0.19, 0.63, 0.72, 0.36, 0.88],
-    [0.37, 0.52, 0.88, 0.26, 0.61, 0.79, 0.44],
-  ];
-  const cornersOf = (ys) => ys.map((y, i) =>
-    `${(L + (span * i) / (ys.length - 1)).toFixed(1)},${(bottom - (bottom - top) * y).toFixed(1)}`);
-  const shapes = SHAPES.map((ys) => `<polyline class="wave" points="${cornersOf(ys).join(" ")}"/>`);
-  // 흐르는 선은 **첫 모양으로 선다.** 다음 모양으로 옮기는 것은 뷰어이고, 그 좌표는
-  // 여기 꼭짓점을 그대로 옮겨 적은 것이라 고정 케이스가 둘을 대조한다.
-  const morph = `<path class="wave wave-morph" d="${MORPH_PATH(cornersOf(SHAPES[0]))}"/>`;
+  const pct = (part, whole) => `${((part / whole) * 100).toFixed(2)}%`;
+  const box = `left:${pct(L, W)};right:${pct(R, W)};top:${pct(T, H)};bottom:${pct(B, H)}`;
   return (
+    // 자리 상자가 그림과 **같은 폭**이어야 빛줄기가 면 위에 정확히 앉는다.
+    `<div class="chart-blank">` +
     `<svg class="line" viewBox="0 0 ${W} ${H}" role="img" aria-label="선이 올 자리">` +
-    `${shapes.join("")}${morph}` +
+    `<rect class="plot" x="${L}" y="${T}" width="${W - R - L}" height="${H - B - T}"/>` +
     `<line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"/>` +
-    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>`
+    `<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"/></svg>` +
+    `${sheen(box)}</div>`
   );
 }
 
@@ -1505,7 +1367,7 @@ function parts(ctx, facet) {
   const [name, share] = columns;
   // **빈 띠가 자리를 말한다.** 조각의 이름은 값이 갖고 오는 것이라 지어내지 않는다.
   if (ctx.subjects.length === 0) {
-    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${wave()}</div>`;
+    return `${label}<div class="band" role="img" aria-label="조각이 올 자리">${sheen()}</div>`;
   }
   if (!subject) return `${label}<div class="blank">${missMark()}</div>`;
 
@@ -1879,7 +1741,7 @@ const PAGES = [
     "compare": "focus",
     "compareSaid": "focus 를 따라 바뀐다",
     "draws": "값 하나를 크게. 고른 subject 의 것을 그린다",
-    "blank": "수 하나가 크게 설 자리를 그 크기 그대로 비운다. 필드 이름은 선다. 수가 설 칸과 단위가 서고, 그 칸을 굴리는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "blank": "수 하나가 크게 설 자리를 그 크기 그대로 비운다. 필드 이름은 선다. 수가 설 칸과 단위가 서고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
     "note": "겹칠 자리가 없어 focus 가 무엇을 그릴지 고른다. 고른 것이 없으면 첫 subject 다",
     "fields": "1",
     "shapes": [
@@ -1982,7 +1844,7 @@ const PAGES = [
     "compare": "focus",
     "compareSaid": "focus 를 따라 바뀐다",
     "draws": "라벨과 값 여럿. 고른 subject 의 것을 그린다",
-    "blank": "선언한 줄이 전부 선다. 이름 옆마다 값이 올 자리를 비운다. 줄마다 값의 생김새(수 칸이냐 글줄이냐)를 따르고, 굴리거나 써 넣는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "blank": "선언한 줄이 전부 선다. 이름 옆마다 값이 올 자리를 비운다. 줄마다 값의 생김새(수 칸이냐 글줄이냐)를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
     "note": "한 facet 에 금액·나이·참거짓·글이 섞여도 읽는 규칙은 하나다. 표는 따로 없다 — 계약사항표 한 장도 이것 하나로 짠다",
     "fields": "1–12",
     "shapes": [
@@ -2112,7 +1974,7 @@ const PAGES = [
     "compare": "focus",
     "compareSaid": "focus 를 따라 바뀐다",
     "draws": "크기 비교. 고른 subject 의 막대를 그린다",
-    "blank": "필드마다 빈 자가 선다. 길이 0 의 막대가 아니라 채우지 않은 자다. 자마다 모양이 바뀌는 표식이 서고, 그것을 움직이는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "blank": "필드마다 빈 자가 선다. 길이 0 의 막대가 아니라 채우지 않은 자다. 자마다 빛줄기가 지나갈 표식이 서고, 그것을 움직이는 것은 뷰어다 — 산출물은 자리만 낸다",
     "note": "라벨·가로 막대·값이 한 줄로 눕고 붙은 말은 맨 앞 라벨 옆에 선다. 자는 facet 하나에 하나다 — 모든 필드·subject·고를 것을 덮으므로 무엇을 눌러도 자가 안 움직이고 한 facet 안의 막대끼리 길이를 견줄 수 있다. 범위가 크게 다른 필드를 한 facet 에 섞으면 작은 것이 짧아지는데, 그것이 축이 둘이라는 신호다",
     "fields": "1–6",
     "shapes": [
@@ -2220,7 +2082,7 @@ const PAGES = [
     "compare": "overlay",
     "compareSaid": "겹친다",
     "draws": "축 위의 변화. subject 마다 선 하나가 한 좌표에 겹친다",
-    "blank": "두 축만 선다. 값이 없으면 눈금도 없다 — 눈금을 지어내면 그것이 가짜 값이다. 꺾은선을 여럿 미리 그려 두고, 그중 하나씩 갈아 끼우는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "blank": "두 축과 그림이 들어올 면만 선다. 값이 없으면 눈금도 없고 꺾은선도 없다 — 눈금을 지어내면 그것이 가짜 값이고, 고정된 꺾은선 하나는 눈금이 없어도 추세로 읽힌다. 그 면 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
     "note": "축이 둘이라 선끼리 갈린다. 누가 누구인지는 선 끝의 이름이 말해 아래에 범례를 두지 않고, 무엇을 보는 중인지는 지금·직전·나머지 세 갈래의 색과 굵기가 말한다. 고른 subject 가 선을 못 세웠을 때만 축 아래가 그 사실을 적는다. 가로축은 age·date·duration·number 만 된다",
     "fields": "1",
     "shapes": [
@@ -2335,7 +2197,7 @@ const PAGES = [
     "compare": "overlay",
     "compareSaid": "겹친다",
     "draws": "반복되는 항목을 하나로 합친다. 같은 항목이 한 줄에 서고 subject 가 그 줄에서 갈린다",
-    "blank": "키 열이 서고 그 옆 한 칸이 subject 가 올 자리로 비어 있는다. 열은 subject 가 만든다. 열 머리와 칸이 값의 생김새를 따르고, 굴리는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "blank": "키 열이 서고 그 옆 한 칸이 subject 가 올 자리로 비어 있는다. 열은 subject 가 만든다. 열 머리와 칸이 값의 생김새를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
     "note": "누가 그 항목을 갖고 누가 안 갖는지가 한 줄에서 읽힌다. 겹치지 않고 고른 것만 펴려면 rows 다. 목록을 못 읽어 모르는 것은 표기(—)로, 읽었고 그 항목이 없다는 아는 사실은 글(없음)로 선다",
     "fields": "1",
     "shapes": [
@@ -2466,7 +2328,7 @@ const PAGES = [
     "compare": "focus",
     "compareSaid": "focus 를 따라 바뀐다",
     "draws": "고른 subject 의 항목을 행으로 편다. 겹치지 않는다",
-    "blank": "열 머리가 전부 선다. 열은 템플릿이 선언한 것이라 subject 없이도 안다. 칸마다 그 열의 생김새를 따르고, 굴리는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "blank": "열 머리가 전부 선다. 열은 템플릿이 선언한 것이라 subject 없이도 안다. 칸마다 그 열의 생김새를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
     "note": "list 와 같은 값을 받지만 비교하는 법이 다르다 — list 는 여럿을 한 표에 겹치고 rows 는 지금 보고 있는 하나만 편다. 이름만 보고 어느 쪽인지 알 수 있게 갈라 두었다",
     "fields": "1",
     "shapes": [
@@ -2597,7 +2459,7 @@ const PAGES = [
     "compare": "focus",
     "compareSaid": "focus 를 따라 바뀐다",
     "draws": "하나를 쪼갠 조각들. 합치면 한 덩어리가 된다",
-    "blank": "빈 띠가 선다. 조각 이름은 값이 갖고 오는 것이라 지어내지 않는다. 띠 위에 마디가 바뀌는 표식이 서고, 그것을 움직이는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "blank": "빈 띠가 선다. 조각 이름은 값이 갖고 오는 것이라 지어내지 않는다. 띠 위에 빛줄기가 지나갈 표식이 서고, 그것을 움직이는 것은 뷰어다 — 산출물은 자리만 낸다",
     "note": "bars 와 다르다 — 막대는 서로 다른 것들의 크기를 견주고 여기 조각들은 한 덩어리의 안쪽이다. 한 subject 의 안을 나눈 것이라 겹칠 수 없어 focus 를 따른다. 파이가 아니라 띠로 그린다: 색으로 가르지 않으므로 조각마다 이름을 옆에 세울 수 있는 쪽이 읽힌다. 둘째 열이 몫이라 수치형이어야 한다",
     "fields": "1",
     "shapes": [

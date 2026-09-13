@@ -684,11 +684,11 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
   // **자리의 모양이 값의 생김새를 따른다.** 밑줄 하나가 아니라 수가 설 칸·글줄·자·축이다.
   // 움직임은 여기 없다 — 아래 「움직임은 뷰어가 얹는다」가 그 선을 따로 본다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
-  assert.match(css, /\.slot i \{[^}]*background/, "릴이 모양을 안 갖고 있다");
-  // **잘린 글리프를 보이지 않는다.** 칸을 넘치게 두고 가장자리를 마스크로 지운다 —
-  // 자르면 반 토막 난 숫자가 보이고, 그것은 자리가 아니라 흠으로 읽힌다.
-  assert.match(css, /\.slot i \{[^}]*mask-image:linear-gradient/, "릴이 잘린 채로 보인다");
-  assert.match(css, /\.slot i \{[^}]*height:calc\(var\(--reel\) \* 2\)/, "칸이 넘치지 않아 잘린다");
+  // **밑그림이 실제로 그려진다.** 칸에 면이 없으면 자리가 아니라 빈 공백이다.
+  assert.match(css, /\.slot i[^{]*\{[^}]*background:var\(--bed\)/, "칸이 모양을 안 갖고 있다");
+  // **칸의 폭은 타입이 정한다.** 값에서 오면 그 폭이 곧 크기를 말한다.
+  assert.match(css, /\.slot\[data-slot="num"\] i \{[^}]*width:[\d.]+em/, "수 칸의 폭이 없다");
+  assert.match(css, /\.slot\[data-slot="text"\] i \{[^}]*width:[\d.]+em/, "글줄의 폭이 없다");
 
   // stat — 수 하나가 크게 설 자리를 그 크기 그대로 비운다.
   assert.match(at("stat"), /class="big"/);
@@ -718,22 +718,38 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
     assert.ok(!chart.includes(drawn), `선 위에 무언가 그렸다: ${drawn}`);
   }
   assert.ok(!/>[^<]*[0-9][^<]*</.test(chart), "그림 안에 수가 섰다");
-  // **모양을 여럿 미리 그려 둔다.** 하나뿐이면 그 모양이 고정되어 「이 subject 의 선」으로
-  // 읽힌다 — 옮겨 갈 곳이 있어야 계속 갈린다. 그려진 선은 전부 그 표식이어야 한다.
-  const drawnLines = [...chart.matchAll(/<(polyline|path)[^>]*>/g)].map((m) => m[0]);
-  assert.ok(drawnLines.length >= 2, `갈아 끼울 모양이 없다: ${drawnLines.length}`);
-  for (const one of drawnLines) assert.match(one, /class="wave[ "]/, `값에서 온 선이 섰다: ${one}`);
-  // 서로 달라야 갈린다 — 같은 것을 여러 벌 두면 갈아 끼워도 그대로다.
-  const corners = [...chart.matchAll(/<polyline[^>]*points="([^"]*)"/g)].map((m) => m[1]);
-  assert.ok(corners.length >= 2, `교대할 꺾은선이 없다: ${corners.length}`);
-  assert.equal(new Set(corners).size, corners.length, "같은 모양을 여러 벌 뒀다");
-  // **이어서 변형되는 선이 하나 있다.** 꼭짓점 수가 같아야 좌표가 짝지어 움직인다 —
-  // 짝이 안 맞으면 보간이 아니라 통째로 튄다.
-  const morphs = [...chart.matchAll(/<path class="wave wave-morph" d="([^"]*)"/g)].map((m) => m[1]);
-  assert.equal(morphs.length, 1, `흐르는 선이 하나가 아니다: ${morphs.length}`);
-  assert.equal(morphs[0], `M ${corners[0].split(" ").join(" L ")}`, "흐르는 선이 첫 꺾은선과 다르다");
-  for (const one of corners) {
-    assert.equal(one.split(" ").length, corners[0].split(" ").length, `꼭짓점 수가 다르다: ${one}`);
+  // **꺾은선을 그리지 않는다.** 고정된 꺾은선 하나는 눈금이 없어도 **추세로 읽힌다** —
+  // 「오르는 중」은 눈금이 없어도 값이다. 이 자리는 어떤 추세로도 읽히면 안 된다.
+  for (const drawn of ["<polyline", "<path", "<polygon"]) {
+    assert.ok(!chart.includes(drawn), `그림 자리에 선을 그렸다 — 추세로 읽힌다: ${drawn}`);
+  }
+  // 남는 것은 **그림이 들어올 면** 하나다. 면은 어떤 추세도 말하지 않는다.
+  const plots = [...chart.matchAll(/<rect class="plot"[^>]*>/g)];
+  assert.equal(plots.length, 1, `그림 자리가 하나가 아니다: ${plots.length}`);
+  // 그 면은 **축 안쪽**이다 — 자에서 나온 수라 밖으로 새지 않는다.
+  const boxOf = (tag) => Object.fromEntries(
+    [...tag.matchAll(/\b(x|y|width|height)="([\d.]+)"/g)].map((m) => [m[1], Number(m[2])]));
+  const plot = boxOf(plots[0][0]);
+  const view = chart.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+  assert.ok(plot.x > 0 && plot.y > 0, "그림 자리가 축 밖에서 시작한다");
+  assert.ok(plot.x + plot.width < view[0] && plot.y + plot.height < view[1], "그림 자리가 자를 넘는다");
+  // **빛줄기는 그 면 위만 지나간다.** 상자를 가리키는 수는 산출물의 자에서 나온다 —
+  // 스타일시트가 좌표를 따로 가지면 둘이 어긋나 빛줄기가 면 밖으로 샌다.
+  const blank = at("line").match(/<div class="chart-blank">[\s\S]*?<\/div>/)[0];
+  const box = blank.match(/<span class="sheen"[^>]*style="([^"]*)"/)[1];
+  const said = Object.fromEntries(box.split(";").map((one) => one.split(":")).map(([k, v]) => [k, v]));
+  const near = (got, want, name) =>
+    assert.ok(Math.abs(Number(got.replace("%", "")) - want) < 0.01, `${name}: ${got} (${want}% 여야)`);
+  near(said.left, (plot.x / view[0]) * 100, "빛줄기 상자의 왼쪽");
+  near(said.top, (plot.y / view[1]) * 100, "빛줄기 상자의 위");
+  near(said.right, ((view[0] - plot.x - plot.width) / view[0]) * 100, "빛줄기 상자의 오른쪽");
+  near(said.bottom, ((view[1] - plot.y - plot.height) / view[1]) * 100, "빛줄기 상자의 아래");
+  // 그 상자가 그림과 **같은 폭**이 아니면 백분율이 딴 곳을 가리킨다.
+  const widths = [...css.matchAll(/([^{}]*)\{([^}]*min-width:(\d+)px[^}]*)\}/g)]
+    .filter(([, sel]) => /svg\.line|\.chart-blank/.test(sel));
+  assert.equal(widths.length, 1, `그림과 자리 상자의 폭이 따로 적혔다: ${widths.length}`);
+  for (const one of ["svg.line", ".chart-blank"]) {
+    assert.ok(widths[0][1].split(",").map((x) => x.trim()).includes(one), `${one} 의 폭이 빠졌다`);
   }
 
   // list — 열은 subject 가 만든다. 키 열만 서고 그 옆이 「제안서가 오면 여기」라는 자리다.
@@ -776,13 +792,23 @@ test("움직임은 뷰어가 얹는다 — 산출물에는 한 글자도 없다"
       assert.ok(!html.includes(one), `산출물에 움직임이 들어왔다: ${one}`);
     }
   }
-  // 표식은 있어야 한다 — 없으면 뷰어가 굴릴 것이 없고 위 판정은 공짜로 통과한다.
+  // 표식은 있어야 한다 — 없으면 뷰어가 움직일 것이 없고 위 판정은 공짜로 통과한다.
   const zero = drawn[0];
-  assert.match(zero, /class="slot[ "]/, "굴릴 자리 표식이 없다");
-  assert.match(zero, /class="wave"/, "모양이 바뀔 표식이 없다");
-  assert.match(zero, /<polyline class="wave"/, "축 위에 세울 꺾은선이 없다");
+  assert.match(zero, /class="slot[ "]/, "밑그림 표식이 없다");
+  // **빛줄기는 밑그림마다 하나씩 선다.** 한 갈래만 빠져도 그 자리만 멎어 있고, 그러면
+  // 움직임이 하나라는 말이 거짓이 된다 — 수를 세어 맞춘다.
+  const count = (re) => (zero.match(re) ?? []).length;
+  const beds = {
+    "자리": count(/class="slot[ "]/g), "자": count(/class="track"/g),
+    "띠": count(/class="band"/g), "그림 자리": count(/class="chart-blank"/g),
+  };
+  for (const [what, many] of Object.entries(beds)) {
+    assert.ok(many >= 1, `밑그림 갈래를 못 찾았다 — 판정이 헛돈다: ${what}`);
+  }
+  assert.equal(count(/class="sheen"/g), Object.values(beds).reduce((a, b) => a + b, 0),
+    `빛줄기가 밑그림마다 하나씩 서지 않는다: ${JSON.stringify(beds)}`);
 
-  // **굴리는 쪽은 스타일시트 하나뿐이다.** 앱 스크립트가 몰래 굴리면 그것도 산출물의 움직임이다.
+  // **움직이는 쪽은 스타일시트 하나뿐이다.** 앱 스크립트가 몰래 움직이면 그것도 산출물의 움직임이다.
   const app = fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8");
   for (const one of ["requestAnimationFrame", "setInterval", "@keyframes", "animate("]) {
     assert.ok(!app.includes(one), `앱이 굴린다: ${one}`);
@@ -791,12 +817,18 @@ test("움직임은 뷰어가 얹는다 — 산출물에는 한 글자도 없다"
 
 test("읽을 수 있는 정지 숫자를 두지 않는다", () => {
   // **0원은 이 도메인에서 진짜 값이다** — 미보장이 0원이다. 정지한 회색 0 은 값으로 오독된다.
-  // 도는 숫자는 멈춰 있지 않아 값으로 읽힐 수 없고, 멈출 때는 숫자가 사라진다.
+  // 그래서 **빈 자리에 숫자를 한 글자도 두지 않는다** — 산출물에도 스타일시트에도.
   const html = renderView({ template: FIX.template, values: [] }).html;
-  for (const [, inside] of html.matchAll(/<span class="slot[^"]*"[^>]*>([\s\S]*?)<\/span>/g)) {
+  // 자리마다 빛줄기가 **마지막에 하나** 선다 — 그 앞이 자리의 밑그림 전부다.
+  const inSlots = [...html.matchAll(
+    /<span class="slot[^"]*"[^>]*>([\s\S]*?)<span class="sheen"[^>]*><\/span><\/span>/g)];
+  assert.equal(inSlots.length, (html.match(/class="slot[ "]/g) ?? []).length,
+    "빛줄기가 자리의 끝에 서지 않는 자리가 있다");
+  for (const [, inside] of inSlots) {
     assert.ok(!/[0-9]/.test(inside), `자리에 숫자가 박혀 있다: ${inside.slice(0, 60)}`);
-    // 릴과 단위 말고는 아무것도 없다 — 흐린 더미 값이 끼어들 틈을 남기지 않는다.
-    const left = inside.replace(/<i><\/i>/g, "").replace(/<b class="slot-unit">[^<]*<\/b>/g, "").trim();
+    // 칸과 단위 말고는 아무것도 없다 — 흐린 더미 값이 끼어들 틈을 남기지 않는다.
+    const left = inside.replace(/<i><\/i>/g, "")
+      .replace(/<b class="slot-unit">[^<]*<\/b>/g, "").trim();
     assert.equal(left, "", `자리에 다른 것이 들었다: ${left.slice(0, 60)}`);
   }
   // 단위는 값이 아니다. 숫자가 없으므로 정지해 있어도 값으로 읽히지 않는다.
@@ -814,217 +846,162 @@ test("읽을 수 있는 정지 숫자를 두지 않는다", () => {
   }
 
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
-  // 숫자를 내는 자리는 **도는 릴 하나뿐**이고, 멈추면 그 글자가 사라진다.
-  const digitRules = [...css.matchAll(/([^{}]*)\{([^}]*)\}/g)]
-    .filter(([, , body]) => /content:\s*"[^"]*[0-9]/.test(body));
-  assert.equal(digitRules.length, 1, `숫자를 내는 규칙이 여럿이다: ${digitRules.map((r) => r[1].trim())}`);
-  assert.match(digitRules[0][1].trim(), /^\.slot\[data-slot="num"\] i::before$/);
-  // 그 자리는 **늘 도는 자리**다. 굴리는 규칙이 같은 릴을 덮고 있어야 정지 숫자가 생기지 않는다.
-  assert.match(css, /\.slot i::before \{[^}]*animation:reel var\(--spin\)/, "릴이 안 돈다");
+  // **스타일시트도 글자를 내지 않는다.** 예전에는 숫자를 내는 규칙이 하나 있었고, 그것이
+  // 멈출 때 사라지는지를 재야 했다. 이제 내는 규칙이 **하나도 없으므로** 잴 것이 없다 —
+  // 걷은 판정보다 좁지 않다: 0개는 「도는 하나」보다 강한 조건이다.
+  const printed = [...css.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, , body]) => /content:\s*"[^"]+"/.test(body))
+    .map(([, sel]) => sel.trim());
+  assert.deepEqual(printed, [], `스타일시트가 빈 자리에 글자를 낸다: ${printed.join(" · ")}`);
 });
 
 test("움직임을 끈 사람에게도 자리가 선다", () => {
+  // **이 자리의 조건이 뒤집혔다.** 예전에는 움직이던 것이 **사라져야** 했다 — 멈춘 릴에
+  // 숫자가, 멈춘 줄에 임의의 길이가 남으면 그것이 읽을 수 있는 값이었기 때문이다.
+  // 지금 밑그림에는 읽힐 것이 없으므로(숫자도 글자도 꺾은선도 없다) 남아도 안전하고,
+  // 오히려 **사라지면 안 된다** — 자리가 통째로 사라지면 「여기에 무엇이 온다」가 없어진다.
+  // 그래서 조용한 자리가 멎게 하는 것은 **빛줄기뿐**이다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
-  const quiet = css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/);
-  assert.ok(quiet, "움직임을 끈 사람을 위한 자리가 없다");
-  const body = quiet[1];
-  // 굴리던 것이 **멈추는** 것이 아니라 **사라진다** — 멈춘 릴에 숫자가 남으면 그것이 정지 숫자다.
-  //
-  // **글자가 있는지가 아니라 이기는지를 본다.** `.slot i::before { content:"" }` 를 적어 두고도
-  // 숫자를 내던 `.slot[data-slot="num"] i::before` 가 더 구체적이라 캐스케이드에서 이겨
-  // 멈춘 릴에 0 이 그대로 섰던 적이 있다. 판정이 글자만 보면 그 화면을 통과시킨다.
-  const bareCss = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  const quietStart = bareCss.indexOf("@media (prefers-reduced-motion: reduce)");
-  const digitSel = [...bareCss.slice(0, quietStart).matchAll(/([^{}]*)\{([^}]*)\}/g)]
-    .filter(([, , rule]) => /content:\s*"[^"]*[0-9]/.test(rule))
-    .map(([, sel]) => sel.trim());
-  assert.ok(digitSel.length >= 1, "숫자를 내는 자리를 못 찾았다 — 판정이 헛돈다");
-  // `@media` 껍데기를 벗기고 **안쪽 규칙만** 훑는다 — 껍데기째 재면 안쪽 선택자를 한 번도 안 본다.
-  const quietBody = bareCss.slice(quietStart).match(/\{([\s\S]*)\n\}/)[1];
-  const quietRules = [...quietBody.matchAll(/([^{}]*)\{([^}]*)\}/g)];
-  assert.ok(quietRules.length >= 2, "조용한 자리에 규칙이 거의 없다 — 판정이 헛돈다");
-  for (const one of digitSel) {
-    const covered = quietRules.some(([, sel, rule]) =>
-      sel.split(",").map((x) => x.trim()).includes(one) && /content:""/.test(rule));
-    assert.ok(covered, `멈춘 릴에 숫자가 남는다 — 같은 선택자로 덮지 않았다: ${one}`);
-  }
-  assert.match(body, /animation:none/, "릴이 안 멈춘다");
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const quietStart = bare.indexOf("@media (prefers-reduced-motion: reduce)");
+  assert.ok(quietStart >= 0, "움직임을 끈 사람을 위한 자리가 없다");
+  // **`@media` 껍데기 하나만 벗긴다.** 끝까지 탐욕스럽게 물면 그 뒤의 규칙까지 조용한 자리로
+  // 읽혀, 「멎는 것은 빛줄기뿐」이 엉뚱한 것을 가리킨다.
+  const media = bare.slice(quietStart).match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/)[0];
+  const quietBody = media.match(/\{([\s\S]*?)\n\}/)[1];
+  const quietRules = [...quietBody.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .map(([, sel, rule]) => [sel.trim(), rule.trim()]);
+  assert.ok(quietRules.length >= 1, "조용한 자리에 규칙이 없다 — 판정이 헛돈다");
 
-  // **움직이던 것이 하나도 안 남는다.** 멈춘 자리에 남은 길이·모양은 그대로 값이 된다 —
-  // 써 넣던 줄이 임의 길이로 굳어 서 있던 적이 있다. 움직이는 자리마다 끈 자리가 있어야 한다.
-  const moving = [...bareCss.slice(0, quietStart).matchAll(/([^{}]*)\{([^}]*)\}/g)]
-    .filter(([, sel, rule]) => /\.slot|\.wave/.test(sel) && /animation:[^;]*infinite/.test(rule))
+  // 1. **움직이는 자리는 전부 멎는다.** 어느 하나가 계속 돌면 끈 사람에게 그것만 움직인다.
+  const moving = [...bare.slice(0, quietStart).matchAll(/([^{}]*)\{([^}]*)\}/g)]
+    .filter(([, , rule]) => /animation:[^;]*infinite/.test(rule))
     .map(([, sel]) => sel.trim());
-  assert.ok(moving.length >= 4, `움직이는 자리를 못 찾았다 — 판정이 헛돈다: ${moving.length}`);
-  const quietText = quietRules.map(([, sel, rule]) => [sel, rule]);
+  assert.ok(moving.length >= 1, "움직이는 자리를 못 찾았다 — 판정이 헛돈다");
   for (const one of moving) {
-    // 끈 자리가 조상 쪽이어도 된다 — `.wave { display:none }` 하나가 `.track .wave` 까지 덮는다.
-    const parts = one.split(/\s+/);
-    const off = quietText.some(([sel, rule]) =>
+    const off = quietRules.some(([sel, rule]) =>
       /animation:none|display:none/.test(rule)
-      && sel.split(",").some((x) => {
-        const bits = x.trim().split(/\s+/);
-        return bits.length > 0 && bits.every((bit) => parts.includes(bit));
-      }));
+      && sel.split(",").map((x) => x.trim()).includes(one));
     assert.ok(off, `조용한 자리에 움직이던 것이 남았다: ${one}`);
   }
-  // **그리던 것은 멈추는 것으로 모자란다.** 굴리기만 멈추면 밑그림이 그대로 남는다 —
-  // 써 넣던 줄의 커서 테두리가 임의 자리에 서 있던 적이 있고, 그때 판정은 통과시켰다.
-  // 칠·테두리·획을 가진 자리는 **사라져야** 하고, 글자만 내던 자리는 글자를 비우면 된다.
-  const drawn = [...bareCss.slice(0, quietStart).matchAll(/([^{}]*)\{([^}]*)\}/g)]
-    .filter(([, sel, rule]) => /\.slot|\.wave/.test(sel) && /animation:[^;]*infinite/.test(rule)
-      && /background|border|stroke/.test(rule))
-    .map(([, sel]) => sel.trim());
-  assert.ok(drawn.length >= 3, `그리는 자리를 못 찾았다 — 판정이 헛돈다: ${drawn.length}`);
-  for (const one of drawn) {
-    const parts = one.split(/\s+/);
-    const gone = quietText.some(([sel, rule]) =>
-      /display:none/.test(rule)
-      && sel.split(",").some((x) => {
-        const bits = x.trim().split(/\s+/);
-        return bits.length > 0 && bits.every((bit) => parts.includes(bit));
-      }));
-    assert.ok(gone, `조용한 자리에 그리던 것이 남았다 — 멈추는 것이 아니라 사라져야 한다: ${one}`);
+
+  // 2. **멎는 것은 빛줄기뿐이다.** 조용한 자리의 규칙이 빛줄기 말고 다른 것을 건드리면
+  //    밑그림이 함께 사라진다 — 예전 판정이 그것을 요구했고, 지금은 그것이 결함이다.
+  for (const [sel] of quietRules) {
+    for (const one of sel.split(",").map((x) => x.trim())) {
+      assert.match(one, /^\.sheen(::before)?$/, `조용한 자리가 빛줄기 말고 다른 것을 건드린다: ${one}`);
+    }
   }
-  // **멈추는 것이 아니라 사라진다.** 멈춘 그림은 값처럼 읽힌다.
-  assert.match(body, /\.wave \{[^}]*display:none/, "모양이 바뀌는 표식이 안 사라진다");
-  // 그래도 「여기 값이 온다」가 읽혀야 한다 — 릴 상자의 모양은 그대로 남는다.
-  assert.match(body, /\.slot i \{[^}]*background:var\(--surface\)/, "조용한 자리가 안 보인다");
-  // 모양을 내는 것은 산출물 쪽(릴 수 · 단위 · 자 · 축)이라 움직임을 꺼도 그대로 선다.
+
+  // 3. **밑그림을 내는 규칙은 조용한 자리 밖에 있다.** 안으로 들어가면 그것은 끈 사람에게만
+  //    서는 자리이고, 켠 사람의 화면에서는 사라진다.
+  const outside = bare.replace(media, "");
+  for (const [sel, must] of [
+    [".slot i", /background:var\(--bed\)/],
+    [".track > .sheen", /background:var\(--bed\)/],
+    [".band > .sheen", /background:var\(--bed\)/],
+    ["svg.line .plot", /fill:var\(--bed\)/],
+    [".track", /background:var\(--surface\)/],
+    [".band", /background:var\(--surface\)/],
+  ]) {
+    const rule = [...outside.matchAll(/([^{}]*)\{([^}]*)\}/g)]
+      .find(([, name, body]) => name.split(",").map((x) => x.trim()).includes(sel) && must.test(body));
+    assert.ok(rule, `밑그림이 조용한 자리 밖에 없다: ${sel}`);
+  }
+
+  // 4. 모양을 내는 것은 산출물 쪽(칸 수 · 단위 · 자 · 축 · 그림 자리)이라 그대로 선다.
   const html = renderView({ template: FIX.template, values: [] }).html;
   assert.match(html, /data-slot="num"/);
   assert.match(html, /class="track"/);
   assert.match(html, /class="axis"/);
-
-  // **모든 자리가 같은 속도로 돈다.** 어느 자리가 더 빨리 돌면 그것이 강조다.
-  // 속도를 적는 자리를 세는 것으로는 모자란다 — 어디에 적히든 `--spin` 하나에서만 나와야 한다.
-  // **주석을 걷고 센다** — 주석이 선택자에 붙어 오면 이름으로 거르는 판정이 전부 헛돈다.
-  let spun = 0;
-  let waved = 0;
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const [, sel, rule] of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
-    const name = sel.trim();
-    // 자리와 그림 표식을 건드리는 규칙은 **어느 이름으로 적혔든** 잡는다.
-    if (!/\.slot|\.wave/.test(name)) continue;
-    if (/\.wave/.test(name) && /animation/.test(rule)) waved += 1;
-    const timed = rule.match(/animation(?:-duration)?:\s*([^;]+)/);
-    if (timed) {
-      // 릴은 `--spin`, 지나가는 표식은 `--pass`. **갈래마다 하나뿐**이라 인스턴스가 못 흔든다.
-      // 릴은 `--spin`, 지나가는 표식은 `--pass`, 써 넣는 자리는 `--type`.
-      assert.match(timed[1], /var\(--spin\)|var\(--pass\)|var\(--type\)|none/,
-        `자리마다 속도가 다르다: ${name} — ${timed[1]}`);
-      spun += 1;
-    }
-    // **어긋내도 되는 것은 시작점뿐이다.** 자리마다 무엇을 달리 주든 그것이 시작점이 아니면
-    // 크기나 순서를 암시할 길이 열린다 — 그래서 바꿀 수 있는 것을 이름으로 못 박는다.
-    if (/nth-child/.test(name)) {
-      assert.ok(!/animation:|animation-duration/.test(rule), `시작점이 아니라 속도를 바꿨다: ${name}`);
-      const props = [...rule.matchAll(/(--[a-z-]+|[a-z-]+)\s*:/g)].map((m) => m[1]);
-      assert.ok(props.length > 0, `nth-child 가 아무것도 안 한다: ${name}`);
-      for (const prop of props) {
-        assert.ok(["animation-delay", "--phase"].includes(prop),
-          `nth-child 가 시작점 말고 ${prop} 를 바꾼다: ${name}`);
-      }
-    }
-  }
-  assert.ok(spun >= 1, "도는 자리를 하나도 못 찾았다 — 판정이 헛돈다");
-  // **표식 이름을 바꾸면 판정이 조용히 좁아진다.** 실제로 `.sweep` 을 찾던 채로 남아
-  // 그림 쪽 규칙을 한동안 안 보고 있었다. 두 갈래를 다 보고 있는지 여기서 못 박는다.
-  assert.ok(waved >= 3, `그림 표식을 못 찾았다 — 판정이 헛돈다: ${waved}`);
+  assert.match(html, /class="plot"/);
+  assert.match(html, /class="band"/);
 });
 
-test("선은 끊기지 않고 이어서 변형된다 — 좌표는 산출물이 갖는다", () => {
+test("빈 자리의 움직임은 빛줄기 하나다", () => {
+  // **일관은 박자로 맞추는 것이 아니라 효과를 하나로 줄여서 얻는다.** 슬롯이 돌고 줄이
+  // 찍히고 선이 변형되던 세 움직임은 속도를 맞춰도 한 벌로 안 읽혔다. 이제 하나뿐이다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [...bare.matchAll(/([^{}]*)\{([^}]*)\}/g)].map(([, sel, body]) => [sel.trim(), body]);
+
+  // 1. **움직이는 규칙이 하나뿐이다.** 둘이 되는 순간 자리마다 다른 움직임이 생긴다.
+  const moving = rules.filter(([, body]) => /animation:[^;n]/.test(body)).map(([sel]) => sel);
+  assert.deepEqual(moving, [".sheen::before"], `움직임이 하나가 아니다: ${moving.join(" · ")}`);
+  // 시간표도 하나뿐이다 — 두 번째가 생기면 그것이 다른 움직임이다.
+  const frames = [...bare.matchAll(/@keyframes\s+([A-Za-z-]+)/g)].map((m) => m[1]);
+  assert.deepEqual(frames, ["sheen"], `시간표가 여럿이다: ${frames.join(" · ")}`);
+
+  // 2. **속도는 변수 하나에서만 나온다.** 인스턴스가 흔들 길을 막는다.
+  const timed = rules.filter(([, body]) => /animation(-duration)?:/.test(body) && !/animation:none/.test(body));
+  for (const [sel, body] of timed) {
+    const said = body.match(/animation(?:-duration)?:\s*([^;]+)/)[1];
+    assert.match(said, /var\(--sheen\)/, `속도가 그 변수에서 안 나온다: ${sel} — ${said}`);
+  }
+  const declared = rules.filter(([, body]) => /--sheen\s*:/.test(body)).map(([sel]) => sel);
+  assert.equal(declared.length, 1, `속도를 적는 자리가 여럿이다: ${declared.join(" · ")}`);
+  assert.equal(declared[0], ":root", `속도가 뿌리 밖에서 나온다: ${declared[0]}`);
+  const span = rules.filter(([, body]) => /--sheen-span\s*:/.test(body)).map(([sel]) => sel);
+  assert.deepEqual(span, [":root"], `거리를 적는 자리가 여럿이다: ${span.join(" · ")}`);
+
+  // 3. **위상을 어긋내지 않는다.** 전부 같이 움직이는 것이 한 벌로 읽히는 까닭이다 —
+  //    자리마다 시작점을 달리 주면 다시 여러 움직임이 된다.
+  for (const [sel, body] of rules) {
+    assert.ok(!/animation-delay/.test(body), `시작점을 어긋냈다: ${sel}`);
+    assert.ok(!/--phase/.test(body), `위상 변수가 남아 있다: ${sel}`);
+  }
+  assert.ok(!/nth-child[^{]*\{[^}]*animation/.test(bare), "차례마다 움직임을 달리 준다");
+
+  // 4. **같은 방향·같은 거리.** 한 바퀴가 `--sheen-span` 만큼만 나아가므로 자리가 넓든 좁든
+  //    초당 같은 거리를 간다. 폭에 맞춰 늘이면(`100%`) 넓은 자리가 더 빨라 보이고 그것이 강조다.
+  const sheen = bare.match(/@keyframes sheen \{([\s\S]*?)\n\}/);
+  assert.ok(sheen, "빛줄기의 시간표가 없다");
+  const steps = [...sheen[1].matchAll(/(from|to|[\d.]+%)\s*\{([^}]*)\}/g)].map(([, at, rule]) => [at, rule]);
+  assert.equal(steps.length, 2, `빛줄기가 한 번에 지나가지 않는다: ${steps.length}`);
+  for (const [at, rule] of steps) {
+    assert.match(rule, /transform:translateX\(/, `transform 말고 다른 것을 움직인다: ${at}`);
+    assert.ok(!/%/.test(rule.replace(/[\d.]+%\s*\{/, "")), `거리가 자리 폭에서 나온다: ${at} — ${rule}`);
+  }
+  assert.match(steps[0][1], /var\(--sheen-span\) \* -1/, "왼쪽 밖에서 들어오지 않는다");
+  assert.match(steps[1][1], /translateX\(0\)/, "한 주기만큼만 밀리지 않는다 — 이음매가 생긴다");
+  // 무늬가 그 거리마다 되풀이돼야 이음매가 없다.
+  const band = rules.find(([sel]) => sel === ".sheen::before")[1];
+  assert.match(band, /background-size:var\(--sheen-span\) 100%/, "무늬 주기가 미는 거리와 다르다");
+  assert.match(band, /background-repeat:repeat-x/, "무늬가 되풀이되지 않는다");
+
+  // 5. **세기도 하나다.** 빛줄기의 색이 한 곳에서만 나오고 무채색이다.
+  const lit = [...bare.matchAll(/rgba?\(([^)]+)\)/g)].map((m) => m[1]);
+  assert.equal(lit.length, 1, `빛줄기 말고 다른 반투명이 있다: ${lit.join(" · ")}`);
+  const channels = lit[0].split(",").slice(0, 3).map((x) => Number(x.trim()));
+  assert.equal(new Set(channels).size, 1, `빛줄기가 색을 갖는다: ${lit[0]}`);
+});
+
+test("그림 자리가 추세로 읽히지 않는다", () => {
+  // **눈금이 없어도 「오르는 중」은 값이다.** 고정된 꺾은선 하나는 추세로 읽히고, 추세는
+  // 그 subject 에 대한 말이다. 그래서 자리에는 축과 **면**만 선다.
   const chart = renderView({ template: FIX.template, values: [] }).html
     .match(/<svg class="line"[\s\S]*?<\/svg>/)[0];
-
-  // **변형은 `d` 를 보간한다.** opacity 로 갈아 끼우면 한 선이 끊겼다 다른 선이 나타난다.
-  const morph = css.match(/@keyframes morph \{([\s\S]*?)\n\}/);
-  assert.ok(morph, "흐르는 선의 시간표가 없다");
-  const frames = [...morph[1].matchAll(/([^{}]*)\{([^}]*)\}/g)].map(([, at, rule]) => [at.trim(), rule]);
-  assert.ok(frames.length >= 3, `옮겨 갈 곳이 모자란다: ${frames.length}`);
-  for (const [at, rule] of frames) assert.match(rule, /\bd:path\("/, `모양이 아닌 것을 움직인다: ${at}`);
-  assert.match(css, /svg\.line \.wave-morph \{[^}]*animation:morph var\(--pass\)/, "흐르는 선이 안 흐른다");
-
-  // **좌표를 스타일시트가 따로 갖지 않는다.** `render.mjs` 의 자와 모양에서 나온 꼭짓점
-  // 그대로여야 한다 — 두 곳에 베껴 쓰고 어긋나면 선이 축 밖으로 나간다.
-  const corners = [...chart.matchAll(/<polyline[^>]*points="([^"]*)"/g)]
-    .map((m) => `M ${m[1].split(" ").join(" L ")}`);
-  const drawn = frames.map(([, rule]) => rule.match(/d:path\("([^"]*)"\)/)[1]);
-  assert.deepEqual(new Set(drawn), new Set(corners), "스타일시트의 좌표가 산출물과 갈렸다");
-  assert.equal(drawn[0], corners[0], "첫 모양이 산출물이 세운 선과 다르다");
-  // 한 바퀴가 첫 모양으로 닫힌다 — 안 닫히면 돌 때마다 한 번씩 튄다.
-  assert.match(frames[0][0], /(^|,\s*)100%/, `한 바퀴가 안 닫힌다: ${frames[0][0]}`);
-
-  // **한쪽은 반드시 선다.** `d` 를 못 받는 자리에 교대가 남아야 선이 아예 안 보이지 않는다.
-  const yes = css.match(/@supports \(d:path\([^)]*\)\) \{([\s\S]*?)\n\}/);
-  const no = css.match(/@supports not \(d:path\([^)]*\)\) \{([\s\S]*?)\n\}/);
-  assert.ok(yes && no, "둘 중 하나를 고르는 자리가 없다");
-  assert.match(yes[1], /polyline \{[^}]*display:none/, "보간되는데 교대가 겹쳐 선다");
-  assert.match(no[1], /\.wave-morph \{[^}]*display:none/, "못 받는데 안 흐르는 선이 굳어 선다");
-  // 교대를 감출 때 **흐르는 선까지 같이 감기면** 그 자리에 선이 하나도 안 남는다 —
-  // 흐르는 선도 같은 표식(`.wave`)을 달고 있어 `.wave` 로 감추면 둘 다 감긴다. 실제로 그랬다.
-  // **주석을 걷고 본다** — 까닭을 적은 주석에 표식 이름이 들어 있어 그대로 재면 헛돈다.
-  const yesBody = yes[1].replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.ok(!/\.wave\b(?!-)/.test(yesBody), `보간되는 자리에서 선이 통째로 사라진다: ${yesBody.trim()}`);
-});
-
-test("글 자리는 한 칸씩 끊어서 찍는다", () => {
-  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
-  const cycle = Number(css.match(/--type:(\d+)ms/)[1]);
-  const box = Number(css.match(/\.slot\[data-slot="text"\] i \{ width:calc\(var\(--cell\) \* (\d+)\)/)[1]);
-
-  const block = css.match(/@keyframes type \{([\s\S]*?)\n\}/);
-  assert.ok(block, "써 넣는 시간표가 없다");
-  const steps = [...block[1].matchAll(/([\d.]+)% \{([^}]*)\}/g)].map(([, at, rule]) => {
-    const w = rule.match(/width:calc\(var\(--cell\) \* (\d+)\)/);
-    assert.ok(w || /width:0/.test(rule), `칸이 아닌 폭을 쓴다: ${at}% — ${rule}`);
-    return {
-      at: (Number(at) / 100) * cycle,
-      cells: w ? Number(w[1]) : 0,
-      step: Number(rule.match(/steps\((\d+),/)?.[1] ?? 0),
-    };
-  });
-  assert.ok(steps.length >= 4, `구간이 모자란다: ${steps.length}`);
-  assert.equal(steps[0].cells, 0, "빈 자리에서 시작하지 않는다");
-  assert.equal(steps.at(-1).cells, 0, "지우고 끝나지 않는다 — 다음 바퀴에서 폭이 튄다");
-
-  // **한 칸 100ms 로 찍고 1000ms 멈추고 한 칸 50ms 로 지운다.** 매끄럽게 자라면 로딩 막대다.
-  const words = new Set();
-  for (const [i, one] of steps.slice(0, -1).entries()) {
-    const next = steps[i + 1];
-    const span = next.at - one.at;
-    const near = (want, said) => assert.ok(Math.abs(span - want) < 1, `${said}: ${span}ms (${want}ms 여야)`);
-    if (next.cells > one.cells) {
-      near(100 * (next.cells - one.cells), `${next.cells}칸 찍는 데`);
-      assert.equal(one.step, next.cells - one.cells, "찍는 칸 수와 뛰는 수가 다르다");
-      words.add(next.cells);
-    } else if (next.cells === one.cells) {
-      near(1000, "다 찍고 멈추는 데");
-      assert.equal(one.step, 1, "멈춘 동안 무언가 움직인다");
-    } else {
-      near(50 * (one.cells - next.cells), `${one.cells}칸 지우는 데`);
-      assert.equal(one.step, one.cells - next.cells, "지우는 칸 수와 뛰는 수가 다르다");
-    }
+  for (const drawn of ["<polyline", "<path", "<polygon", "<circle", "<text"]) {
+    assert.ok(!chart.includes(drawn), `그림 자리에 무언가 그렸다: ${drawn}`);
   }
-  // **한 폭에 고정되면 그 폭이 값이 된다.** 길이가 여럿이라야 폭이 아무 말도 못 한다.
-  assert.ok(words.size >= 2, `낱말 길이가 하나뿐이다: ${[...words]}`);
-  // 자리는 가장 긴 낱말만큼만 잡는다 — 좁으면 넘치고 넓으면 빈 자리가 값처럼 읽힌다.
-  assert.equal(Math.max(...words), box, `자리 폭(${box}칸)과 가장 긴 낱말(${Math.max(...words)}칸)이 다르다`);
+  // 남는 것은 축 둘과 면 하나다. 면은 오르지도 내리지도 않는다.
+  assert.equal((chart.match(/<line class="axis"/g) ?? []).length, 2, "축 둘만 선다");
+  assert.equal((chart.match(/<rect class="plot"/g) ?? []).length, 1, "그림 자리가 하나가 아니다");
+  assert.equal((chart.match(/<(line|rect|circle|path|polyline|polygon|text)\b/g) ?? []).length, 3,
+    "그림 자리에 그린 것이 셋을 넘는다");
 
-  // **커서는 찍는 동안 서 있고 멈춘 동안 깜빡인다.** 찍는 중에 깜빡이면 찍히는 것이 안 보인다.
-  const blink = css.match(/@keyframes blink \{([\s\S]*?)\n\}/);
-  assert.ok(blink, "커서 시간표가 없다");
-  const holds = steps.slice(0, -1)
-    .map((one, i) => [one.at, steps[i + 1].at, steps[i + 1].cells === one.cells])
-    .filter(([, , held]) => held);
-  assert.ok(holds.length >= 2, `멈추는 구간을 못 찾았다 — 판정이 헛돈다: ${holds.length}`);
-  const off = [...blink[1].matchAll(/([\d.]+)% \{[^}]*transparent/g)]
-    .map((m) => (Number(m[1]) / 100) * cycle);
-  assert.ok(off.length >= holds.length, `깜빡이지 않는 멈춤이 있다: ${off.length}`);
-  for (const at of off) {
-    assert.ok(holds.some(([from, to]) => at >= from - 1 && at < to), `찍는 동안 커서가 꺼진다: ${at}ms`);
+  // **스타일시트가 그림의 좌표를 한 수도 갖지 않는다.** 예전에는 꺾은선 좌표를 옮겨 적고
+  //  둘이 갈리지 않았는지를 쟀다. 이제 옮겨 적을 것 자체가 없어야 한다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const [, sel, body] of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (!/svg\.line|\.plot|\.chart/.test(sel)) continue;
+    assert.ok(!/\bd:|points:|path\(/.test(body), `스타일시트가 그림의 좌표를 갖는다: ${sel.trim()}`);
   }
+  // 값이 있는 그림은 그대로다 — 자리만 바뀌었지 그리는 법이 바뀐 것이 아니다.
+  const drawn = fix().html.match(/<svg class="line"[\s\S]*?<\/svg>/)[0];
+  assert.match(drawn, /<polyline/, "값이 있는 그림이 선을 안 그린다");
+  assert.match(drawn, /class="tick/, "값이 있는 그림에 눈금이 없다");
 });
 
 test("subject 0 에서도 고르는 자리는 서고 focus 는 가리킬 것이 없어도 안 무너진다", () => {
@@ -1446,9 +1423,17 @@ test("평가를 시각으로 말하지 않는다", () => {
   assert.deepEqual(chromatic, [], `갈래·상태 밖의 색: ${chromatic.join(", ")}`);
 
   // 2. 값에 따라 달라지는 색이 없다. 렌더가 넣는 inline style 은 **길이뿐**이다.
-  for (const html of [fix({ focus: "proposal-a" }).html, ...sampleNames.map((n) => drawSample(sample(n)).html)]) {
+  //    아직 아무도 없는 화면도 함께 본다 — 빈 자리의 상자도 자에서 나온 길이여야 한다.
+  const styled = [
+    fix({ focus: "proposal-a" }).html,
+    renderView({ template: FIX.template, values: [] }).html,
+    ...sampleNames.map((n) => drawSample(sample(n)).html),
+  ];
+  for (const html of styled) {
     for (const [, style] of html.matchAll(/style="([^"]*)"/g)) {
-      assert.match(style, /^width:[\d.]+%$/, `값이 시각을 정한다: ${style}`);
+      for (const one of style.split(";")) {
+        assert.match(one, /^(width|left|right|top|bottom):[\d.]+%$/, `값이 시각을 정한다: ${style}`);
+      }
     }
   }
 
