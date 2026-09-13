@@ -334,6 +334,59 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class CountsAreNotWrittenOutInProse(unittest.TestCase):
+    """**닫힌 어휘의 개수를 글로 적지 않는다.**
+
+    적으면 어휘가 늘 때 두 군데를 고쳐야 하고, 한쪽이 빠지면 문서가 조용히 거짓말을 한다.
+    실제로 그렇게 굳어 있었다 — 설명서에 「타입 여덟」이라 적혀 있었지만 아홉이었고,
+    「아이콘 아홉」은 열하나였다. **수를 고치는 것이 아니라 걷는 것이 고침이다** — 고쳐 봐야
+    다음에 또 갈린다.
+
+    수가 없어도 뜻이 사는 문장이면 걷는다. 「고를 것이 여섯이면 값도 여섯이다」처럼
+    **수 자체가 예시인 문장**은 어휘의 개수가 아니므로 여기 걸리지 않는다.
+    """
+
+    WORDS = "둘|셋|넷|다섯|여섯|일곱|여덟|아홉|열"
+    # 개수의 정본이 있는 어휘만 본다. 정본이 없으면 판정이 무엇과 견줄지 모른다.
+    TERMS = ["타입", "모양", "primitive element", "주석 갈래"]
+    WHERE = ["AGENTS.md", "docs/weave.md", "catalog/elements.json", "catalog/guide.json"]
+
+    def test_no_closed_vocabulary_is_counted_in_words(self) -> None:
+        import re
+
+        hits = []
+        for name in self.WHERE:
+            text = (ROOT / name).read_text(encoding="utf-8")
+            for term in self.TERMS:
+                for pattern in (rf"{re.escape(term)}\s*(?:는|은|이|가)?\s*({self.WORDS})",
+                                rf"({self.WORDS})\s+{re.escape(term)}\b"):
+                    for found in re.finditer(pattern, text):
+                        line = text[: found.start()].count("\n") + 1
+                        hits.append(f"{name}:{line} {found.group(0).strip()}")
+        self.assertEqual(hits, [], f"어휘의 개수를 글로 적었다 — 수를 고치지 말고 걷는다: {hits}")
+
+    def test_the_scan_would_notice(self) -> None:
+        """**대조군.** 위 판정은 지금 아무것도 못 찾는다 — 찾을 줄은 아는지 여기서 본다."""
+        import re
+
+        # `\b` 는 한글 뒤에 서지 않는다 — 「다섯이고」에는 경계가 없어 그것을 믿으면 판정이 눈을 감는다.
+        pattern = rf"primitive element\s*(?:는|은|이|가)?\s*({self.WORDS})"
+        self.assertTrue(re.search(pattern, "primitive element 는 다섯이고"), "패턴이 안 문다")
+        self.assertTrue(re.search(rf"({self.WORDS})\s+primitive element\b", "다섯 primitive element"))
+        # 수가 예시인 문장은 안 문다 — 그것까지 막으면 쓸 수 있는 말이 줄어든다.
+        self.assertIsNone(re.search(pattern, "고를 것이 여섯이면 값도 여섯이다"))
+        # **훑는 범위가 비면 위 판정은 아무것도 안 보고 통과한다.** 어휘와 자리가 살아 있는지 본다.
+        self.assertGreaterEqual(len(self.TERMS), 4, "볼 어휘가 없다")
+        self.assertGreaterEqual(len(self.WHERE), 4, "훑을 자리가 없다")
+        texts = {}
+        for name in self.WHERE:
+            self.assertTrue((ROOT / name).exists(), name)
+            texts[name] = (ROOT / name).read_text(encoding="utf-8")
+        # 어휘가 그 자리에 실제로 쓰이는 말인지 — 죽은 글자를 훑으면 영원히 아무것도 못 찾는다.
+        for term in self.TERMS:
+            self.assertTrue(any(term in text for text in texts.values()), f"쓰이지 않는 말을 훑는다: {term}")
+
+
 class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
     """**소비자를 이름으로 알지 않는다. 역할만 안다.**
 

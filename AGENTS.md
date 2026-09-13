@@ -5,12 +5,12 @@
 
 스키마를 쓰거나 값을 채우는 쪽은 [`docs/weave.md`](docs/weave.md) 하나만 읽으면 된다. 이 문서는 저장소를 고치는 쪽이 읽는다.
 
-## 어기면 저장소를 만든 이유가 사라지는 것 다섯
+## 어기면 저장소를 만든 이유가 사라지는 것
 
 1. **보험이 들어오면 안 된다.** 스키마는 값의 타입과 그리는 법만 안다. 무엇을 찾을지는 필드 선언의 `description` 이 자연어로 말한다. 도메인 어휘가 타입이나 primitive element 이름으로 새어 들면 다른 상품군에서 다시 못 쓴다.
 2. **순위·등급·점수·경고색을 표현할 문법을 두지 않는다.** 객관성을 문서가 아니라 스키마로 강제하는 자리다. 모든 객체가 `additionalProperties: false` 이고 어휘가 전부 닫힌 `enum` 인 이유가 이것이다.
    그 대신 **비교를 시각이 맡는다**(glossary §3.14 원칙 7). 나란히 늘어놓으면 비교를 사람이 머릿속에서 해야 하므로 그러지 않는다. **방법은 primitive element 마다 다르다** — 겹칠 자리가 있는 `line`·`list` 는 겹치고, 없는 `stat`·`facts`·`bars` 는 **`focus` 가 무엇을 그릴지 고른다.** 그래서 focus 가 강조 장치가 아니라 고르는 자리다. 고른 것이 없으면 첫 subject 를 그리고, 무엇을 보고 있는지 이름으로 늘 말한다.
-3. **렌더가 구현하는 것은 primitive element 다.** facet 종류를 스키마가 열거하지 않는다. facet 은 primitive element 하나에 필드를 채운 것이다. primitive element 는 다섯이고 **늘리는 것이 기본값이 아니다**.
+3. **렌더가 구현하는 것은 primitive element 다.** facet 종류를 스키마가 열거하지 않는다. facet 은 primitive element 하나에 필드를 채운 것이다. **늘리는 것이 기본값이 아니다.**
 4. **뷰어가 시각을 소유하지 않는다.** 구조가 보이는 최소한만 입힌다. 앱의 시각은 **그 앱의 디자인 시스템이 갖는다**. 참조 뷰어는 무엇이 올바른 렌더인지의 기준이지 앱의 공유 코드가 아니다.
 5. **소비자를 이름으로 알지 않는다. 역할만 안다.** 「값을 채우는 쪽」·「그리는 쪽」까지가 이 저장소가 아는 전부이고, **누가 그 자리에 있는지는 PM 이 갖는다.** 1번과 같은 이유다 — 보험을 알면 다른 상품군에서 못 쓰듯, 특정 앱을 알면 소비자가 늘거나 바뀔 때 굳는다. 공유 계약은 소비자가 바뀌어도 안 바뀐다. **형상이 바뀌면 PM 에 알리면 되고 누구인지는 알 필요가 없다.** 판정이 형제 저장소 이름을 전 파일에서 막는다.
 
@@ -21,11 +21,11 @@
 | `schema/*.json` | **정본.** JSON Schema 2020-12. 어휘·모양·제약이 전부 여기 있다 |
 | `docs/weave.md` | 설명서 겸 카탈로그. 템플릿을 쓰는 Procedure 의 프롬프트에 실린다 |
 | `weave/` | 검사기 (Python). **판정은 전부 여기 하나에 있다** |
-| `viewer/render.mjs` | 참조 렌더. primitive element 다섯을 그린다. 문서를 받아 HTML 문자열을 내는 순수 함수 |
+| `viewer/render.mjs` | 참조 렌더. primitive element 를 그린다. 문서를 받아 HTML 문자열을 내는 순수 함수 |
 | `viewer/app.mjs` · `style.css` · `shell.html` | 설명서의 목차·본문과 그 안의 플레이그라운드 |
-| `viewer/icons.mjs` | lucide 아이콘 아홉을 **인라인으로 옮겨 둔 것.** 출처·버전·라이선스가 파일 머리에 있다 |
+| `viewer/icons.mjs` | lucide 아이콘을 **인라인으로 옮겨 둔 것.** 출처·버전·라이선스가 파일 머리에 있다 |
 | `catalog/guide.json` | element 가 아닌 쪽의 산문. 목차의 앞뒤가 여기서 나온다 |
-| `samples/` | **템플릿 샘플** 넷. 한 벌 = `sample.json`(차례·명단·focus) + `template.json` + `values-*.json` |
+| `samples/` | **템플릿 샘플.** 한 벌 = `sample.json`(차례·명단·focus) + `template.json` + `values-*.json` |
 | `catalog/elements.json` | primitive element 설명서의 **산문과 보기**. 제약은 적지 않는다 |
 | `tools/catalog.py` | 스키마에서 제약을 뽑아 카탈로그 하나를 만든다 |
 | **`viewer.html`** | 빌드 산출물. **weave 의 설명서다.** 브라우저로 열면 바로 돈다. 손으로 고치지 않는다 |
@@ -36,7 +36,7 @@
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
 | `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 그리는 쪽은 `viewer.test.mjs` |
 
-`schema/` 넷 — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(화면 상태 셋).
+`schema/` — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(화면 상태 셋).
 파일 사이 참조는 상대 `$ref` 라 그대로 복사해 가도 풀린다.
 
 ## 시작
@@ -164,7 +164,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 - **화면에 남길지는 하나로 고른다** — 그것이 없으면 사람이 못 하는 일이 있는가. 없으면 뺀다. 상태 줄·범례·샘플 설명·「없는 id」 입력칸이 그래서 없다.
 - **판정하지 않는다.** JSON 으로 읽히는지만 본다. 스키마 판정의 정본은 Python 검사기 하나이고 브라우저에서 다시 구현하지 않는다.
 - **그리지 못하는 입력에서 멈추지 않는다.** 그 자리를 표시하고 왼쪽 아래에 까닭을 적고 나머지는 그대로 그린다.
-- **primitive element 다섯을 전부 그린다.** `ELEMENTS` 표가 렌더의 분기 전부이고 facet 종류를 아는 분기는 없다.
+- **primitive element 를 전부 그린다.** `ELEMENTS` 표가 렌더의 분기 전부이고 facet 종류를 아는 분기는 없다.
 - **subject 하나가 비면 자리를 남기고 없다고 말한다.** 숨기면 subject 마다 골격이 달라져 견줄 수 없다. **다만 아무에게도 값이 없고 할 말도 없는 facet 은 서지 않는다** — 빈 카드만 남기 때문이다. 말이 붙어 있으면 선다.
 - **표기는 「모른다」를 가리키고 아는 사실은 글로 말한다.** 표기는 `—`(값 없음) 하나뿐이다. 「없음」·「항목 없음」·「있음」·「그리지 못한다」는 전부 우리가 아는 사실이라 글이 제값을 한다. 빈 칸으로 두지 않고, 표기의 뜻은 `aria-label`·`title` 이 글로 갖는다.
 - **값에 붙은 말은 어느 element 에서나 라벨 옆 표시를 가리켜야 열린다.** 본문 아래에 펼치면 그것이 subject 주석처럼 읽혀 순서가 둘이 된다.
@@ -226,7 +226,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | **subject 를 가르는 것** | 색이 아니다 — **이름**뿐이다. 겹친 선 끝에도 이름이 선다 |
 | **선의 상태색** (`.trace-now·prior·rest` 의 `--trace`) | **subject 가 아니라 상태의 색이다.** id 나 차례에서 나오면 막힌다. 굵기·진하기가 같은 순서를 함께 말해 색 없이도 갈린다 |
 | **세로 리듬** (`--row` · `--step` · `--gap`) | 자는 셋뿐이다. 줄 사이·층 사이·facet 사이. 낱개로 여백을 주지 않는다 |
-| **갈래를 가리키는 아이콘** | 주석 넷과 primitive element 다섯뿐. **lucide 실물을 인라인으로 옮긴다**(`viewer/icons.mjs`) — 기억으로 그리지 않고, 아이콘 폰트도 CDN 도 쓰지 않는다 |
+| **갈래를 가리키는 아이콘** | 주석 갈래와 primitive element 뿐. **lucide 실물을 인라인으로 옮긴다**(`viewer/icons.mjs`) — 기억으로 그리지 않고, 아이콘 폰트도 CDN 도 쓰지 않는다 |
 | **타이포와 여백** | 크기 단계·줄간·여백. 가장 싸게 좋아지는 자리다 |
 
 ### 하지 않는 것
@@ -249,10 +249,10 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 
 [`viewer/icons.mjs`](viewer/icons.mjs) 는 **lucide 실물을 옮겨 둔 것**이다 — `npm pack lucide-static@<버전>` 으로 풀어
 `icons/<이름>.svg` 의 안쪽을 그대로 가져온다. **기억으로 path 를 그리지 않는다.** 비슷하지만 다른 그림이 된다.
-출처·버전·라이선스(ISC)는 그 파일 머리에 적혀 있고, 아홉 가운데 어느 이름을 썼는지도 주석에 있다.
+출처·버전·라이선스(ISC)는 그 파일 머리에 적혀 있고, 그 가운데 어느 이름을 썼는지도 주석에 있다.
 
 고를 때 — **갈래를 가리키는 것만**. 도메인(돈·병원·서류)도, 심각도를 말하는 그림(경고 삼각형·느낌표)도 안 된다.
-주석 넷은 **통용되는 UI 시맨틱**을 따른다 — 주의는 `circle-alert`, 보충은 `info`.
+주석 갈래는 **통용되는 UI 시맨틱**을 따른다 — 주의는 `circle-alert`, 보충은 `info`.
 
 ### 기계가 보는 것과 사람이 봐야 하는 것
 
@@ -269,10 +269,10 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | facet 의 위아래 여백이 같은지 (divider 가 한가운데 서는지) |
 | 주석 줄 사이와 묶음 사이가 **같은 자**인지 — 묶음 사이만 따로 벌린 규칙이 없는지 |
 | `list` 의 표가 자기 스크롤 상자에 있고 열 너비가 `table-layout:fixed` 로 균일한지 |
-| 갈래별 색이 스키마의 `AnnotationKind` 넷과 같은지, 그 색이 값·글에 닿지 않는지 |
+| 갈래별 색이 스키마의 `AnnotationKind` 와 같은지, 그 색이 값·글에 닿지 않는지 |
 | 값 옆 표시가 **svg 하나**이고 갈래 클래스를 걸치지 않는지, 옆에 보이는 글이 하나도 없는지, 그 갈래가 툴팁 안에는 남는지 |
 | 표기가 **`—` 하나뿐**이고 비어 있지 않으며 이름표로 뜻을 갖는지, 아는 사실은 글로 서는지, 「그리지 못한다」가 표기로 뭉개지지 않는지 |
-| 주석 순서(`본문 → facet → subject`)가 **다섯 element·모든 subject 조합**에서 같은지 |
+| 주석 순서(`본문 → facet → subject`)가 **모든 element·모든 subject 조합**에서 같은지 |
 | 축 아래 줄이 **고른 subject 가 못 섰을 때만** 서고 다른 이름이 끼지 않는지 |
 | 갈래를 옮겨도 **facet 구성과 차례가 그대로**이고 값만 바뀌는지, 축 없는 템플릿이 그대로 도는지 |
 | 한쪽만 빈 facet 은 남고 **전원이 비고 말도 없는** facet 만 빠지는지 |
@@ -280,7 +280,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | `line` 아래에 그린 선의 이름이 다시 서지 않는지, 못 그린 subject 는 남고 그 말이 줄에 **한 번만** 서는지 |
 | `list` 의 고른 열이 **열 선언**으로 통째로 잡히고 스크롤 상자에서 잘리지 않는지 |
 | 짧은 선이 두 묶음 **사이에만** 서고 한쪽이 비면 안 서는지 |
-| subject 의 주석이 **다섯 element 모두에서** 고른 subject 것만인지 — 고정 케이스에 subject 둘 이상이 말을 가졌는지까지 |
+| subject 의 주석이 **모든 element 에서** 고른 subject 것만인지 — 고정 케이스에 subject 둘 이상이 말을 가졌는지까지 |
 | `⚠`·`★`·`1위` 같은 평가 기호와 순위 어휘가 없는지 |
 | 왼쪽 띠·밑줄·그림자·모서리 난립·점선 장식이 없는지 |
 
@@ -324,7 +324,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 **한 샘플에 어휘를 다 밀어 넣지 않는다.** 그러면 실물이 아니라 진열장이 된다 —
 어휘를 빠짐없이 쓰는지는 고정 케이스가 보고, 샘플은 **합쳐서** 전부를 한 번씩 보인다.
 
-지금 넷 — `one-proposal`(지금 앱 화면) · `asked-amounts`(말한 금액과 준 금액) ·
+지금 있는 것 — `one-proposal`(지금 앱 화면) · `asked-amounts`(말한 금액과 준 금액) ·
 `where-the-premium-goes`(보험료의 쓰임) · `when-care-is-needed`(돌봄 담보).
 
 `sample.json` 은 `{order, name, args}` 이고 `args` 는 **`weave-render-args` 문서 그대로**다.
@@ -358,9 +358,9 @@ primitive element 카탈로그가 서는 자리가 둘이다 — `docs/weave.md`
 
 primitive element·타입·모양·주석 갈래는 **닫힌 목록이고 좁히는 쪽이 기본**이다. 늘리기는 쉽고 줄이기는 어렵다.
 
-늘리려면 넷을 함께 댄다.
+늘리려면 아래를 함께 댄다.
 
-1. 지금 다섯(여덟·넷)의 조합으로 안 되는 구체적 사례
+1. 지금 있는 primitive element·타입·모양의 조합으로 안 되는 구체적 사례
 2. 그것이 도메인 없이 설명되는가 — 「병명 목록」은 새 primitive element 가 아니라 `list` 다
 3. 순위·등급으로 쓰일 길이 없는가
 4. `docs/weave.md` 가 얼마나 커지는가 — **설명서 크기가 곧 Procedure 프롬프트 무게다**
