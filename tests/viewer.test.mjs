@@ -2081,6 +2081,48 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   assert.ok(nodes.get("tabs").children.length >= 2, "템플릿 탭과 값 탭이 서야 한다");
   assert.equal(nodes.get("view").className, "viewport", "primitive element 이름은 기본이 꺼짐이다");
   assert.equal(nodes.get("strip").innerHTML, "", "첫 샘플에는 그리지 못한 자리가 없어야 한다");
+  const tabsBefore = nodes.get("tabs").children.length;
+
+  // **「아무도 없을 때」를 여기서 고를 수 있다.** subject 를 하나씩 지워야만 그 화면을 볼 수
+  // 있으면 지운 값이 사라지고 되돌리기도 번거롭다. 자리는 fixture 가 이미 보므로 여기서는
+  // **뷰어가 그 상태를 낼 수 있는지와, 그것이 미리보기이지 편집이 아닌지**만 본다.
+  const bar = nodes.get("focus-buttons").children;
+  assert.ok(bar.length >= 2, "무엇을 볼지 고르는 줄이 서야 한다");
+  const blank = bar[0];
+  assert.equal(blank.textContent, "아무도 없을 때", "영문 이름이 화면에 섰다");
+  assert.equal(blank["aria-pressed"], "false", "처음부터 눌려 있으면 안 된다");
+  const drawn = nodes.get("view").innerHTML;
+  const named = bar.slice(1).map((b) => b.textContent);
+  assert.ok(named.length >= 2, "subject 가 둘 이상인 샘플이어야 돌아오는 것을 잴 수 있다");
+  assert.ok(named.some((name) => drawn.includes(name)), "고정 화면에 subject 이름이 없다");
+
+  blank._on.click();
+  const empty = nodes.get("view").innerHTML;
+  assert.match(empty, /class="slot[ "]/, "고른 뒤에도 아무도 없을 때의 자리가 안 선다");
+  for (const name of named) assert.ok(!empty.includes(name), `아무도 없는데 ${name} 가 섰다`);
+  // 축은 템플릿의 것이라 그대로 선다. **조건을 걸지 않는다** — 첫 샘플에 축이 없으면
+  // 조건부 판정은 아무것도 안 보고 통과한다. 축이 있는 샘플이 먼저 서는지까지 못 박는다.
+  assert.match(drawn, /data-choice=/, "첫 샘플에 축이 있어야 이 자리를 잴 수 있다");
+  assert.match(empty, /data-choice=/, "아무도 없을 때 축 선택자가 사라졌다");
+  // **명단은 그대로 있다** — 지운 것이 아니라 안 건네준 것이다.
+  const after = nodes.get("focus-buttons").children;
+  assert.deepEqual(after.slice(1).map((b) => b.textContent), named, "명단이 사라졌다");
+  assert.equal(after[0]["aria-pressed"], "true", "고른 것이 안 눌렸다");
+  assert.equal(nodes.get("tabs").children.length, tabsBefore, "편집기 탭이 달라졌다");
+
+  // 다른 subject 를 누르면 보던 것이 그대로 돌아온다.
+  after[1]._on.click();
+  assert.equal(nodes.get("view").innerHTML.includes(named[0]), drawn.includes(named[0]),
+    "돌아온 화면이 다르다");
+  assert.ok(!nodes.get("view").innerHTML.includes('class="slot"'), "값이 있는데 빈 자리가 남았다");
+
+  // **눌린 것을 다시 누르면 풀린다.** 「아무도 고르지 않음」으로 가는 길이 이것이라
+  // 단추를 더 세우지 않는다 — 없어지면 그 상태를 화면에서 볼 길이 사라진다.
+  const picked = nodes.get("focus-buttons").children[1];
+  assert.equal(picked["aria-pressed"], "true", "누른 것이 안 눌렸다");
+  picked._on.click();
+  assert.equal(nodes.get("focus-buttons").children[1]["aria-pressed"], "false", "다시 눌러도 안 풀린다");
+  assert.match(nodes.get("watching").innerHTML, /보는 중/, "아무도 안 골랐다는 것을 화면이 안 말한다");
 
   // 걷어낸 것들이 화면에 없다. 있던 자리를 다시 채우면 여기서 걸린다.
   // 코드 주석이 아니라 **마크업**만 본다.
