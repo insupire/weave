@@ -40,8 +40,12 @@
       "enum": ["single", "range", "series", "items"]
     },
     "Element": {
-      "description": "primitive element. 렌더가 구현하는 것은 이 일곱이다.",
-      "enum": ["stat", "facts", "bars", "line", "list", "rows", "parts"]
+      "description": "primitive element. 렌더가 구현하는 것은 이 여섯이다.",
+      "enum": ["stat", "facts", "bars", "line", "rows", "parts"]
+    },
+    "Compare": {
+      "description": "`rows` 가 항목을 겹칠지 고른 것만 펼지. `focus` 는 지금 보는 subject 의 항목만 행으로 펴고, `overlay` 는 항목을 이름으로 겹쳐 subject 마다 열을 세운다. rows 만 갖는다 — 한 facet 은 비교 축 하나이므로 이 값이 그 축을 말한다.",
+      "enum": ["focus", "overlay"]
     },
     "Number": {
       "description": "숫자. 기본 단위 없음.",

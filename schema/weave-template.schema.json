@@ -68,6 +68,10 @@
           "pattern": "^[^\\n\\r]+$"
         },
         "element": { "$ref": "weave-common.schema.json#/$defs/Element" },
+        "compare": {
+          "description": "`rows` 에서만 쓴다. 항목을 겹칠지(overlay) 고른 것만 펼지(focus)를 이 facet 이 스스로 말한다 — 두 표현 단위가 다른 element 였던 것을 하나로 줄이고 겹침을 이 자리로 옮겼다. 다른 element 는 비교하는 법이 이름 자체로 정해지므로 이 자리를 갖지 않는다.",
+          "$ref": "weave-common.schema.json#/$defs/Compare"
+        },
         "fields": {
           "type": "array",
           "minItems": 1,
@@ -83,6 +87,7 @@
         {
           "if": { "properties": { "element": { "const": "stat" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 1,
@@ -94,6 +99,7 @@
         {
           "if": { "properties": { "element": { "const": "facts" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 12,
@@ -105,6 +111,7 @@
         {
           "if": { "properties": { "element": { "const": "bars" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 6,
@@ -121,6 +128,7 @@
         {
           "if": { "properties": { "element": { "const": "line" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 1,
@@ -135,19 +143,9 @@
           }
         },
         {
-          "if": { "properties": { "element": { "const": "list" } }, "required": ["element"] },
-          "then": {
-            "properties": {
-              "fields": {
-                "maxItems": 1,
-                "items": { "properties": { "shape": { "const": "items" } } }
-              }
-            }
-          }
-        },
-        {
           "if": { "properties": { "element": { "const": "rows" } }, "required": ["element"] },
           "then": {
+            "required": ["compare"],
             "properties": {
               "fields": {
                 "maxItems": 1,
@@ -159,6 +157,7 @@
         {
           "if": { "properties": { "element": { "const": "parts" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 1,

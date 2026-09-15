@@ -88,12 +88,36 @@ test("primitive element 가 렌더의 분기 전부다", () => {
   assert.deepEqual(Object.keys(ELEMENTS).sort(), [...enumerated].sort());
 });
 
-/** 한 facet 의 마크업만 잘라 낸다. element 별로 무엇이 그려졌는지 따로 본다. */
-function sectionOf(html, element) {
-  const at = html.indexOf(`element-${element}"`);
-  assert.ok(at >= 0, `element-${element} 가 없다`);
+/**
+ * 한 facet 의 마크업만 잘라 낸다. element 별로 무엇이 그려졌는지 따로 본다.
+ *
+ * `rows` 는 facet 이 둘 이상일 수 있다(compare 가 focus·overlay 로 갈린다) — `occurrence` 로
+ * 몇 번째 것인지 고른다. 기본 0 은 그 element 가 하나뿐일 때 그대로 쓴다.
+ */
+function sectionOf(html, element, occurrence = 0) {
+  const marker = `element-${element}"`;
+  let at = -1;
+  for (let i = 0; i <= occurrence; i++) {
+    at = html.indexOf(marker, at + 1);
+    if (at < 0) break;
+  }
+  assert.ok(at >= 0, `element-${element}[${occurrence}] 가 없다`);
   const end = html.indexOf("<section", at);
   return end < 0 ? html.slice(at) : html.slice(at, end);
+}
+
+/**
+ * facet 하나의 마크업. **제목으로 찾는다** — 같은 element 를 쓰는 facet 이 둘이어도
+ * (`rows` 의 focus·overlay) 제목은 facet 마다 다르므로 갈린다.
+ */
+function sectionOfFacet(html, facet) {
+  const marker = `>${esc(facet.title ?? facet.id)}</h2>`;
+  const at = html.indexOf(marker);
+  assert.ok(at >= 0, `facet ${facet.id} 의 제목이 없다`);
+  const start = html.lastIndexOf("<section", at);
+  assert.ok(start >= 0, `facet ${facet.id} 의 section 이 없다`);
+  const end = html.indexOf("<section", start + 1);
+  return end < 0 ? html.slice(start) : html.slice(start, end);
 }
 
 test("primitive element 가 전부 그려진다", () => {
@@ -103,7 +127,7 @@ test("primitive element 가 전부 그려진다", () => {
   assert.match(sectionOf(html, "facts"), /class="facts"/); // 라벨과 값 여럿
   assert.match(sectionOf(html, "bars"), /class="track"/); // 크기 비교
   assert.match(sectionOf(html, "line"), /svg class="line"/); // 축 위의 변화
-  assert.match(sectionOf(html, "list"), /table class="items"/); // 항목이 좌표다
+  assert.match(sectionOf(html, "rows"), /table class="items"/); // 항목이 좌표다
 });
 
 const NAMES = { "proposal-a": "가 제안서", "proposal-b": "나 제안서", "proposal-c": "proposal-c" };
@@ -111,29 +135,28 @@ const NAMES = { "proposal-a": "가 제안서", "proposal-b": "나 제안서", "p
 test("비교하는 법이 primitive element 마다 다르다", () => {
   // 겹칠 자리가 있는 것만 겹친다. 나머지는 focus 가 무엇을 그릴지 고른다.
   assert.deepEqual(COMPARE, {
-    stat: "focus", facts: "focus", bars: "focus", rows: "focus", parts: "focus",
-    line: "overlay", list: "overlay",
+    stat: "focus", facts: "focus", bars: "focus", parts: "focus",
+    line: "overlay", rows: "chosen",
   });
   // **하나를 쪼갠 것은 겹칠 수 없다** — 두 subject 의 안이 한 덩어리가 될 수 없다.
   assert.equal(COMPARE.parts, "focus");
-  // **겹치는 표와 고른 것만 내는 표는 다른 이름이다.** 한 이름이 화면마다 다르게 굴면
-  // 이름만 보고 알 수 없다 — 그래서 템플릿이 고르게 하지 않고 primitive 를 갈랐다.
-  assert.notEqual(COMPARE.list, COMPARE.rows);
+  // **rows 만 facet 마다 스스로 고른다.** 나머지는 이름 자체가 비교법을 고정한다.
+  assert.equal(COMPARE.rows, "chosen");
   assert.deepEqual(Object.keys(COMPARE).sort(), Object.keys(ELEMENTS).sort());
 });
 
-test("line 과 list 는 subject 를 한 좌표에 겹친다", () => {
+test("line 과 겹치는 rows(overlay) 는 subject 를 한 좌표에 겹친다", () => {
   const { html } = fix();
-  // list 는 항목이 좌표다. subject 마다 표를 따로 두지 않는다.
-  assert.equal((sectionOf(html, "list").match(/<table/g) ?? []).length, 1);
+  // riders(compare: overlay) 는 항목이 좌표다. subject 마다 표를 따로 두지 않는다.
+  assert.equal((sectionOf(html, "rows", 0).match(/<table/g) ?? []).length, 1);
   // 자리를 가르는 것은 **이름**이다. 겹친 자리마다 누구 것인지 글로 서 있어야 한다.
   for (const name of Object.values(NAMES)) {
-    assert.ok(sectionOf(html, "list").includes(name), `열 머리에 ${name} 가 없다`);
+    assert.ok(sectionOf(html, "rows", 0).includes(name), `열 머리에 ${name} 가 없다`);
   }
   // 겹치는 쪽은 focus 를 옮겨도 subject 가 전부 그대로 서 있다.
   for (const id of Object.keys(NAMES)) {
-    const part = sectionOf(fix({ focus: id }).html, "list");
-    for (const name of Object.values(NAMES)) assert.ok(part.includes(name), `list/${id}: ${name}`);
+    const part = sectionOf(fix({ focus: id }).html, "rows", 0);
+    for (const name of Object.values(NAMES)) assert.ok(part.includes(name), `rows(overlay)/${id}: ${name}`);
   }
   const lines = fix().html;
   // 주석의 갈래 표시도 svg 라 선 그림만 센다.
@@ -179,11 +202,17 @@ test("focus 가 없으면 첫 subject 를 그린다", () => {
   for (const element of ["stat", "facts", "bars"]) {
     assert.equal(sectionOf(none.html, element), sectionOf(first.html, element), element);
   }
-  // 겹치는 쪽에서만 갈린다 — 고르면 그 선과 그 열이 강조된다.
-  for (const element of ["line", "list"]) {
+  // 겹치는 쪽에서만 갈린다 — 고르면 그 선과 그 열이 강조된다. rows 는 compare 가 갈래를 정한다.
+  for (const element of ["line", "rows"]) {
     assert.notEqual(sectionOf(none.html, element), sectionOf(first.html, element), element);
     assert.ok(!sectionOf(none.html, element).includes("is-focus"), `${element}: 고르지 않았는데 강조가 있다`);
   }
+  // rows 의 focus 변형(두 번째 자리, payments)은 stat·facts·bars 처럼 focus 를 옮겨도 그대로다.
+  assert.equal(
+    sectionOf(none.html, "rows", 1),
+    sectionOf(first.html, "rows", 1),
+    "rows(focus): focus 를 옮겨도 바뀌면 안 된다",
+  );
 });
 
 test("모르는 primitive element 는 조용히 넘어가지 않는다", () => {
@@ -350,9 +379,9 @@ test("못 그린 사실은 남고 범례는 서지 않는다", () => {
   assert.equal(off(drawn), "", `고른 것이 그려졌는데 축 아래에 줄이 선다: ${off(drawn)}`);
   // 선 끝의 이름은 그대로다 — 누가 누구인지는 거기서 읽는다.
   assert.match(drawn, /<text class="series-label[^"]*"[^>]*>가 제안서</, "선 끝의 이름이 사라졌다");
-  // list 는 축 아래 줄을 두지 않는다. 칸이 「값 없음」이라고 말한다.
-  const listPart = sectionOf(fix({ values, focus: "proposal-b" }).html, "list");
-  assert.ok(!listPart.includes('class="offs"'), "list 에 문장 줄이 남아 있다");
+  // rows(overlay) 는 축 아래 줄을 두지 않는다. 칸이 「값 없음」이라고 말한다.
+  const listPart = sectionOf(fix({ values, focus: "proposal-b" }).html, "rows", 0);
+  assert.ok(!listPart.includes('class="offs"'), "rows(overlay) 에 문장 줄이 남아 있다");
   assert.ok(spokenOf(listPart).includes(NO_VALUE), "칸이 말해야 한다");
 });
 
@@ -366,7 +395,7 @@ test("없다는 말이 뜻마다 다르게 선다", () => {
 
   // **표기는 「모른다」 하나뿐이다.** 아는 사실은 글이 말한다 — 표기 둘을 눈으로 가르려다
   // 쓰다 만 글자처럼 보이느니, 아는 것은 말하게 두는 편이 낫다.
-  const list = sectionOf(fix({ focus: "proposal-a" }).html, "list");
+  const list = sectionOf(fix({ focus: "proposal-a" }).html, "rows", 0);
   const marks = [...list.matchAll(/<span class="miss[^"]*"([^>]*)>([^<]*)<\/span>/g)];
   const spoken = marks.filter((m) => /role="img"/.test(m[1]));
   assert.ok(spoken.length > 0, "모른다는 자리가 표에 있어야 한다");
@@ -633,7 +662,7 @@ test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
   // 말하는 법은 둘이다 — 「값 없음」이라는 말이 서거나, **이름이 흐리게 남거나.**
   const mine = renderView({ template: FIX.template, values: [FIX.filled, blank], focus: blank.subjectId });
   for (const facet of FIX.template.facets) {
-    const part = sectionOf(mine.html, facet.element);
+    const part = sectionOfFacet(mine.html, facet);
     const said = spokenOf(part).includes(NO_VALUE);
     const stood = part.includes('class="off ') && textOf(part).includes(blank.subjectLabel);
     assert.ok(said || stood, `${facet.id}: 못 선 사실이 사라졌다`);
@@ -663,6 +692,9 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
   const byId = Object.fromEntries(FIX.template.facets.map((f) => [f.element, f]));
   assert.equal(Object.keys(byId).length, Object.keys(ELEMENTS).length, "fixture 가 원소 전부를 써야 한다");
   const at = (element) => sectionOf(html, element);
+  // rows 는 facet 이 둘이다(compare: overlay 인 riders · compare: focus 인 payments) —
+  // element 만으로는 갈리지 않아 facet id 로 짚는다.
+  const byFacetId = Object.fromEntries(FIX.template.facets.map((f) => [f.id, f]));
   const slots = (part) => (part.match(/class="slot[ "]/g) ?? []).length;
 
   // 공통 — **가짜 값도 표기도 쓰지 않는다.** `—` 는 「어떤 subject 의 값을 모른다」는 말인데
@@ -752,17 +784,17 @@ test("subject 가 하나도 없어도 원소마다 제 자리가 선다", () => 
     assert.ok(widths[0][1].split(",").map((x) => x.trim()).includes(one), `${one} 의 폭이 빠졌다`);
   }
 
-  // list — 열은 subject 가 만든다. 키 열만 서고 그 옆이 「제안서가 오면 여기」라는 자리다.
-  const items = at("list");
+  // rows(overlay, riders) — 열은 subject 가 만든다. 키 열만 서고 그 옆이 「제안서가 오면 여기」라는 자리다.
+  const items = sectionOf(html, "rows", 0);
   assert.match(items, /table class="items"/);
-  const keyColumn = byId.list.fields[0].columns[0];
+  const keyColumn = byFacetId.riders.fields[0].columns[0];
   assert.ok(textOf(items).includes(keyColumn.label ?? keyColumn.key), "키 열 이름이 빠졌다");
   assert.equal((items.match(/<tbody>[\s\S]*?<\/tbody>/)[0].match(/<tr>/g) ?? []).length, 1);
   for (const name of Object.values(NAMES)) assert.ok(!items.includes(name), `이름을 지어냈다: ${name}`);
 
-  // rows — **열 머리가 전부 선다.** 열은 템플릿이 선언한 것이라 subject 없이도 안다.
-  const table = at("rows");
-  const columns = byId.rows.fields[0].columns;
+  // rows(focus, payments) — **열 머리가 전부 선다.** 열은 템플릿이 선언한 것이라 subject 없이도 안다.
+  const table = sectionOf(html, "rows", 1);
+  const columns = byFacetId.payments.fields[0].columns;
   assert.ok(columns.length >= 2, "열이 여럿이어야 한다");
   for (const c of columns) assert.ok(textOf(table).includes(c.label ?? c.key), c.key);
   assert.equal(slots(table), columns.length, "빈 줄이 열 수만큼 서야 한다");
@@ -1050,7 +1082,7 @@ test("focus 는 그 subject 하나만 잡는다", () => {
   assert.deepEqual(focusedNames(html), new Set(["가 제안서"]));
 
   // 표에서는 **열 선언**이 잡는다 — 이름표가 아니라 자리를 가리켜 열이 통째로 잡힌다.
-  const list = sectionOf(html, "list");
+  const list = sectionOf(html, "rows", 0); // riders — compare: overlay
   const cols = [...list.matchAll(/<col( class="is-focus")?>/g)].map((m) => Boolean(m[1]));
   assert.equal(cols.length, FIX.values.length + 1, "열 선언이 열 수와 맞지 않는다");
   assert.deepEqual(cols, [false, true, false, false], "고른 열 하나만 잡아야 한다");
@@ -1061,7 +1093,7 @@ test("거의 비어 있는 subject 도 focus 가 된다", () => {
   const { html, view } = fix({ focus: "proposal-b" });
   assert.equal(view.focus, "proposal-b");
   // 값이 거의 없어 이름이 설 자리가 적다. 그래도 **표의 열 선언**이 어느 자리인지 잡는다.
-  const cols = [...sectionOf(html, "list").matchAll(/<col( class="is-focus")?>/g)].map((m) => Boolean(m[1]));
+  const cols = [...sectionOf(html, "rows", 0).matchAll(/<col( class="is-focus")?>/g)].map((m) => Boolean(m[1]));
   const seat = FIX.values.findIndex((doc) => doc.subjectId === "proposal-b");
   assert.deepEqual(cols, cols.map((_, i) => i === seat + 1), `고른 자리를 잡지 못한다: ${cols}`);
   // 이름이 서는 자리에서는 고른 것 하나만 잡힌다.
@@ -1146,7 +1178,7 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
   for (const doc of FIX.values) {
     const page = fix({ focus: doc.subjectId }).html;
     for (const facet of FIX.template.facets) {
-      const part = sectionOf(page, facet.element);
+      const part = sectionOfFacet(page, facet);
       for (const decl of facet.fields) {
         for (const note of doc.facets?.[facet.id]?.fields?.[decl.key]?.notes ?? []) {
           const needle = note.text.slice(0, 14);
@@ -1213,7 +1245,7 @@ test("말은 데이터 뒤에 한자리에 모인다", () => {
     const html = fix({ focus: doc.subjectId }).html;
     for (const facet of FIX.template.facets) {
       if (!(facet.notes ?? []).length) continue;
-      const part = sectionOf(html, facet.element);
+      const part = sectionOfFacet(html, facet);
       const body = part.indexOf('class="body"');
       const said = part.indexOf('class="said"');
       assert.ok(body >= 0 && said > body, `${facet.id}: 말 묶음이 데이터보다 앞에 선다`);
@@ -1260,7 +1292,7 @@ test("짧은 선은 두 묶음 사이에만 선다", () => {
   for (const doc of FIX.values) {
     const html = fix({ focus: doc.subjectId }).html;
     for (const facet of FIX.template.facets) {
-      const part = sectionOf(html, facet.element);
+      const part = sectionOfFacet(html, facet);
       const ours = (facet.notes ?? []).length > 0;
       const yours = (doc.facets?.[facet.id]?.notes ?? []).length > 0;
       const at = part.indexOf('class="said"');
@@ -1319,27 +1351,27 @@ test("subject 의 말은 언제나 고른 subject 것이다", () => {
   }
 
   // focus 가 없으면 첫 subject 다 — 화면이 그리는 것과 말이 여전히 맞는다.
-  const none = sectionOf(fix({ focus: null }).html, "list");
+  const none = sectionOf(fix({ focus: null }).html, "rows", 0); // riders — compare: overlay
   assert.ok(textOf(none).includes(mineOf(FIX.values[0], "riders")[0]), "첫 subject 의 말이 서야 한다");
   assert.ok(!textOf(none).includes(mineOf(FIX.values[2], "riders")[0]));
 
-  // **값에 붙은 말을 본문 아래에 펴는 자리(line · list)도 같은 규칙을 따른다.**
+  // **값에 붙은 말을 본문 아래에 펴는 자리(line · rows(overlay))도 같은 규칙을 따른다.**
   // 여기가 감춰지지 않고 펴지는 유일한 자리라, 규칙이 갈리면 화면에서 바로 드러난다.
   const curve = "갱신 예상표를 그대로 옮겼습니다."; // proposal-a 의 premium-curve
   const riders = "특약 목록은 비어 있습니다."; // proposal-c 의 rider-list
   assert.ok(textOf(sectionOf(fix({ focus: "proposal-a" }).html, "line")).includes(curve));
   assert.ok(!textOf(sectionOf(fix({ focus: "proposal-c" }).html, "line")).includes(curve),
     "line: 고르지 않은 subject 의 값에 붙은 말이 펴져 있다");
-  assert.ok(textOf(sectionOf(fix({ focus: "proposal-c" }).html, "list")).includes(riders));
-  assert.ok(!textOf(sectionOf(fix({ focus: "proposal-a" }).html, "list")).includes(riders),
-    "list: 고르지 않은 subject 의 값에 붙은 말이 펴져 있다");
+  assert.ok(textOf(sectionOf(fix({ focus: "proposal-c" }).html, "rows", 0)).includes(riders));
+  assert.ok(!textOf(sectionOf(fix({ focus: "proposal-a" }).html, "rows", 0)).includes(riders),
+    "rows(overlay): 고르지 않은 subject 의 값에 붙은 말이 펴져 있다");
 
   // **facet 에 붙은 말은 그대로 전부 선다** — 그건 subject 의 것이 아니다.
   for (const doc of FIX.values) {
     const html = fix({ focus: doc.subjectId }).html;
     for (const facet of FIX.template.facets) {
       for (const note of facet.notes ?? []) {
-        assert.ok(textOf(sectionOf(html, facet.element)).includes(note.text),
+        assert.ok(textOf(sectionOfFacet(html, facet)).includes(note.text),
           `${facet.id}/${doc.subjectId}: facet 에 붙은 말이 사라졌다`);
       }
     }
@@ -1536,14 +1568,14 @@ test("bars 는 좁아져도 가로로 눕는다", () => {
   }
 });
 
-test("list 의 열은 균일하고 표만 옆으로 굴린다", () => {
+test("rows(overlay) 의 열은 균일하고 표만 옆으로 굴린다", () => {
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   // **고른 열은 통째로 잡히고 잘리지 않는다.** 칸마다 두르면 열 안에 가로선이 생기고,
   // 스크롤 상자는 한 축만 굴릴 수 없어 여백이 없으면 테두리가 모서리에서 잘린다.
   assert.match(css, /col\.is-focus \{[^}]*border:\d+px solid var\(--ink\)/);
   assert.match(css, /\.table-scroll \{[^}]*padding:\d/);
   // 표는 자기 스크롤 상자 안에 있다 — 페이지 전체가 옆으로 밀리면 띠도 목차도 사라진다.
-  assert.match(sectionOf(fix().html, "list"), /<div class="table-scroll"><table class="items"/);
+  assert.match(sectionOf(fix().html, "rows", 0), /<div class="table-scroll"><table class="items"/);
   assert.match(css, /\.table-scroll \{[^}]*overflow-x:auto/);
   // 열 너비를 자리마다 달리 주지 않는다. 넓은 칸이 중요해 보이면 그것도 우열이다.
   assert.match(css, /table \{[^}]*table-layout:fixed/);
@@ -1739,7 +1771,7 @@ test("그리지 못하는 입력은 자리를 표시하고 까닭을 적는다",
     const { html, report } = fix({ template });
     assert.ok(html.includes(UNDRAWABLE), why);
     assert.match(report.join(" | "), expected, why);
-    assert.ok(html.includes("element-list"), why); // 멈추지 않는다
+    assert.ok(html.includes("element-rows"), why); // 멈추지 않는다
   }
 });
 
@@ -1805,7 +1837,7 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   for (const facet of withHint.facets) facet.hint = `${facet.id} — ${line}`;
   const page = renderView({ template: withHint, values: FIX.values, focus: "proposal-a" }).html;
   for (const facet of withHint.facets) {
-    const part = sectionOf(page, facet.element);
+    const part = sectionOfFacet(page, facet);
     const at = part.indexOf(`${facet.id} — ${line}`);
     assert.ok(at > 0, `${facet.id}: facet hint 가 안 보인다`);
     assert.ok(!pops(part).some(([from, to]) => at > from && at < to), `${facet.id}: 표시 뒤로 숨었다`);
@@ -1839,7 +1871,7 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   for (const facet of template.facets) facet.fields[0].hint = `${facet.id} — ${said}`;
   const { html } = renderView({ template, values: FIX.values, focus: "proposal-a" });
   for (const facet of template.facets) {
-    const part = sectionOf(html, facet.element);
+    const part = sectionOfFacet(html, facet);
     // 1. **표시가 선다.** 없어지면 hint 가 조용히 사라진 것이다.
     const at = part.indexOf("hint-mark");
     assert.ok(at > 0, `${facet.id}: 이름 옆 표시가 없다`);
@@ -1853,7 +1885,7 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
     //    **이름 자리를 전부 본다** — 첫 줄만 보면 말이 안 붙은 필드를 보고 지나간다.
     const zones = {
       stat: [/<div class="field-label">([\s\S]*?)<\/div>/g],
-      list: [/<div class="field-label">([\s\S]*?)<\/div>/g],
+      rows: [/<div class="field-label">([\s\S]*?)<\/div>/g],
       facts: [/<dt>([\s\S]*?)<\/dt>/g],
       bars: [/<span class="who">([\s\S]*?)<span class="track"/g],
     }[facet.element];
@@ -1872,7 +1904,7 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   // 4. **hint 에는 갈래가 없다.** 갈래는 주석의 것이다 — hint 는 이 필드가 무엇인지일 뿐,
   //    인용도 팁도 주의도 아니다.
   for (const facet of template.facets) {
-    const part = sectionOf(page, facet.element);
+    const part = sectionOfFacet(page, facet);
     const mark = part.slice(part.indexOf("hint-mark"));
     const pop = mark.slice(0, mark.indexOf("</span></span>"));
     assert.ok(!/class="kind"|note-(quote|tip|note|caution)/.test(pop),
@@ -2012,10 +2044,12 @@ test("그림이 값과 같은 자로 재어진다", () => {
   }
 
   // ── 길이로 말하지 않는 element 는 inline style 을 아예 내지 않는다.
-  for (const element of ["stat", "facts", "list", "rows"]) {
+  for (const element of ["stat", "facts", "rows"]) {
     const flat = sectionOf(fix({ focus: "proposal-a" }).html, element);
     assert.equal(width(flat).length, 0, `${element}: 길이가 값을 말한다`);
   }
+  // rows 는 focus·overlay 둘 다 본다 — occurrence 0(riders) 은 위에서, 1(payments) 은 여기서.
+  assert.equal(width(sectionOf(fix({ focus: "proposal-a" }).html, "rows", 1)).length, 0);
 });
 
 test("하나를 쪼갠 것은 합이 전체다", () => {
@@ -2067,25 +2101,29 @@ test("하나를 쪼갠 것은 합이 전체다", () => {
   assert.ok(textOf(drawn).includes(NO_ITEMS), "빈 목록이라고 말하지 않는다");
 });
 
-test("겹치는 표와 고른 것만 내는 표가 이름으로 갈린다", () => {
+test("겹치는 표와 고른 것만 내는 표가 compare 로 갈린다", () => {
+  // 둘은 같은 element(rows) 다 — 갈리는 것은 이름이 아니라 facet 이 스스로 적은 compare 다.
   const { html } = fix({ focus: "proposal-a" });
-  const list = sectionOf(html, "list");
-  const rows = sectionOf(html, "rows");
-  // list 는 subject 를 열로 겹친다 — 명단 전부가 표 안에 선다.
-  for (const doc of FIX.values) assert.ok(list.includes(NAMES[doc.subjectId]), `list: ${doc.subjectId}`);
-  // rows 는 고른 하나만 편다 — 다른 subject 의 이름이 표에 없다.
+  const overlay = sectionOf(html, "rows", 0); // riders — compare: overlay
+  const focused = sectionOf(html, "rows", 1); // payments — compare: focus
+  // overlay 는 subject 를 열로 겹친다 — 명단 전부가 표 안에 선다.
+  for (const doc of FIX.values) assert.ok(overlay.includes(NAMES[doc.subjectId]), `overlay: ${doc.subjectId}`);
+  // focus 는 고른 하나만 편다 — 다른 subject 의 이름이 표에 없다.
   for (const doc of FIX.values) {
     if (doc.subjectId === "proposal-a") continue;
-    assert.ok(!rows.includes(NAMES[doc.subjectId]), `rows 에 ${doc.subjectId} 가 섰다`);
+    assert.ok(!focused.includes(NAMES[doc.subjectId]), `focus 표에 ${doc.subjectId} 가 섰다`);
   }
-  // 고른 것을 옮기면 rows 는 바뀌고 list 의 골격(열)은 그대로다.
+  // 고른 것을 옮기면 focus 표는 바뀌고 overlay 의 골격(열)은 그대로다.
   const other = fix({ focus: "proposal-c" }).html;
-  assert.notEqual(sectionOf(other, "rows"), rows, "rows 가 focus 를 안 따른다");
+  assert.notEqual(sectionOf(other, "rows", 1), focused, "compare: focus 가 focus 를 안 따른다");
   const cols = (part) => (part.match(/<col( class="is-focus")?>/g) ?? []).length;
-  assert.equal(cols(sectionOf(other, "list")), cols(list), "list 의 열이 focus 를 탄다");
-  // 값의 모양은 같다 — 같은 items 를 받는다.
-  const of = (element) => FIX.template.facets.find((f) => f.element === element).fields[0].shape;
-  assert.equal(of("rows"), of("list"));
+  assert.equal(cols(sectionOf(other, "rows", 0)), cols(overlay), "compare: overlay 의 열이 focus 를 탄다");
+  // 값의 모양은 같다 — 둘 다 같은 items 를 받는다. element 도 같다, compare 만 다르다.
+  const riders = FIX.template.facets.find((f) => f.id === "riders");
+  const payments = FIX.template.facets.find((f) => f.id === "payments");
+  assert.equal(riders.element, payments.element);
+  assert.equal(riders.fields[0].shape, payments.fields[0].shape);
+  assert.notEqual(riders.compare, payments.compare);
 });
 
 test("값에서 온 글은 escape 된다", () => {
@@ -2161,9 +2199,14 @@ test("값이 비는 경우가 샘플에도 남아 있다", () => {
 
 test("설명서가 말하는 비교 방법이 렌더와 갈리지 않는다", () => {
   // 산문 파일(catalog/elements.json)이 적은 것과 렌더가 하는 것이 같아야 한다.
+  const said = {
+    overlay: "겹친다",
+    focus: "focus 를 따라 바뀐다",
+    chosen: "facet 의 compare 로 고른다(focus·overlay)",
+  };
   for (const row of elementPages()) {
     assert.equal(row.compare, COMPARE[row.id], `${row.id}: 설명서와 렌더가 다르다`);
-    assert.equal(row.compareSaid, row.compare === "overlay" ? "겹친다" : "focus 를 따라 바뀐다");
+    assert.equal(row.compareSaid, said[row.compare]);
   }
 });
 
@@ -2176,15 +2219,17 @@ test("목차가 스키마의 primitive element 를 빠짐없이 덮는다", () =
 });
 
 test("설명서의 보기가 자기가 말한 제약 안에 있다", () => {
-  // 산문과 제약이 갈리면 여기서 걸린다.
+  // 산문과 제약이 갈리면 여기서 걸린다. 보기 하나에 facet 이 여럿일 수 있다(rows 의
+  // compare 갈래) — **전부** 본다, 첫째만 보면 둘째의 어긋남을 놓친다.
   for (const row of elementPages()) {
-    const facet = row.demo.template.facets[0];
-    assert.equal(facet.element, row.id);
-    const [low, high] = row.fields.includes("–") ? row.fields.split("–").map(Number) : [Number(row.fields), Number(row.fields)];
-    assert.ok(facet.fields.length >= low && facet.fields.length <= high, `${row.id}: 필드 수`);
-    for (const field of facet.fields) {
-      assert.ok(row.shapes.includes(field.shape), `${row.id}: shape ${field.shape}`);
-      if (field.type) assert.ok(row.types.includes(field.type), `${row.id}: type ${field.type}`);
+    for (const facet of row.demo.template.facets) {
+      assert.equal(facet.element, row.id);
+      const [low, high] = row.fields.includes("–") ? row.fields.split("–").map(Number) : [Number(row.fields), Number(row.fields)];
+      assert.ok(facet.fields.length >= low && facet.fields.length <= high, `${row.id}/${facet.id}: 필드 수`);
+      for (const field of facet.fields) {
+        assert.ok(row.shapes.includes(field.shape), `${row.id}/${facet.id}: shape ${field.shape}`);
+        if (field.type) assert.ok(row.types.includes(field.type), `${row.id}/${facet.id}: type ${field.type}`);
+      }
     }
   }
 });

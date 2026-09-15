@@ -103,7 +103,11 @@ def shapes_text(row: dict) -> str:
     return "·".join(f"`{s}`" for s in row["shapes"])
 
 
-COMPARE_SAID = {"overlay": "겹친다", "focus": "focus 를 따라 바뀐다"}
+COMPARE_SAID = {
+    "overlay": "겹친다",
+    "focus": "focus 를 따라 바뀐다",
+    "chosen": "facet 의 compare 로 고른다(focus·overlay)",
+}
 
 
 def docs_table() -> str:

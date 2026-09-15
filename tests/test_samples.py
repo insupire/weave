@@ -226,7 +226,8 @@ class CatalogCannotDiverge(unittest.TestCase):
                 continue
             with self.subTest(element):
                 self.assertEqual(set(entry), {"compare", "draws", "blank", "note", "demo"})
-                self.assertIn(entry["compare"], {"overlay", "focus"})
+                # "chosen" 은 rows 처럼 facet 의 compare 필드가 스스로 고르는 element 다.
+                self.assertIn(entry["compare"], {"overlay", "focus", "chosen"})
 
     def test_prose_is_plain_text(self) -> None:
         """표에서는 살고 화면에서는 글자로 새는 markdown 을 막는다. 두 자리에 같게 나와야 한다."""
@@ -253,13 +254,19 @@ class CatalogCannotDiverge(unittest.TestCase):
         self.assertEqual(len({p["id"] for p in pages}), len(pages), "목차에 같은 id 가 둘 있다")
 
     def test_every_demo_passes_the_checker(self) -> None:
-        """보기가 실제로 쓸 수 있는 템플릿이어야 설명서 노릇을 한다."""
+        """보기가 실제로 쓸 수 있는 템플릿이어야 설명서 노릇을 한다.
+
+        보기 하나에 facet 이 여럿일 수 있다 — `rows` 처럼 compare 로 갈리는 갈래를
+        하나의 demo 로 함께 보이는 경우다. 다만 전부 그 카탈로그 항목의 element 여야 한다.
+        """
         for row in catalog.catalog():
             demo = row["demo"]
             with self.subTest(row["element"]):
                 result = check_template(demo["template"])
                 self.assertTrue(result.ok, [str(p) for p in result.problems])
-                self.assertEqual([f["element"] for f in demo["template"]["facets"]], [row["element"]])
+                elements = [f["element"] for f in demo["template"]["facets"]]
+                self.assertTrue(elements, "demo 에 facet 이 하나도 없다")
+                self.assertEqual(set(elements), {row["element"]})
                 for doc in demo["values"]:
                     result = check_valueset(doc, demo["template"])
                     self.assertTrue(result.ok, [str(p) for p in result.problems])

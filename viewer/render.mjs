@@ -296,15 +296,23 @@ function drawCell(report, where, decl, value) {
 // 순위 문법을 스키마에서 뺀 대신 **비교를 시각이 맡는다**(glossary §3.14 원칙 7).
 // 다만 방법이 하나가 아니다 — **primitive element 마다 다르게 비교한다.**
 //
-// - **겹친다** (`line` · `list`) — 축이나 항목이라는 공유하는 자리가 있어 겹칠수록 읽을 것이 많아진다.
-// - **focus 를 따라 바뀐다** (`stat` · `facts` · `bars`) — 겹칠 자리가 없어 억지로 늘어놓는 대신
+// - **겹친다** (`line`, `rows` 가운데 `compare: "overlay"`) — 축이나 항목이라는 공유하는
+//   자리가 있어 겹칠수록 읽을 것이 많아진다.
+// - **focus 를 따라 바뀐다** (`stat` · `facts` · `bars` · `parts`, `rows` 가운데
+//   `compare: "focus"`) — 겹칠 자리가 없거나 한 subject 의 안쪽이라, 억지로 늘어놓는 대신
 //   **무엇을 그릴지 focus 가 고른다.** focus 가 강조 장치에서 고르는 자리로 커진다.
+//
+// **`rows` 만 둘 다 할 수 있다.** 항목을 겹쳐 편 표(옛 `list`)와 고른 것만 편 표(옛 `rows`)는
+// 같은 값(항목 배열)을 받는 같은 모양이라 — 라벨이 값이 가져온 항목이고 열이 그 항목의
+// 속성이라는 점이 같다 — element 를 둘로 가르는 대신 **facet 이 `compare` 로 스스로 말하게**
+// 줄였다. 「누가 그 항목을 갖고 누가 안 갖는지」(항목 × subject)라는 겹치는 길은
+// `compare: "overlay"` 가 그대로 잇는다 — 사라지지 않는다.
 //
 // **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
 // 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
 export const COMPARE = {
-  stat: "focus", facts: "focus", bars: "focus", rows: "focus", parts: "focus",
-  line: "overlay", list: "overlay",
+  stat: "focus", facts: "focus", bars: "focus", parts: "focus",
+  line: "overlay", rows: "chosen",
 };
 
 /**
@@ -621,11 +629,24 @@ function lineSvg(series, axis, type, focus, prior, span) {
 }
 
 /**
+ * **항목을 표로 편다.** `compare` 가 갈래를 가른다 — 겹치지 않고 지금 보는 subject 것만
+ * 펴려면 `focus`, 항목 이름으로 겹쳐 subject 마다 열을 세우려면 `overlay`.
+ *
+ * 둘은 같은 값(항목 배열)을 받는 같은 모양이다 — 라벨이 값이 가져온 항목이고 열이 그
+ * 속성이라는 점이 같아, element 를 둘로 가르는 대신 facet 이 `compare` 로 스스로 말하게
+ * 줄였다. 「비교 방법은 이름으로 갈린다」는 이제 element 가 아니라 `compare` 값이 진다 —
+ * 한 facet 은 여전히 `compare` 하나만 가지므로 비교 축은 하나다.
+ */
+function rows(ctx, facet) {
+  return facet.compare === "overlay" ? rowsOverlay(ctx, facet) : rowsFocus(ctx, facet);
+}
+
+/**
  * 겹치는 좌표가 **항목**이다. subject 마다 표를 따로 두지 않고 목록을 하나로 합친다 —
  * 누가 무엇을 갖고 누가 안 갖는지가 한 줄에서 읽힌다.
  * 한 항목의 여러 열은 하나의 자로 줄일 수 없어 그 안에서만 나란히 선다 (원칙 9).
  */
-function list(ctx, facet) {
+function rowsOverlay(ctx, facet) {
   const decl = facet.fields[0];
   const columns = Array.isArray(decl.columns) ? decl.columns : [];
   if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
@@ -651,7 +672,7 @@ function list(ctx, facet) {
   const blanks = reads
     .filter(({ subject }) => unread.has(subject.id))
     .map(({ subject }) => ({ ...subject }));
-  // list 는 값이 subject 열에 선다 — 값 주석 표시는 그 열 머리로 간다.
+  // overlay 는 값이 subject 열에 선다 — 값 주석 표시는 그 열 머리로 간다.
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>`;
   // **열은 subject 가 만든다.** 아직 아무도 없으니 키 열만 서고 그 옆 한 칸이
   // 「subject 가 오면 여기에 한 열씩 선다」는 자리로 비어 있는다. 이름을 지어내지 않는다.
@@ -712,13 +733,10 @@ function list(ctx, facet) {
 }
 
 /**
- * **고른 subject 의 항목을 행으로 편다.** `list` 와 같은 값(항목 배열)을 받지만 비교하는
- * 법이 다르다 — `list` 는 여럿을 한 표에 겹치고, `rows` 는 지금 보고 있는 하나만 편다.
- *
- * 둘을 한 element 로 두고 템플릿이 고르게 하면 「비교 방법은 primitive element 가 정한다」가
- * 깨진다. 같은 이름이 화면마다 다르게 굴면 이름만 보고 알 수 없다. 그래서 이름을 가른다.
+ * **고른 subject 의 항목을 행으로 편다.** `rowsOverlay` 와 같은 값(항목 배열)을 받지만
+ * 겹치지 않고 지금 보고 있는 하나만 편다 — `compare: "focus"` 일 때다.
  */
-function rows(ctx, facet) {
+function rowsFocus(ctx, facet) {
   const decl = facet.fields[0];
   const columns = Array.isArray(decl.columns) ? decl.columns : [];
   if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
@@ -824,7 +842,7 @@ function parts(ctx, facet) {
   );
 }
 
-export const ELEMENTS = { stat, facts, bars, line, list, rows, parts };
+export const ELEMENTS = { stat, facts, bars, line, rows, parts };
 
 // ---------------------------------------------------------------- 페이지
 

@@ -131,7 +131,8 @@
       "id": "riders",
       "title": "특약",
       "hint": "제안서마다 어떤 특약을 넣었는지 나란히 둔 것입니다.",
-      "element": "list",
+      "element": "rows",
+      "compare": "overlay",
       "fields": [
         {
           "key": "rider-list",
@@ -172,6 +173,7 @@
       "title": "납입 계획",
       "hint": "고른 제안서의 납입 구간별 보험료입니다.",
       "element": "rows",
+      "compare": "focus",
       "fields": [
         {
           "key": "plan",
