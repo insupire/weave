@@ -159,16 +159,25 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 **2. 모델 전체 — 소비자가 자기 빌드에서 뽑는다.** 이 저장소는 생성기를 들이지 않는다.
 
 ```sh
-# Python 소비자
-uvx datamodel-code-generator --input schema --input-file-type jsonschema \
-    --output-model-type pydantic_v2.BaseModel --output weave_models/
+# Python 소비자 — 패키지 이름과 실행 파일 이름이 다르다. 루트 클래스 이름은 --class-name 이 준다(아래 ⚠️)
+uvx --from datamodel-code-generator datamodel-codegen \
+    --input schema/weave-template.schema.json --input-file-type jsonschema \
+    --output-model-type pydantic_v2.BaseModel --class-name WeaveTemplate --output weave_template.py
 
-# TS 소비자
-npx json-schema-to-typescript@15 schema/weave-template.schema.json -o weave-template.d.ts
-npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valueset.d.ts
+# TS 소비자 — 파일 간 $ref 를 스키마 파일이 아니라 cwd 기준으로 푼다. --cwd 가 없으면 뿌리에서 찾다가 죽는다
+npx json-schema-to-typescript@15 --cwd=schema schema/weave-template.schema.json -o weave-template.d.ts
+npx json-schema-to-typescript@15 --cwd=schema schema/weave-valueset.schema.json -o weave-valueset.d.ts
 ```
 
-⚠️ **아직 돌려 보지 않았다.** 두 생성기 모두 `if`/`then`/`not` 조건절을 온전히 옮기지 못할 수 있고, 그러면 primitive element 별 필드 제약이 생성 타입에서 느슨해진다. **그 제약의 판정은 어차피 검사기가 갖는다** — 생성 타입은 모양을 잡는 용도이고 판정이 아니다. 소비자가 처음 돌릴 때 확인한다.
+값 한 벌은 같은 줄을 `weave-valueset.schema.json` 과 `--class-name WeaveValueSet` 로 한 번 더 쓴다. 파일 하나를 넘기면 파일 간 `$ref` 가 그 모듈 안으로 펼쳐져 자족한다 — `--input schema` 로 디렉터리를 넘기면 모듈 넷으로 갈라 서로 import 하지만 `--class-name` 이 하나뿐이라 루트 넷이 같은 이름을 받는다.
+
+**돌려 봤고 이렇게 나온다**(2026-09-16 · TS 는 템플릿 1009 줄 · 값 한 벌 189 줄, Python 은 템플릿 303 줄). 아래 셋은 결함이 아니라 성질이다 — 생성 타입은 모양을 잡는 용도이고 판정이 아니다.
+
+- **조건절(`if`/`then`/`not`)이 통째로 사라진다.** 둘 다 그렇다 — primitive element 별 필드 제약이 TS 에서는 `{ [k: string]: unknown }` 교차로, Python 에서는 전부 선택 필드로 접힌다. **그 제약의 판정은 어차피 검사기가 갖는다.**
+- **TS 는 조건절 가지마다 본문을 통째로 복제한다** — `Facet` 본문이 둘, `Field` 본문이 열둘. 거기에 `maxItems` 가 튜플 조합으로 펼쳐져(`| [Field, Field, ...]` 107 줄) 1009 줄이 된다. Python 은 둘 다 안 그런다.
+- **TS 는 같은 타입을 여러 이름으로 낸다** — 값 한 벌 쪽의 `Annotations`·`Annotations1`·`Annotations2` 가 같은 것이다.
+
+⚠️ **루트 타입 이름은 스키마 루트 `title` 에서 오고 두 생성기 모두 non-ASCII 를 지운다.** 우리 `title` 은 한국어라 이름이 비어, TS 는 `NoName` 을 내고 Python 은 `title='' is invalid class name` 으로 멈춘다. **그래도 `title` 을 ASCII 로 갈지 않는다** — 그 문자열은 `docs/weave.md` 계약 표의 제목이기도 해서, 갈면 한국어 설명서의 제목 넷과 그것을 가리키는 링크가 함께 바뀐다. **이름은 뽑는 쪽이 준다** — Python 은 `--class-name`, TS 는 `import type { NoName as WeaveTemplate }`.
 
 ⚠️ **LLM 구조화 출력.** judge 가 `weave-template.schema.json` 을 그대로 구조화 출력 스키마로 넘기려면, 파일 간 `$ref` 와 조건절을 지원하는지 그쪽 API 가 정한다. 지원하지 않으면 한 파일로 펼친 변형이 필요하다. 그 변형을 이 저장소가 낼지는 정하지 않았다.
 
