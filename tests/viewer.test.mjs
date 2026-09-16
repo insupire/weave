@@ -17,8 +17,8 @@ import { PAGES } from "../viewer/catalog.mjs";
 import {
   COMPARE, ELEMENTS, KIND_LABEL, NO_ITEM, NO_ITEMS, NO_VALUE, NO_VALUE_MARK, TRACE, UNDRAWABLE, esc,
   formatScalar, renderView, traceOf,
-} from "../viewer/render.mjs";
-import { ICON } from "../viewer/icons.mjs";
+} from "../render/render.mjs";
+import { ICON } from "../render/icons.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(ROOT, p), "utf-8"));
@@ -869,7 +869,7 @@ test("읽을 수 있는 정지 숫자를 두지 않는다", () => {
   // **산출물이 도메인을 모른다.** 자리에 적히는 말과 표기는 렌더가 스스로 내는 글이라
   // 값에서 오지 않는다 — 여기에 보험 말이 섞이면 다른 상품군에서 다시 못 쓴다(규칙 1).
   // 주석은 보지 않는다. 주석은 보기를 들 수 있고 화면으로 나가지 않는다.
-  const source = fs.readFileSync(path.join(ROOT, "viewer/render.mjs"), "utf-8");
+  const source = fs.readFileSync(path.join(ROOT, "render/render.mjs"), "utf-8");
   const said = [...source.matchAll(/\bslot\(\s*"([^"]*)"/g)].map((m) => m[1])
     .concat([NO_VALUE, NO_ITEM, NO_ITEMS, UNDRAWABLE, NO_VALUE_MARK]);
   assert.ok(said.length >= 4, "렌더가 스스로 내는 글을 못 찾았다 — 판정이 헛돈다");
@@ -1208,7 +1208,7 @@ test("필드에 붙은 말은 표시를 세워 그 자리에서 연다", () => {
 });
 
 test("아이콘은 lucide 실물을 옮겨 온 것이다", () => {
-  const src = fs.readFileSync(path.join(ROOT, "viewer/icons.mjs"), "utf-8");
+  const src = fs.readFileSync(path.join(ROOT, "render/icons.mjs"), "utf-8");
   assert.match(src, /lucide-static@\d+\.\d+\.\d+/, "어느 버전에서 왔는지 적혀 있어야 한다");
   assert.match(src, /ISC/, "라이선스 고지");
   // 갈래를 가리키는 것만 — 주석 갈래와 primitive element.
@@ -2235,7 +2235,7 @@ test("그림이 값과 같은 자로 재어진다", () => {
   // ── **line 의 y 축은 0 에서 시작한다.** 0 에서 자르면 작은 차이가 크게 보인다 —
   //    읽기 좋게 하려고 자를 왜곡하는 것이고 그 판단은 우리 것이 아니다.
   {
-    const src = fs.readFileSync(path.join(ROOT, "viewer/render.mjs"), "utf-8");
+    const src = fs.readFileSync(path.join(ROOT, "render/render.mjs"), "utf-8");
     const floor = Number(src.match(/const FLOOR = ([\d.]+);/)?.[1]);
     assert.ok(Number.isFinite(floor) && floor > 0 && floor <= 2, `바닥이 자를 흔든다: ${floor}`);
     assert.match(src, /const ymin = Math\.min\(\.\.\.ys, 0\)/, "y 축이 0 에서 떨어졌다");

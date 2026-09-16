@@ -1,4 +1,4 @@
-"""참조 뷰어를 의존성 없는 단일 HTML 한 장으로 묶는다.
+"""설명서 한 장을 `render/` · `viewer/` · `samples/` · `catalog/` 에서 의존성 없이 묶는다.
 
     python3 tools/build_viewer.py          # 다시 쓴다
     python3 tools/build_viewer.py --check  # 갈렸으면 exit 1
@@ -31,6 +31,7 @@ from tools import catalog, reference  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 VIEWER = ROOT / "viewer"
+RENDER = ROOT / "render"
 SAMPLES = ROOT / "samples"
 OUT_SAMPLES = VIEWER / "samples.mjs"
 OUT_CATALOG = VIEWER / "catalog.mjs"
@@ -38,6 +39,15 @@ OUT_HTML = ROOT / "viewer.html"
 
 BANNER = "samples/ 에서 생성된다. 직접 고치지 않는다 — python3 tools/build_viewer.py"
 CATALOG_BANNER = "schema/ 와 catalog/elements.json 에서 생성된다. 직접 고치지 않는다 — python3 tools/build_viewer.py"
+
+# 산출물의 머리글. 셸의 ``<!--__MADE__ ... -->`` 자리에 들어간다 — 셸은 손으로 고치는 소스라
+# 같은 글을 이고 있으면 스스로 「손으로 고치지 않는다」고 거짓말을 한다.
+MADE_BANNER = """<!--
+  이 파일은 tools/build_viewer.py 가 render/ · viewer/ · samples/ · catalog/ 에서 생성한다.
+  직접 고치지 않는다 — python3 tools/build_viewer.py
+  의존성이 없다 — CDN 도 서버도 쓰지 않는다. 파일을 브라우저로 열면 바로 돈다.
+-->"""
+MADE_SLOT = re.compile(r"<!--__MADE__.*?-->", re.S)
 
 # 인라인할 때 모듈 문법을 걷는다. 한 장 안에서는 같은 모듈 스코프를 나눠 쓴다.
 DROP_IMPORT = re.compile(r"^\s*import\s.*$")
@@ -88,8 +98,8 @@ def html_source(samples_js: str, catalog_js: str) -> str:
     """디스크가 아니라 방금 만든 글을 받는다. --check 가 묵은 파일을 보면 안 된다."""
     script = "\n\n".join(
         [
-            f"// ---- viewer/icons.mjs ----\n{inline((VIEWER / 'icons.mjs').read_text(encoding='utf-8'))}",
-            f"// ---- viewer/render.mjs ----\n{inline((VIEWER / 'render.mjs').read_text(encoding='utf-8'))}",
+            f"// ---- render/icons.mjs ----\n{inline((RENDER / 'icons.mjs').read_text(encoding='utf-8'))}",
+            f"// ---- render/render.mjs ----\n{inline((RENDER / 'render.mjs').read_text(encoding='utf-8'))}",
             f"// ---- viewer/samples.mjs ----\n{inline(samples_js)}",
             f"// ---- viewer/catalog.mjs ----\n{inline(catalog_js)}",
             f"// ---- viewer/app.mjs ----\n{inline((VIEWER / 'app.mjs').read_text(encoding='utf-8'))}",
@@ -100,6 +110,7 @@ def html_source(samples_js: str, catalog_js: str) -> str:
     script = script.replace("</script", "<\\/script")
     shell = (VIEWER / "shell.html").read_text(encoding="utf-8")
     css = (VIEWER / "style.css").read_text(encoding="utf-8").strip()
+    shell = MADE_SLOT.sub(lambda _: MADE_BANNER, shell, count=1)
     return shell.replace("/*__STYLE__*/", css).replace("/*__SCRIPT__*/", script)
 
 

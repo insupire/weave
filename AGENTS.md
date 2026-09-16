@@ -23,7 +23,7 @@
 | --- | --- | --- | --- |
 | **문법** | 무엇을 선언할 수 있나 | 스키마 | `schema/*.json` |
 | **뜻** | **그 선언이 무엇을 말하나** | **언어가 진다** | `docs/weave.md` §렌더가 하기로 돼 있는 것 |
-| **표현** | 그것을 어떻게 보이나 | **렌더가 고른다** | 참조 뷰어 · 앱의 디자인 시스템 |
+| **표현** | 그것을 어떻게 보이나 | **렌더가 고른다** | 참조 렌더(`render/`) · 앱의 디자인 시스템 |
 
 **가르는 자는 하나다 — 어기면 그림이 값에 없는 말을 하는가.** 그러면 **뜻**이고 모든 렌더가 진다. 어겨도 다르게 보이기만 하면 **표현**이고 렌더가 고른다.
 
@@ -38,9 +38,8 @@
 | `schema/*.json` | **정본.** JSON Schema 2020-12. 어휘·모양·제약이 전부 여기 있다 |
 | `docs/weave.md` | 설명서 겸 카탈로그. 템플릿을 쓰는 쪽이 읽는다 |
 | `weave/` | 검사기 (Python). **판정은 전부 여기 하나에 있다** |
-| `viewer/render.mjs` | 참조 렌더. primitive element 를 그린다. 문서를 받아 HTML 문자열을 내는 순수 함수 |
-| `viewer/app.mjs` · `style.css` · `shell.html` | 설명서의 목차·본문과 그 안의 플레이그라운드 |
-| `viewer/icons.mjs` | lucide 아이콘을 **인라인으로 옮겨 둔 것.** 출처·버전·라이선스가 파일 머리에 있다 |
+| **`render/`** | **참조 렌더. 그리는 쪽이 읽는 자리다.** `render.mjs` 는 문서를 받아 HTML 문자열을 내는 순수 함수이고, `icons.mjs` 는 그 그림이 쓰는 lucide 아이콘을 **인라인으로 옮겨 둔 것**이다(출처·버전·라이선스가 파일 머리에 있다). 이 폴더 밖을 읽지 않는다 |
+| `viewer/app.mjs` · `style.css` · `shell.html` | 설명서 웹사이트의 목차·본문과 그 안의 플레이그라운드. `render/` 를 쓰는 쪽이지 참조 렌더가 아니다 |
 | `catalog/guide.json` | element 가 아닌 쪽의 산문. 목차의 앞뒤가 여기서 나온다 |
 | `samples/` | **템플릿 샘플.** 한 벌 = `sample.json`(차례·명단·focus) + `template.json` + `values-*.json` |
 | `catalog/elements.json` | primitive element 설명서의 **산문과 보기**. 제약은 적지 않는다 |
@@ -52,7 +51,7 @@
 | `.github/workflows/ci.yml` | 필수 전체 회귀. `make all` 한 줄을 부른다 |
 | `tools/emit_types.py` | 닫힌 어휘를 소비자 언어로 내보낸다 |
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
-| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 그리는 쪽은 `viewer.test.mjs` |
+| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 문서가 가리키는 자리는 `test_samples.py`, 그리는 쪽은 `viewer.test.mjs` |
 
 `schema/` — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(화면 상태 셋).
 파일 사이 참조는 상대 `$ref` 라 그대로 복사해 가도 풀린다.
@@ -62,7 +61,7 @@
 ```sh
 make setup   # .venv 를 만들고 jsonschema 를 넣는다 (유일한 런타임 의존)
 make all     # test + types-check + check + viewer-check + viewer-test
-make viewer  # viewer/ 와 samples/ 를 viewer.html 한 장으로 다시 묶는다
+make viewer  # render/ 와 viewer/ 와 samples/ 를 viewer.html 한 장으로 다시 묶는다
 ```
 
 **상주 서버·컨테이너·프리뷰를 세우지 않는다.** `viewer.html` 을 브라우저로 열면 그대로 돈다.
@@ -93,7 +92,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `make check` | 검사기를 `tests/fixtures/ok/` 에 직접 돌린다. CLI 가 사는지 본다 |
 | `make types-check` | `generated/` 가 스키마와 갈렸는지 본다 |
 | `make types` | 갈렸으면 다시 쓴다 |
-| `make viewer` | `viewer/` 와 `samples/` 를 `viewer.html` 한 장으로 다시 묶는다 |
+| `make viewer` | `render/` · `viewer/` · `samples/` 를 `viewer.html` 한 장으로 다시 묶는다 |
 | `make viewer-check` | `viewer.html` 이 소스·샘플과 갈렸는지 본다 |
 | `make viewer-test` | 그리는 쪽의 고정 케이스. `node` 가 있어야 돈다 |
 | `make all` | `test` · `types-check` · `check` · `viewer-check` · `viewer-test` |
@@ -108,7 +107,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | --- | --- |
 | `schema/` | `make all` — 어휘가 바뀌면 `generated/` 도 같이 커밋한다 |
 | `weave/` (검사기) | `make test check` |
-| `viewer/` | `make viewer viewer-test test` — **`viewer.html` 을 같이 커밋한다** |
+| `render/` · `viewer/` | `make viewer viewer-test test` — **`viewer.html` 을 같이 커밋한다** |
 | `samples/` · `catalog/` | `make viewer check test viewer-test` — 마찬가지로 산출물을 같이 커밋한다 |
 | `schema/weave-render-args` | `make all` — 소비자 둘에게 알린다 |
 | `samples/*/values-*.json` | 파일 이름 차례가 **화면 차례**다. 값 한 벌들이 곧 명단이기 때문이다 |
@@ -116,7 +115,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `tools/emit_types.py` · `generated/` | `make types-check` |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다. 트리거의 형태는 `tests/test_ci.py` 가 본다 |
 | CSS 캐스케이드 · 움직임 · `@media` 분기 | `make all` 에 더해 **브라우저로 계산값을 확인한다** — 아래를 본다 |
-| `docs/` · `AGENTS.md` 만 | 없음 |
+| `docs/` · `AGENTS.md` 만 | `make test` — **가리키는 자리가 사는지 본다.** 산문이 없는 파일을 가리켜도 그 전에는 아무도 안 막았다 |
 
 **`make all` 은 어느 규칙이 이기는지 못 본다.** 고정 케이스는 스타일시트를 **글자로** 읽으므로
 「`@media` 안에 이 규칙을 적었는가」까지만 보고 **더 구체적인 선택자가 그것을 이기는지**는 못 본다.
@@ -251,7 +250,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 | **subject 를 가르는 것** | 색이 아니다 — **이름**뿐이다. 겹친 선 끝에도 이름이 선다 |
 | **선의 상태색** (`.trace-now·prior·rest` 의 `--trace`) | **subject 가 아니라 상태의 색이다.** id 나 차례에서 나오면 막힌다. 굵기·진하기가 같은 순서를 함께 말해 색 없이도 갈린다 |
 | **세로 리듬** (`--row` · `--step` · `--gap`) | 자는 셋뿐이다. 줄 사이·층 사이·facet 사이. 낱개로 여백을 주지 않는다 |
-| **갈래를 가리키는 아이콘** | 주석 갈래와 primitive element 뿐. **lucide 실물을 인라인으로 옮긴다**(`viewer/icons.mjs`) — 기억으로 그리지 않고, 아이콘 폰트도 CDN 도 쓰지 않는다 |
+| **갈래를 가리키는 아이콘** | 주석 갈래와 primitive element 뿐. **lucide 실물을 인라인으로 옮긴다**(`render/icons.mjs`) — 기억으로 그리지 않고, 아이콘 폰트도 CDN 도 쓰지 않는다 |
 | **타이포와 여백** | 크기 단계·줄간·여백. 가장 싸게 좋아지는 자리다 |
 
 ### 하지 않는 것
@@ -272,7 +271,7 @@ npx json-schema-to-typescript@15 schema/weave-valueset.schema.json -o weave-valu
 
 ### 아이콘을 고칠 때
 
-[`viewer/icons.mjs`](viewer/icons.mjs) 는 **lucide 실물을 옮겨 둔 것**이다 — `npm pack lucide-static@<버전>` 으로 풀어
+[`render/icons.mjs`](render/icons.mjs) 는 **lucide 실물을 옮겨 둔 것**이다 — `npm pack lucide-static@<버전>` 으로 풀어
 `icons/<이름>.svg` 의 안쪽을 그대로 가져온다. **기억으로 path 를 그리지 않는다.** 비슷하지만 다른 그림이 된다.
 출처·버전·라이선스(ISC)는 그 파일 머리에 적혀 있고, 그 가운데 어느 이름을 썼는지도 주석에 있다.
 

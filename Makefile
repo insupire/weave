@@ -35,7 +35,7 @@ types:
 types-check:
 	python3 tools/emit_types.py --check
 
-# viewer/ 와 samples/ 를 의존성 없는 한 장으로 묶는다.
+# render/ 와 viewer/ 와 samples/ 를 의존성 없는 한 장으로 묶는다.
 viewer:
 	python3 tools/build_viewer.py
 

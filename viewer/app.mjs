@@ -5,10 +5,10 @@
 //
 // **판정하지 않는다.** JSON 으로 읽히는지만 보고 스키마 판정은 Python 검사기가 갖는다.
 
-import { esc, renderView } from "./render.mjs";
+import { esc, renderView } from "../render/render.mjs";
 import { SAMPLES } from "./samples.mjs";
 import { PAGES } from "./catalog.mjs";
-import { ICON } from "./icons.mjs";
+import { ICON } from "../render/icons.mjs";
 
 const $ = (id) => document.getElementById(id);
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import sys
 import unittest
 
@@ -374,6 +375,36 @@ class Vocabulary(unittest.TestCase):
         self.assertEqual(hits, [], f"번역어가 남아 있다: {hits}")
 
 
+class MarkdownPointsAtRealPlaces(unittest.TestCase):
+    """**자리를 옮기면 그것을 가리키던 글이 같이 따라와야 한다.**
+
+    폴더 하나를 옮겨 보니 ``make all`` 이 코드의 경로는 전부 잡는데 **산문의 경로는 못 잡았다** —
+    ``AGENTS.md`` 의 레이아웃 표와 ``README.md`` 의 안내가 없는 파일을 가리켜도 통과했다.
+    """
+
+    LINK = re.compile(r"\]\(([^)\s]+)\)")
+    SKIP = {".git", ".venv", "__pycache__", "node_modules"}
+
+    def test_every_repo_link_resolves(self) -> None:
+        dead = []
+        for path in ROOT.rglob("*.md"):
+            if set(path.relative_to(ROOT).parts) & self.SKIP:
+                continue
+            for target in self.LINK.findall(path.read_text(encoding="utf-8")):
+                if target.startswith(("http://", "https://", "mailto:", "#")):
+                    continue
+                where = (path.parent / target.split("#", 1)[0]).resolve()
+                if not where.exists():
+                    dead.append(f"{path.relative_to(ROOT)} → {target}")
+        self.assertEqual(dead, [], f"가리키는 자리가 없다: {dead}")
+
+    def test_the_scan_would_notice(self) -> None:
+        """**대조군.** 위 판정이 죽은 링크를 실제로 무는지."""
+        self.assertEqual(self.LINK.findall("[글](../render) 과 [딴 것](docs/weave.md#자리)"),
+                         ["../render", "docs/weave.md#자리"])
+        self.assertFalse((ROOT / "render" / "nowhere.mjs").exists())
+
+
 class BuiltViewerIsNotStale(unittest.TestCase):
     def test_every_artifact_matches_its_sources(self) -> None:
         """사람이 여는 한 장과 설명서 표가 지금 소스와 같은지. ``make viewer`` 로 다시 쓴다."""
@@ -491,7 +522,7 @@ class CountsAreNotWrittenOutInProse(unittest.TestCase):
         texts = self._texts()
         # 글이 사는 자리 — 문서·렌더·앱·아이콘·고정 케이스·도구가 전부 훑기에 들어야 한다.
         for name in ("AGENTS.md", "docs/weave.md", "catalog/elements.json",
-                     "viewer/render.mjs", "viewer/app.mjs", "viewer/icons.mjs",
+                     "render/render.mjs", "viewer/app.mjs", "render/icons.mjs",
                      "tests/viewer.test.mjs", "tests/test_samples.py", "tools/catalog.py"):
             self.assertIn(name, texts, f"훑기가 {name} 를 안 본다")
         self.assertGreater(len(texts), 30, "훑은 파일이 너무 적다")
