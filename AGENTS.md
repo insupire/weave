@@ -32,9 +32,12 @@
 | `viewer/samples.mjs` · `viewer/catalog.mjs` | 마찬가지로 빌드 산출물 |
 | `tools/build_viewer.py` | 위 셋과 `docs/weave.md` 의 카탈로그 표를 만든다 |
 | `.github/workflows/ci.yml` | 필수 전체 회귀. `make all` 한 줄을 부른다 |
+| **`harness.json`** | **하네스 표면.** 진입점·검사 동사·가드가 어디 있는지를 **밖에서 기계가 읽는** 한 자리 |
+| `tools/relevant.py` | 바꾼 자리에서 돌릴 검사를 고른다. `make relevant` 이 부르고 표의 정본이 여기다 |
+| `tools/workspace-guard.mjs` · `.claude/settings.json` | 작업공간 가드와 그 선언. 도구를 부르는 시점에 막는다 |
 | `tools/emit_types.py` | 닫힌 어휘를 소비자 언어로 내보낸다 |
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
-| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 그리는 쪽은 `viewer.test.mjs` |
+| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 하네스 표면과 고르는 판정은 `test_harness.py`, 그리는 쪽은 `viewer.test.mjs`, 가드는 `workspace-guard.test.mjs` |
 
 `schema/` — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(화면 상태 셋).
 파일 사이 참조는 상대 `$ref` 라 그대로 복사해 가도 풀린다.
@@ -78,7 +81,9 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `make viewer` | `viewer/` 와 `samples/` 를 `viewer.html` 한 장으로 다시 묶는다 |
 | `make viewer-check` | `viewer.html` 이 소스·샘플과 갈렸는지 본다 |
 | `make viewer-test` | 그리는 쪽의 고정 케이스. `node` 가 있어야 돈다 |
-| `make all` | `test` · `types-check` · `check` · `viewer-check` · `viewer-test` |
+| `make guard-test` | 작업공간 가드의 고정 케이스. 마찬가지로 `node` 가 있어야 돈다 |
+| `make relevant` | **아래 표를 대신 읽어** 바뀐 자리에 필요한 것만 돌린다. 견줄 기준은 `BASE`(기본 `origin/develop`) |
+| `make all` | `test` · `types-check` · `check` · `viewer-check` · `viewer-test` · `guard-test` |
 
 **이 sprint 의 남은 weave 변경은 작업 브랜치 하나에 쌓는다.** 중간 PR 도 `develop` 머지도 하지 않고 sprint 종료 때 PR 하나로 올린다(PM `orchestrator.md` §4).
 
@@ -96,9 +101,13 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `samples/*/values-*.json` | 파일 이름 차례가 **화면 차례**다. 값 한 벌들이 곧 명단이기 때문이다 |
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
+| `tools/workspace-guard.mjs` · `.claude/` | `make guard-test` |
+| `harness.json` | `make test` — 적힌 자리와 동사가 실제로 있는지를 `tests/test_harness.py` 가 본다 |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다. 트리거의 형태는 `tests/test_ci.py` 가 본다 |
 | CSS 캐스케이드 · 움직임 · `@media` 분기 | `make all` 에 더해 **브라우저로 계산값을 확인한다** — 아래를 본다 |
 | `docs/` · `AGENTS.md` 만 | 없음 |
+
+**`make relevant` 이 이 표를 기계로 읽은 것이다.** 고를 근거가 없는 자리는 **넓혀서 전부** 돈다 — 전체 게이트가 20초대라 넓히는 값이 싸다. 고르는 것은 **확인하는 동사뿐이고** 산출물을 다시 쓰는 `viewer`·`types` 는 사람이 부른다. 표와 판정이 갈리면 둘 다 고친다.
 
 **`make all` 은 어느 규칙이 이기는지 못 본다.** 고정 케이스는 스타일시트를 **글자로** 읽으므로
 「`@media` 안에 이 규칙을 적었는가」까지만 보고 **더 구체적인 선택자가 그것을 이기는지**는 못 본다.
@@ -118,6 +127,21 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 **이것을 CI 에 들이지 않기로 했다 — 되는데 일부러 안 넣은 것이다.** 지금 CI 는 python 과 node 만으로
 20초에 돈다. 브라우저를 들이면 1~2분이 되고 **이 저장소는 최소함이 곧 성격**이다. 게다가 여기 화면은
 참조일 뿐이고 제품의 시각 정본은 **앱의 디자인 시스템**이 갖는다. 그래서 이 자리는 **사람이 본다.**
+
+## 하네스 표면과 작업공간 가드
+
+`harness.json` 은 이 저장소가 **밖에 내는 하네스 한 자리**다 — 진입점(`AGENTS.md`), 검사 동사 둘(`make relevant` · `make all`), preview, 가드 선언의 자리. **적어 둔 것이 사라져도 아무 일이 없으면 그것은 매니페스트가 아니라 글이라** `tests/test_harness.py` 가 적힌 자리와 동사가 실제로 있는지 본다.
+
+`preview` 는 `null` 이다. **상주 서버·컨테이너·프리뷰를 세우지 않는다** — `viewer.html` 은 파일이라 포트가 없다.
+
+가드는 PreToolUse 훅이고 도구를 부르는 시점에 둘을 막는다.
+
+- 이 워크트리 밖의 `~/orca` 경로에 **파일 도구로 쓰기** — 사람의 기준 체크아웃과 남의 작업공간
+- **이름 없는** `git stash` · `stash pop` · `stash apply` — 스택을 워크트리들이 함께 쓴다. `push -m` 과 `list` 는 지나간다
+
+**읽기는 판정하지 않는다.** 다른 저장소의 사실 확인은 허용된 행동이다.
+
+⚠️ **셸 안의 쓰기는 못 잡는다** — `sed -i`, 리다이렉션, `cp` 는 그대로 지나간다. 임의의 셸을 해석하는 값이 비용보다 작다. 파일 도구의 경로와 stash 두 자리가 실제로 사고가 난 자리라 거기만 문다. **촘촘한 척하지 않는다.**
 
 ## 검사기가 못 보는 것
 

@@ -1,8 +1,20 @@
 PY := .venv/bin/python
+# 무엇과 견줘 바뀐 자리를 고르는가. `make relevant BASE=<ref>` 로 바꾼다.
+BASE ?= origin/develop
 
-.PHONY: all setup test check types types-check viewer viewer-check viewer-test clean
+.PHONY: all relevant setup test check types types-check viewer viewer-check \
+        node-check viewer-test guard-test clean
 
-all: test types-check check viewer-check viewer-test
+all: test types-check check viewer-check viewer-test guard-test
+
+# 변경에 필요한 검사만. 고르는 표의 정본은 tools/relevant.py 이고 AGENTS.md 가 그것을 사람 말로 적는다.
+# **확인하는 동사만 고른다** — 산출물을 다시 쓰는 viewer·types 는 사람이 부른다.
+relevant: setup
+	@changed="$$(git diff --name-only $(BASE)...HEAD; git diff --name-only; \
+	             git ls-files --others --exclude-standard)"; \
+	targets="$$(printf '%s\n' "$$changed" | python3 tools/relevant.py)"; \
+	if [ -z "$$targets" ]; then echo "관련 검사 없음 — 바뀐 자리가 문서뿐이다"; \
+	else echo "관련 검사: $$targets"; $(MAKE) $$targets; fi
 
 setup: .venv/.stamp
 
@@ -43,13 +55,20 @@ viewer:
 viewer-check:
 	python3 tools/build_viewer.py --check
 
-# 그리는 쪽의 고정 케이스. node 가 있어야 돈다 (개발용이고 런타임 의존이 아니다).
-# 없으면 이름을 대고 실패한다 — 조용히 건너뛰면 통과와 구별되지 않는다.
-viewer-test:
+# node 를 쓰는 고정 케이스의 선행 조건. 없으면 이름을 대고 실패한다 —
+# 조용히 건너뛰면 통과와 구별되지 않는다 (개발용이고 런타임 의존이 아니다).
+node-check:
 	@command -v node >/dev/null 2>&1 || { \
-		echo "node 가 없어 그리는 쪽의 고정 케이스를 돌리지 못했다. 건너뛰지 않는다 — node 를 깔거나 CI 에서 돌린다" >&2; \
+		echo "node 가 없어 node 쪽 고정 케이스를 돌리지 못했다. 건너뛰지 않는다 — node 를 깔거나 CI 에서 돌린다" >&2; \
 		exit 1; }
+
+# 그리는 쪽의 고정 케이스.
+viewer-test: node-check
 	node --test tests/viewer.test.mjs
+
+# 작업공간 가드가 무엇을 물고 무엇을 지나 보내는가.
+guard-test: node-check
+	node --test tests/workspace-guard.test.mjs
 
 clean:
 	rm -rf .venv
