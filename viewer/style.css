@@ -300,7 +300,13 @@ svg.line .plot { fill:var(--bed); stroke:none; }
 .bar-row { display:grid; grid-template-columns:130px 1fr 150px; gap:12px; align-items:center; padding:4px 2px; }
 .bar-row .who { font-size:13px; color:var(--mute); }
 .track { display:block; height:10px; background:var(--surface); }
-.fill { display:block; height:100%; background:var(--ink); }
+/* **막대는 0 에서 자란다.** 자가 0 을 담으므로 시작점이 줄마다 다를 수 있다 — 왼쪽 끝이
+   아니라 `left` 가 그 자리를 말한다. 값이 전부 양수면 `left` 가 0 이라 그림이 그대로다. */
+.fill { position:absolute; top:0; height:100%; background:var(--ink); }
+/* **0 이 자의 안쪽일 때 그 자리에 서는 기준선.** 축선(track 의 왼쪽 모서리)이 0 인 척하면
+   음수가 그냥 작은 수로 읽힌다. 사실의 기준이라 무채색이고 위아래를 색이나 면으로
+   가르지 않는다 — 어느 쪽이 나은지 말하지 않는다. 막대 위로 서야 어디가 0 인지 보인다. */
+.track > .zero { position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--mute); }
 .val { font-size:13px; text-align:right; }
 
 /* **표만 옆으로 굴린다.** subject 가 늘수록 넓어지는 유일한 자리다 — 페이지 전체가 옆으로

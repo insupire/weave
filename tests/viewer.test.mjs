@@ -1563,8 +1563,9 @@ test("bars 는 좁아져도 가로로 눕는다", () => {
   // 막대는 가로로 뻗는다 — 길이는 너비가 말한다.
   assert.match(rule(css, "\\.track"), /height:\d/);
   assert.match(rule(css, "\\.fill"), /height:100%/);
+  // **자가 0 에 매여 있어 시작점도 인라인으로 나간다** — 자란 길이를 말하는 것은 그대로 너비다.
   for (const [, style] of sectionOf(fix().html, "bars").matchAll(/style="([^"]*)"/g)) {
-    assert.match(style, /^width:[\d.]+%$/, `막대가 너비가 아닌 것으로 자란다: ${style}`);
+    assert.match(style, /^(?:left:[\d.]+%;)?width:[\d.]+%$/, `막대가 너비가 아닌 것으로 자란다: ${style}`);
   }
 });
 
@@ -1852,6 +1853,100 @@ test("0 이 어디인지 보인다", () => {
   assert.ok(!signed.includes("<rect"), "0 위아래를 면으로 가른다");
 });
 
+/** `coverage-amounts` 의 막대를 subject 마다 갈아 끼우고 그 자리를 돌려준다. */
+function sized(perSubject, args = {}) {
+  const values = structuredClone(FIX.values);
+  perSubject.forEach((pair, i) => {
+    const fields = values[i].facets["coverage-amounts"].fields;
+    ["death-benefit", "cancer-benefit"].forEach((key, k) => {
+      const one = pair?.[k];
+      fields[key] = one === null || one === undefined
+        ? { state: "empty" }
+        : { state: "filled", value: one };
+    });
+  });
+  return sectionOf(
+    renderView({ template: FIX.template, values, focus: "proposal-a", ...args }).html, "bars");
+}
+
+const fills = (html) =>
+  [...html.matchAll(/<span class="fill" style="left:([\d.]+)%;width:([\d.]+)%"/g)]
+    .map((m) => ({ left: +m[1], width: +m[2] }));
+const zeroes = (html) =>
+  [...html.matchAll(/<span class="zero" style="left:([\d.]+)%"/g)].map((m) => +m[1]);
+
+test("bars 의 자도 0 에 매여 있다", () => {
+  // **음수가 길이를 잃으면 그 자리는 「값이 없다」와 똑같이 보인다.** `line` 의 0 선과 같은
+  // 갈래다 — 「0 이 아닌 값은 길이 0 이 되지 않는다」가 자를 최대값에 매던 자리에서 깨졌다.
+  const signed = sized([[-20000000, 40000000], [null, null], [null, null]]);
+  const bars = fills(signed);
+  assert.equal(bars.length, 2, "두 값이 다 서지 않는다");
+  const [minus, plus] = bars;
+  assert.ok(minus.width > 0, "음수가 길이를 잃었다 — 값이 없는 자리와 구별되지 않는다");
+
+  // 0 이 자의 안쪽이라 기준선이 서고, 막대는 **그 선에서** 자란다.
+  const rule = zeroes(signed);
+  assert.equal(new Set(rule).size, 1, "기준선이 줄마다 다른 자리에 선다");
+  assert.ok(Math.abs(minus.left + minus.width - rule[0]) < 0.01, "음수 막대가 0 에서 끝나지 않는다");
+  assert.ok(Math.abs(plus.left - rule[0]) < 0.01, "양수 막대가 0 에서 시작하지 않는다");
+
+  // **길이가 값에 비례한다** — 자가 0 에 매여 있어야 둘의 비가 값의 비와 같다.
+  assert.ok(Math.abs(plus.width / minus.width - 2) < 0.01, "길이의 비가 값의 비와 다르다");
+
+  // **0 이 자의 끝이면 track 의 모서리가 이미 그 자리다.** 값이 전부 양수면 선을 또 긋지
+  // 않고 막대가 왼쪽 끝에서 시작한다 — 지금까지의 그림과 한 수도 달라지지 않는다.
+  const positive = sized([[10000000, 30000000], [null, null], [null, null]]);
+  assert.deepEqual(zeroes(positive), [], "0 이 자의 끝인데 기준선을 또 그었다");
+  assert.deepEqual(fills(positive).map((one) => one.left), [0, 0], "양수 막대가 왼쪽 끝에서 안 선다");
+  assert.deepEqual(fills(positive).map((one) => one.width), [+(100 / 3).toFixed(4), 100]);
+
+  // **자는 facet 하나에 하나다** — 값이 없는 줄에도 같은 자리에 기준선이 선다.
+  const half = sized([[-20000000, null], [null, null], [null, null]]);
+  assert.equal(zeroes(half).length, 2, "값이 없는 줄에서 자가 사라진다");
+  assert.equal(new Set(zeroes(half)).size, 1, "줄마다 0 이 다른 자리에 선다");
+
+  // **0 은 진짜 0 이라 길이가 0 이다.** 바닥은 0 이 아닌 값만 얻는다.
+  const zeroed = sized([[0, 40000000], [null, null], [null, null]]);
+  assert.equal(fills(zeroed)[0].width, 0, "0 이 길이를 가졌다");
+
+  // **기준선은 사실의 기준이지 좋고 나쁨이 아니다** — 무채색이고 위아래를 가르지 않는다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const body = css.match(/\.track > \.zero \{([^}]*)\}/)?.[1] ?? "";
+  assert.ok(body, "bars 의 기준선 선언이 없다");
+  assert.ok(!/#|rgb|hsl/.test(body.replace(/var\(--[a-z-]+\)/g, "")), `기준선에 색이 있다: ${body}`);
+  assert.ok(!/background-image|gradient/.test(body), "기준선이 위아래를 면으로 가른다");
+});
+
+test("붙은 말이 조용히 사라지지 않는다", () => {
+  // **접는 것은 막을 일이 아니다** — 자리가 좁으면 접는 것이 옳다. 막는 것은 **접었다는 것을
+  // 안 말하는 것**이다. 셋만 내고 다섯을 버리면 그림이 「할 말이 이것뿐」이라고 말하고
+  // 그것은 값에 없는 말이다 — 값이 사라지는 것과 같은 줄이라 같은 자로 잰다.
+  // 이 렌더는 상한(여덟)이 한 툴팁에 들어가므로 **하나도 접지 않는다.**
+  const cap = read("schema/weave-common.schema.json").$defs.Annotations.maxItems;
+  assert.ok(cap >= 2, "상한이 없으면 접을 일도 없다");
+  const values = structuredClone(FIX.values);
+  const many = Array.from({ length: cap }, (_, i) => ({ kind: "note", text: `여덟 중 ${i + 1}번째 말` }));
+  values[0].facets["coverage-amounts"].fields["death-benefit"].notes = many;
+  const drawn = sectionOf(
+    renderView({ template: FIX.template, values, focus: "proposal-a" }).html, "bars");
+  for (const one of many) assert.ok(drawn.includes(esc(one.text)), `${one.text} 가 사라졌다`);
+  // 줄 수로도 센다 — 글이 어딘가 한 번 나오는 것과 여덟 줄이 다 서는 것은 다르다.
+  // 이 facet 에 원래 서 있던 말(facet 주석 · 다른 값의 말)을 빼고 잰다.
+  const bare = structuredClone(FIX.values);
+  bare[0].facets["coverage-amounts"].fields["death-benefit"].notes = [];
+  const lines = (html) => (html.match(/class="note note-/g) ?? []).length;
+  const floor = lines(sectionOf(
+    renderView({ template: FIX.template, values: bare, focus: "proposal-a" }).html, "bars"));
+  assert.equal(lines(drawn) - floor, cap, "주석 줄이 상한만큼 서지 않는다");
+
+  // **대조군.** 하나를 빼면 판정이 빨개진다 — 「다 있다」를 실제로 세고 있다는 뜻이다.
+  const fewer = structuredClone(values);
+  fewer[0].facets["coverage-amounts"].fields["death-benefit"].notes = many.slice(0, 3);
+  const folded = sectionOf(
+    renderView({ template: FIX.template, values: fewer, focus: "proposal-a" }).html, "bars");
+  assert.ok(!folded.includes(esc(many[cap - 1].text)), "판정이 글을 안 보고 있다");
+});
+
 test("순위·등급 어휘가 화면으로 새지 않는다", () => {
   const { html } = fix({ focus: "proposal-a" });
   for (const word of ["rank", "grade", "score", "1위", "추천", "best"]) assert.ok(!html.includes(word), word);
@@ -2030,7 +2125,7 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
 test("그림이 값과 같은 자로 재어진다", () => {
   // **길이가 값을 뜻하면 그 자는 무엇을 눌러도 안 움직여야 한다.** 글로 「견주면 안
   // 됩니다」라고 쓰는 것은 고치는 것이 아니다 — 그림이 거짓말하는 것은 그대로다.
-  const width = (html) => [...html.matchAll(/style="width:([\d.]+)%"/g)].map((m) => Number(m[1]));
+  const width = (html) => [...html.matchAll(/style="(?:[^"]*;)?width:([\d.]+)%"/g)].map((m) => Number(m[1]));
 
   // ── bars: **자가 facet 하나에 하나다.** 큰 값이 반드시 더 길다.
   const facet = FIX.template.facets.find((f) => f.element === "bars");
@@ -2063,7 +2158,7 @@ test("그림이 값과 같은 자로 재어진다", () => {
   for (const doc of [shared[0], shared[2]]) {
     const page = sectionOf(fix({ values: shared, focus: doc.subjectId }).html, "bars");
     for (const [i, row] of page.split('<div class="bar-row">').slice(1).entries()) {
-      const w = Number((row.match(/style="width:([\d.]+)%"/) ?? [])[1]);
+      const w = Number((row.match(/style="(?:[^"]*;)?width:([\d.]+)%"/) ?? [])[1]);
       const slot = doc.facets[facet.id]?.fields?.[facet.fields[i].key];
       if (slot?.state !== "filled" || !Number.isFinite(w)) continue;
       const seen = here.get(slot.value);

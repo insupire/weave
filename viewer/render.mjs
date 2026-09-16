@@ -424,9 +424,8 @@ function facts(ctx, facet) {
   return `<dl class="facts">${rows.join("")}</dl>`;
 }
 
-/** 크기 비교. **자는 subject 전체의 최대값으로 고정한다** — focus 를 옮겨도 길이를 견줄 수 있어야 한다. */
 /**
- * 크기 비교. **자는 facet 하나에 하나다.**
+ * 크기 비교. **자는 facet 하나에 하나이고 0 에 매여 있다.**
  *
  * 필드마다 따로 재면 3등급 1,000만이 1등급 3,000만보다 길어진다 — 그림이 거짓말을 한다.
  * 「한 facet 은 비교 축 하나여야 한다」가 이미 언어의 규칙이니 같은 축이면 같은 자를
@@ -435,6 +434,11 @@ function facts(ctx, facet) {
  * 자는 이 facet 의 **모든 필드 × 모든 subject × 모든 고를 것**을 덮는다. 무엇을 누르든
  * 자가 안 움직인다. 범위가 크게 다른 필드가 섞이면 작은 것이 짧아지는데, 그것이
  * **「이 facet 은 축이 둘이다」라는 신호**다 — 감추지 않는다.
+ *
+ * **그리고 자는 0 을 담는다.** 최대값만 보고 재면 음수가 길이를 얻지 못해 막대가 아예
+ * 서지 않고, 그 자리는 **값이 없는 자리와 똑같이 보인다** — 「0 이 아닌 값은 길이 0 이
+ * 되지 않는다」가 바로 거기서 깨진다. 0 이 자의 안쪽이면 그 자리에 기준선이 서고
+ * 막대는 그 선에서 자란다.
  */
 function bars(ctx, facet) {
   // **빈 자가 그대로 선다.** `.track` 이 이미 「막대가 여기까지 갈 수 있다」는 자리라
@@ -450,21 +454,38 @@ function bars(ctx, facet) {
   const numbers = facet.fields
     .flatMap((decl) => everyValue(ctx, facet, decl))
     .filter((value) => typeof value === "number" && Number.isFinite(value));
-  const top = numbers.length ? Math.max(...numbers) : 0;
+  // **자는 늘 0 을 담는다.** 0 을 자 밖에 두면 음수가 길이를 얻지 못해 막대가 아예 서지
+  // 않고, 그 자리가 **「값이 없다」와 구별되지 않는다** — `line` 의 세로축과 같은 규칙이다.
+  // 값이 전부 양수면 자의 왼쪽 끝이 그대로 0 이라 지금까지의 그림과 한 수도 달라지지 않는다.
+  const lo = Math.min(...numbers, 0);
+  const hi = Math.max(...numbers, 0);
+  const reach = hi - lo || 1;
+  const at = (value) => ((value - lo) / reach) * 100; // 자 위의 자리, %
+  const zero = at(0);
+  // **0 이 자의 끝이면 track 의 모서리가 이미 그 자리다** — 같은 자리에 두 번 긋지 않는다.
+  // 기준선은 사실의 기준이라 무채색이고 위아래를 가르지 않는다(스타일시트가 갖는다).
+  const rule = lo < 0 ? `<span class="zero" style="left:${zero.toFixed(4)}%"></span>` : "";
+  // 자는 facet 하나에 하나라 **값이 없는 줄에도 기준선이 선다** — 줄마다 자가 달라 보이면
+  // 그것이 곧 자가 움직이는 것이다.
+  const track = (inside) => `<span class="track">${inside}${rule}</span>`;
 
   const rows = facet.fields.map((decl) => {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     const { state, entry } = oneRead(ctx, facet, decl, subject);
-    let mark = '<span class="track"></span>';
+    let mark = track("");
     let text;
     if (state !== "filled") {
       text = missMark();
     } else if (typeof entry.value === "number" && Number.isFinite(entry.value)) {
       // 0 은 길이 0 이다 — 진짜 0 이니까. 0 이 아닌 값은 바닥을 둔다: 길이 0 으로
       // 사라지면 「값이 없다」와 구별이 안 된다. 정확한 수는 옆에 늘 적혀 있다.
-      const share = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
-      const width = share > 0 ? Math.max(share, FLOOR) : 0;
-      mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
+      // **막대는 0 에서 자란다** — 음수는 0 의 왼쪽으로, 양수는 오른쪽으로.
+      const span = Math.abs(at(entry.value) - zero);
+      const width = entry.value === 0 ? 0 : Math.max(span, FLOOR);
+      const left = entry.value < 0 ? Math.max(zero - width, 0) : zero;
+      mark = track(
+        `<span class="fill" style="left:${left.toFixed(4)}%;width:${width.toFixed(4)}%"></span>`,
+      );
       text = esc(formatScalar(decl.type, entry.value));
     } else {
       text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(entry.value));
