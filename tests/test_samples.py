@@ -561,3 +561,90 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
         # 있는 것은 찾아낸다 — 같은 훑기로 확실히 있는 말을 집어 본다.
         found = [where for where, text in texts.items() if "primitive element" in text]
         self.assertGreater(len(found), 3, "훑기가 글을 못 읽는다")
+
+
+class TheLanguageDoesNotSayWhatIsShown(unittest.TestCase):
+    """**언어는 그 자리가 무엇인지까지만 말한다. 무엇을 화면에 낼지는 렌더가 고른다.**
+
+    보험을 모르기로 한 것·소비자를 이름으로 모르기로 한 것과 같은 줄이다. 스키마의 설명
+    글이 「이것은 늘 보인다」·「이것은 화면에 안 나온다」라고 말하기 시작하면, 그 자리를
+    내기로 한 렌더가 나타나는 날 그 말이 거짓이 된다. **렌더는 우리가 아는 하나가 아니다.**
+
+    갈리는 선은 이렇다.
+
+    | 언어가 말한다 | 렌더가 고른다 |
+    | --- | --- |
+    | 그것이 무엇인가 — 「이 필드의 이름」·「이 필드의 설명」 | 그것을 내는가 |
+    | 어디에 매이는가 — 「필드에 매인다」·「표의 열 하나」 | 어느 자리에 내는가 |
+    | 값과의 관계 — 「값이 없어도 필요한 말이다」 | 늘 내는가, 열어야 나오는가 |
+
+    **그리는 법이 곧 뜻인 자리는 여기 걸리지 않는다** — `element`·`compare`·렌더 인자는
+    화면을 말하는 것이 제 일이다. 막는 것은 **글과 이름이 설 자리**가 제 렌더를 정하는 것뿐이라,
+    아래 어휘도 「보임」과 「자리」로만 골랐다.
+    """
+
+    # 자리를 정하거나 보임을 못 박는 말. 각각이 **렌더가 어떻게 다뤄야 하는가**다.
+    BANNED = [
+        "화면에 보인다", "화면에 나온다", "화면에 나오지", "화면에는 나오",
+        "화면에서", "화면에 쓸", "화면을 훑",
+        "늘 보인다", "늘 보이는", "늘 읽",
+        "제목 아래", "맨 위에", "머리에 선다", "옆에 선다",
+        "보여준다", "표시된다", "숨는다", "숨긴다",
+    ]
+
+    def _prose(self) -> dict[str, str]:
+        """스키마에 적힌 사람 글을 **전부** 모은다 — `description` 과 `title`."""
+        out: dict[str, str] = {}
+
+        def walk(node: object, where: str) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if key in ("description", "title") and isinstance(value, str):
+                        out[f"{where}/{key}"] = value
+                    else:
+                        walk(value, f"{where}/{key}")
+            elif isinstance(node, list):
+                for i, value in enumerate(node):
+                    walk(value, f"{where}[{i}]")
+
+        for path in sorted((ROOT / "schema").glob("*.json")):
+            walk(json.loads(path.read_text(encoding="utf-8")), path.name)
+        return out
+
+    def test_no_description_decides_what_the_render_shows(self) -> None:
+        prose = self._prose()
+        for word in self.BANNED:
+            hits = sorted(where for where, text in prose.items() if word in text)
+            with self.subTest(word):
+                self.assertEqual(hits, [], f"언어가 렌더의 선택을 미리 정했다: {word} — {hits}")
+
+    def test_the_scan_actually_reads_the_schemas(self) -> None:
+        """**대조군.** 훑는 자리가 비어 있거나 어휘가 안 물면 위 판정은 늘 통과한다."""
+        prose = self._prose()
+        self.assertGreater(len(prose), 60, "훑은 설명 글이 너무 적다")
+        for name in ("weave-template.schema.json", "weave-valueset.schema.json",
+                     "weave-render-args.schema.json", "weave-common.schema.json"):
+            self.assertTrue(any(where.startswith(name) for where in prose),
+                            f"훑기가 {name} 를 안 본다")
+        # 심은 것을 실제로 문다 — 어휘 하나하나가 죽은 글자가 아닌지 본다.
+        for word in self.BANNED:
+            planted = f"이 자리의 이름. {word}."
+            with self.subTest(word):
+                self.assertTrue(any(w in planted for w in self.BANNED),
+                                f"어휘가 제 문장도 못 문다: {word}")
+
+    def test_the_hint_and_the_description_are_told_apart_by_depth(self) -> None:
+        """**둘이 갈리는 까닭이 형에 이미 있다.** 없어지면 칸 하나를 지워야 한다는 뜻이다.
+
+        독자로도 보임으로도 가르지 않기로 했으므로 남는 축은 **깊이**다. 그 축은 글이
+        아니라 형이 진다 — `hint` 는 한 줄이라 가리키기밖에 못 하고, `description` 은
+        단위와 경계를 끝까지 적을 만큼 길다. 그래서 하나는 선택이고 하나는 필수다.
+        """
+        field = documents()["weave-template.schema.json"]["$defs"]["Field"]
+        hint, desc = field["properties"]["hint"], field["properties"]["description"]
+        self.assertEqual(hint["maxLength"], 80, "한 줄을 넘기면 가리키는 말이 아니다")
+        self.assertRegex(hint["pattern"], r"\\n", "줄바꿈을 막지 않으면 한 줄이 아니다")
+        self.assertGreaterEqual(desc["maxLength"], 600, "끝까지 적을 자리가 없다")
+        self.assertGreater(desc["minLength"], 1, "한 마디로 때울 수 있으면 깊이가 축이 아니다")
+        self.assertIn("description", field["required"], "채울 수 없는 자리가 생긴다")
+        self.assertNotIn("hint", field["required"], "가리키는 말은 없어도 자리를 채운다")

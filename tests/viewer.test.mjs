@@ -1824,14 +1824,15 @@ test("타입마다 표시 단위가 있다", () => {
 
 test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   // **뜻이 층마다 같다** — facet 의 hint 도 필드의 hint 도 「이것이 무엇인지」다.
-  // 보이는 방식만 다르고 근거는 **밀도**다: facet 은 화면에 서넛이라 한 줄씩 붙어도
-  // 길어지지 않고, 필드는 열 개씩이라 늘 보이면 값보다 설명이 길어진다.
+  // **어느 것을 어떻게 낼지는 언어가 아니라 렌더가 고른다.** 아래는 이 참조 렌더의 선택을
+  // 못 박는 것이지 언어의 규칙을 못 박는 것이 아니다 — 근거는 **밀도**다: facet 은 화면에
+  // 서넛이라 한 줄씩 붙어도 길어지지 않고, 필드는 열 개씩이라 늘 내면 값보다 설명이 길어진다.
   const facetHint = read("schema/weave-template.schema.json").$defs.Facet.properties.hint;
   assert.ok(facetHint, "facet 에 hint 가 없다");
   assert.match(facetHint.pattern, /\\n/, "줄바꿈을 막지 않는다");
   assert.ok(facetHint.maxLength <= 120, "한 문장을 넘길 수 있으면 제목이 다시 설명을 진다");
 
-  // **facet 의 hint 는 제목 바로 아래에 늘 보인다.** 표시 뒤로 숨지 않는다.
+  // **이 렌더는 facet 의 hint 를 제목 바로 아래에 늘 낸다.** 표시 뒤로 숨기지 않는다.
   const line = "이 자리가 무엇인지 한 문장으로 말합니다.";
   const withHint = structuredClone(FIX.template);
   for (const facet of withHint.facets) facet.hint = `${facet.id} — ${line}`;
@@ -1850,10 +1851,12 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   for (const facet of bareFacets.facets) delete facet.hint;
   assert.ok(!renderView({ template: bareFacets, values: FIX.values }).html.includes("facet-hint"));
 
-  // **셋이 독자가 다르다.**
-  //   `description` — 채우는 쪽에게. 무엇을 어떤 단위로 담는 자리인지. 화면에 안 나온다.
-  //   `hint`        — 보는 사람에게. **이 필드가 무엇인지.** 값이 없어도 필요하다.
+  // **셋이 말하는 것이 다르다.**
+  //   `description` — 무엇을 어떤 단위로 담는 자리인지. **그 자리를 채울 수 있을 만큼.**
+  //   `hint`        — **이 필드가 무엇인지.** 한 줄로 가리킨다. 값이 없어도 필요하다.
   //   주석          — 이 값에 대해 할 말.
+  // `hint` 와 `description` 이 갈리는 축은 **깊이**다 — 독자도 보임도 아니다. 형이 이미
+  // 그 축을 진다: 한 줄 대 600자, 선택 대 필수. 아래가 그것을 못 박는다.
   // 합치면 쓰는 쪽이 매번 「이건 hint 인가 note 인가」를 고민한다. 가르면 그 고민이 없다.
   const field = read("schema/weave-template.schema.json").$defs.Field.properties;
   assert.ok(field.hint && field.description, "둘 다 있어야 한다");
@@ -1915,11 +1918,12 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   const bare = structuredClone(FIX.template);
   for (const facet of bare.facets) for (const decl of facet.fields) delete decl.hint;
   assert.ok(!renderView({ template: bare, values: FIX.values }).html.includes("hint-mark"));
-  // **`description` 은 화면에 나오지 않는다.** 둘이 헷갈리면 쓰는 쪽이 매번 고민한다.
+  // **이 렌더는 `description` 을 내지 않는다.** 낼 수 없어서가 아니라 필드마다 600자가
+  // 붙으면 계약 표가 값보다 설명으로 길어지기 때문이다 — 다른 렌더는 낼 수 있다.
   for (const facet of FIX.template.facets) {
     for (const decl of facet.fields) {
       assert.ok(!textOf(html).includes(decl.description.slice(0, 20)),
-        `${facet.id}/${decl.key}: 채우는 쪽에게 준 설명이 화면에 났다`);
+        `${facet.id}/${decl.key}: 이 렌더가 안 내기로 한 description 이 화면에 났다`);
     }
   }
 });

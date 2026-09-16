@@ -11,7 +11,7 @@
     "templateId": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
     "subjectId": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
     "subjectLabel": {
-      "description": "화면에 쓸 이름. 없으면 렌더가 subjectId 를 쓴다.",
+      "description": "이 subject 의 이름. 없으면 subjectId 가 이름을 대신한다.",
       "type": "string",
       "minLength": 1,
       "maxLength": 120
