@@ -250,6 +250,9 @@ subject 하나에 한 벌. 템플릿의 facet 과 필드를 **빠짐도 덤도 �
   - `line` 은 **겹친다** — 축이라는 공유하는 자리가 있어 겹칠수록 읽을 것이 많아진다.
   - `rows` 는 같은 값(항목 배열)을 받는 facet 이 `compare` 로 스스로 고른다 — `overlay` 는
     항목 이름으로 겹쳐 subject 마다 열을 세우고, `focus` 는 지금 보는 subject 것만 편다.
+    **겹치는 좌표는 `columns` 의 첫 열이다.** 다른 열로 겹치면 행 집합 자체가 달라져
+    「누가 이 항목을 갖고 누가 안 갖는지」가 값에 없는 말이 된다. (`parts` 의 둘째 열이
+    몫인 것과 같은 자리다 — 그쪽은 수치형이라는 잴 것이 있어 검사기도 함께 진다.)
     겹치는 표와 하나만 펴는 표는 다른 표현 단위지만 같은 모양이라, element 를 둘로 가르는
     대신 facet 이 스스로 말하게 줄였다. 한 facet 은 여전히 `compare` 하나만 가지므로
     비교 축은 하나다.
@@ -429,9 +432,9 @@ subject 명단은 인자가 아니라 **값 한 벌들 자체**다.
 **설명서는 판정하지 않는다.** JSON 으로 읽히는지만 본다. 맞는지는 검사기가 말한다.
 
 ```sh
-python -m weave template samples/all-elements/template.json
-python -m weave values --template samples/all-elements/template.json samples/all-elements/values-*.json
-python -m weave args args.json
+python -m weave template samples/one-proposal/template.json
+python -m weave values --template samples/one-proposal/template.json samples/one-proposal/values-*.json
+python -m weave args args.json   # 렌더 인자를 따로 적어 두었다면 그것도 같은 자리에서 잰다
 ```
 
 ## 그리지 않는 화면

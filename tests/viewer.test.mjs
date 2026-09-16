@@ -1502,7 +1502,7 @@ test("평가를 시각으로 말하지 않는다", () => {
 
 test("subject 를 색으로 가르지 않는다", () => {
   // 「값이 색을 바꾸지 않는다」를 좁힌 자리다. 이제 **색이 아예 없다** —
-  // subject 를 가르는 일은 이름과 무늬가 한다.
+  // subject 를 가르는 일은 이름이 한다.
   const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
   assert.ok(!/--subject/.test(css), "subject 색 변수가 남아 있다");
   assert.ok(!/\.sub-\d/.test(css), "subject 팔레트가 남아 있다");
@@ -1513,7 +1513,7 @@ test("subject 를 색으로 가르지 않는다", () => {
   // 앱의 focus 단추도 이름만 세운다 — 색 조각을 앞에 두지 않는다.
   assert.ok(!/swatch/.test(fs.readFileSync(path.join(ROOT, "viewer/app.mjs"), "utf-8")));
 
-  // 무엇이 대신 가르는지는 「선은 색이 아니라 점선 무늬로 갈린다」가 본다.
+  // 무엇이 대신 가르는지는 「선은 보는 상태로 갈린다 — 색을 빼도 갈린다」가 본다.
 
   // 차례는 여전히 값이 아니라 넘어온 순서다 — 자리가 우열이 아님을 지키던 신호다.
   const swapped = fix({ values: [FIX.mixed, FIX.empty, FIX.filled] });

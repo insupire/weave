@@ -115,7 +115,7 @@ export function formatScalar(type, value) {
   return grouped(value);
 }
 
-export function formatValue(decl, value) {
+function formatValue(decl, value) {
   if (decl.shape === "single") return formatScalar(decl.type, value);
   if (decl.shape === "range") {
     if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
@@ -1016,7 +1016,7 @@ export function renderView({
   }
 
   // 자리는 값 한 벌들이 정한다. 차례는 넘어온 차례이고 배치일 뿐 우열이 아니다.
-  // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 무늬다.
+  // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 보는 상태로 갈린다.
   const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
 
   // **고르는 자리.** 무엇을 고를 수 있는지는 템플릿이 말한다 — 골격이라 subject 마다

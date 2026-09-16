@@ -457,6 +457,11 @@ class ColumnVocabulary(unittest.TestCase):
         said = (pathlib.Path(__file__).resolve().parents[1] / "docs" / "weave.md").read_text(encoding="utf-8")
         head = said.split("## 스키마가 못 지키는 것", 1)[1].split("\n## ", 1)[0]
         self.assertIn("allowed", head, "못 막는다는 사실이 설명서에 없다")
+        # 저장소를 고치는 쪽이 읽는 자리에도 서 있어야 한다 — 거기서 조용히 사라지면
+        # 다음 사람이 이 구멍을 모른 채 「검사기가 본다」고 믿는다.
+        agents = (pathlib.Path(__file__).resolve().parents[1] / "AGENTS.md").read_text(encoding="utf-8")
+        blind = agents.split("## 검사기가 못 보는 것", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("allowed", blind, "못 막는다는 사실이 AGENTS.md 에 없다")
 
 
 if __name__ == "__main__":

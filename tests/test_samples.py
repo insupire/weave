@@ -385,6 +385,29 @@ class MarkdownPointsAtRealPlaces(unittest.TestCase):
     LINK = re.compile(r"\]\(([^)\s]+)\)")
     SKIP = {".git", ".venv", "__pycache__", "node_modules"}
 
+    # **적어 둔 명령도 자리를 가리킨다.** 링크만 재면 울타리 안의 경로는 아무도 안 보고,
+    # 폴더가 없어진 뒤에도 설명서의 **첫 명령**이 그대로 서 있는다. 실제로 그랬다.
+    # 명령은 저장소 뿌리에서 돈다 — 그래서 뿌리 기준으로 푼다. 맨 위 폴더 이름으로
+    # 시작하는 것만 경로로 본다: 폴더가 늘면 훑기도 같이 는다.
+    FENCE = re.compile(r"^```.*?^```", re.S | re.M)
+
+    @classmethod
+    def tops(cls) -> set[str]:
+        return {p.name for p in ROOT.iterdir() if p.is_dir() and not p.name.startswith(".")} - cls.SKIP
+
+    def test_every_path_in_a_command_resolves(self) -> None:
+        pattern = re.compile(r"(?<![\w/.-])((?:%s)/[\w./*-]+)" % "|".join(sorted(self.tops())))
+        dead = []
+        for path in ROOT.rglob("*.md"):
+            if set(path.relative_to(ROOT).parts) & self.SKIP:
+                continue
+            for fence in self.FENCE.findall(path.read_text(encoding="utf-8")):
+                for target in pattern.findall(fence):
+                    target = target.rstrip(".,)")
+                    if not list(ROOT.glob(target)):
+                        dead.append(f"{path.relative_to(ROOT)} → {target}")
+        self.assertEqual(dead, [], f"적어 둔 명령이 없는 자리를 가리킨다: {dead}")
+
     def test_every_repo_link_resolves(self) -> None:
         dead = []
         for path in ROOT.rglob("*.md"):
@@ -403,6 +426,17 @@ class MarkdownPointsAtRealPlaces(unittest.TestCase):
         self.assertEqual(self.LINK.findall("[글](../render) 과 [딴 것](docs/weave.md#자리)"),
                          ["../render", "docs/weave.md#자리"])
         self.assertFalse((ROOT / "render" / "nowhere.mjs").exists())
+
+        # 울타리 쪽도 같은 자로 잰다 — 무는지와, 안 물 것은 안 무는지.
+        pattern = re.compile(r"(?<![\w/.-])((?:%s)/[\w./*-]+)" % "|".join(sorted(self.tops())))
+        fences = self.FENCE.findall("앞\n```sh\npython -m weave template samples/nowhere/template.json\n```\n뒤\n")
+        self.assertEqual(len(fences), 1, "울타리를 못 찾는다")
+        self.assertEqual(pattern.findall(fences[0]), ["samples/nowhere/template.json"])
+        self.assertEqual(list(ROOT.glob("samples/nowhere/template.json")), [], "없는 자리가 있다")
+        self.assertTrue(list(ROOT.glob("samples/*/template.json")), "별표를 못 푼다")
+        # 경로가 아닌 것은 안 문다 — 옵션 값도 산출물 이름도 자리가 아니다.
+        self.assertEqual(pattern.findall("npx tool --cwd=schema -o weave_template.d.ts"), [])
+        self.assertIn("samples", self.tops())
 
 
 class BuiltViewerIsNotStale(unittest.TestCase):
@@ -541,11 +575,20 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
     「이 저장소에 그 이름이 없다」가 더는 참이 아니게 된다. 조각으로 이어 붙인다.
     """
 
-    HALVES = [
+    # **조각은 맨이름도 담지 않는다.** 아래 BARE 가 맨이름까지 막으므로, 조각 하나가
+    # 통째로 맨이름이면 이 파일이 스스로 걸린다 — 실제로 그런 조각이 하나 있었다.
+    NAMES = [
         ("claim", "-mobile"), ("claim", "-web"), ("claim", "-chat"),
-        ("claim", "-design-system"), ("eightytwo", "-judge"),
-        ("insurance", "-policy-search"), ("ip", "ix"),
+        ("claim", "-design", "-system"), ("eighty", "two", "-jud", "ge"),
+        ("insurance", "-policy", "-search"), ("ip", "ix"),
     ]
+
+    # **맨이름도 이름이다.** 전체 이름만 찾으면 앞을 뗀 한 마디가 그대로 지나간다 —
+    # 실제로 지나갔고, 저장소를 고치는 쪽이 읽는 글에 그 한 마디가 서 있었다.
+    # 여기 서는 것은 **그 저장소 말고는 가리킬 것이 없는 말**뿐이다. 흔한 말(web·chat·claim)은
+    # 두고 `NAMES` 가 전체 이름으로만 잡는다 — 막으면 `-webkit-` 같은 자리가 억울하게
+    # 빨개지고, 억울한 판정은 다음 사람이 걷어낸다.
+    BARE = [("jud", "ge"), ("eighty", "two"), ("design", "-system"), ("policy", "-search")]
     SKIP = {".git", ".venv", "__pycache__"}
     SUFFIXES = {".md", ".py", ".mjs", ".js", ".json", ".css", ".html", ".yml", ".txt", ""}
 
@@ -578,8 +621,8 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
 
     def test_no_sibling_repository_is_named(self) -> None:
         texts = self._texts()
-        for head, tail in self.HALVES:
-            name = head + tail
+        for pieces in self.NAMES + self.BARE:
+            name = "".join(pieces)
             hits = sorted(where for where, text in texts.items() if name in text)
             with self.subTest(name):
                 self.assertEqual(hits, [], f"형제 저장소 이름이 남아 있다: {name} — {hits}")
@@ -592,6 +635,11 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
         # 있는 것은 찾아낸다 — 같은 훑기로 확실히 있는 말을 집어 본다.
         found = [where for where, text in texts.items() if "primitive element" in text]
         self.assertGreater(len(found), 3, "훑기가 글을 못 읽는다")
+        # **조각이 스스로 맨이름이면** 이 파일이 걸려 판정 전체가 못 쓰게 된다.
+        for pieces in self.NAMES:
+            for piece in pieces:
+                for bare in self.BARE:
+                    self.assertNotIn("".join(bare), piece, "조각 하나가 이미 맨이름이다")
 
 
 class TheLanguageDoesNotSayWhatIsShown(unittest.TestCase):
@@ -623,23 +671,30 @@ class TheLanguageDoesNotSayWhatIsShown(unittest.TestCase):
         "보여준다", "표시된다", "숨는다", "숨긴다",
     ]
 
-    def _prose(self) -> dict[str, str]:
-        """스키마에 적힌 사람 글을 **전부** 모은다 — `description` 과 `title`."""
+    @staticmethod
+    def _walk(node: object, where: str) -> dict[str, str]:
+        """문서 하나에서 사람 글을 모은다 — `description` 과 `title`."""
         out: dict[str, str] = {}
 
-        def walk(node: object, where: str) -> None:
+        def go(node: object, where: str) -> None:
             if isinstance(node, dict):
                 for key, value in node.items():
                     if key in ("description", "title") and isinstance(value, str):
                         out[f"{where}/{key}"] = value
                     else:
-                        walk(value, f"{where}/{key}")
+                        go(value, f"{where}/{key}")
             elif isinstance(node, list):
                 for i, value in enumerate(node):
-                    walk(value, f"{where}[{i}]")
+                    go(value, f"{where}[{i}]")
 
+        go(node, where)
+        return out
+
+    def _prose(self) -> dict[str, str]:
+        """스키마에 적힌 사람 글을 **전부** 모은다."""
+        out: dict[str, str] = {}
         for path in sorted((ROOT / "schema").glob("*.json")):
-            walk(json.loads(path.read_text(encoding="utf-8")), path.name)
+            out.update(self._walk(json.loads(path.read_text(encoding="utf-8")), path.name))
         return out
 
     def test_no_description_decides_what_the_render_shows(self) -> None:
@@ -657,12 +712,20 @@ class TheLanguageDoesNotSayWhatIsShown(unittest.TestCase):
                      "weave-render-args.schema.json", "weave-common.schema.json"):
             self.assertTrue(any(where.startswith(name) for where in prose),
                             f"훑기가 {name} 를 안 본다")
-        # 심은 것을 실제로 문다 — 어휘 하나하나가 죽은 글자가 아닌지 본다.
+        # 심은 것을 실제로 문다 — 결함을 **훑기가 지나가는 길**에 심고 같은 길로 잰다.
+        # 문장 안에 든 말을 그 문장에서 다시 찾으면 무엇을 심어도 참이라 아무것도 안 잰다.
         for word in self.BANNED:
-            planted = f"이 자리의 이름. {word}."
+            planted = self._walk(
+                {"$defs": {"Field": {"properties": {"hint": {"description": f"이 자리의 이름. {word}."}}}}},
+                "planted.json",
+            )
             with self.subTest(word):
-                self.assertTrue(any(w in planted for w in self.BANNED),
-                                f"어휘가 제 문장도 못 문다: {word}")
+                hits = [where for where, text in planted.items() if word in text]
+                self.assertEqual(hits, ["planted.json/$defs/Field/properties/hint/description"],
+                                 f"깊이 심은 것을 훑기가 못 본다: {word}")
+        # **설명 글이 아닌 자리는 안 본다.** 닫힌 어휘의 값까지 물면 쓸 수 있는 말이 줄어든다.
+        elsewhere = self._walk({"$defs": {"Kind": {"enum": ["화면에 보인다"], "const": "늘 보인다"}}}, "x.json")
+        self.assertEqual(elsewhere, {}, "설명 글이 아닌 자리를 글로 읽는다")
 
     def test_the_hint_and_the_description_are_told_apart_by_depth(self) -> None:
         """**둘이 갈리는 까닭이 형에 이미 있다.** 없어지면 칸 하나를 지워야 한다는 뜻이다.

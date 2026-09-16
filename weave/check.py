@@ -114,7 +114,7 @@ def check_template(doc: object) -> Result:
 
 
 def check_render_args(doc: object) -> Result:
-    """렌더 인자를 판정한다. 화면 상태 둘(``focus`` · ``previousFocus``)뿐이고 구조만 본다.
+    """렌더 인자를 판정한다. 화면 상태 셋(``focus`` · ``previousFocus`` · ``choices``)뿐이고 구조만 본다.
 
     값 한 벌에 없는 id 는 결함이 아니다 — 그 경우 그 상태만 사라지는 것이 규약이다.
     ``previousFocus`` 가 ``focus`` 와 같은 것도 결함이 아니다. 직전이 현재와 같을 수는

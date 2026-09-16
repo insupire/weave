@@ -89,7 +89,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | 동사 | 하는 일 |
 | --- | --- |
 | `make test` | 고정 케이스. 정상 사례가 통과하고 결함 사례가 막히는 것을 함께 본다 |
-| `make check` | 검사기를 `tests/fixtures/ok/` 에 직접 돌린다. CLI 가 사는지 본다 |
+| `make check` | 검사기를 `tests/fixtures/ok/` 와 `samples/*/` 에 직접 돌린다. CLI 가 사는지 본다 |
 | `make types-check` | `generated/` 가 스키마와 갈렸는지 본다 |
 | `make types` | 갈렸으면 다시 쓴다 |
 | `make viewer` | `render/` · `viewer/` · `samples/` 를 `viewer.html` 한 장으로 다시 묶는다 |
@@ -179,7 +179,7 @@ npx json-schema-to-typescript@15 --cwd=schema schema/weave-valueset.schema.json 
 
 ⚠️ **루트 타입 이름은 스키마 루트 `title` 에서 오고 두 생성기 모두 non-ASCII 를 지운다.** 우리 `title` 은 한국어라 이름이 비어, TS 는 `NoName` 을 내고 Python 은 `title='' is invalid class name` 으로 멈춘다. **그래도 `title` 을 ASCII 로 갈지 않는다** — 그 문자열은 `docs/weave.md` 계약 표의 제목이기도 해서, 갈면 한국어 설명서의 제목 넷과 그것을 가리키는 링크가 함께 바뀐다. **이름은 뽑는 쪽이 준다** — Python 은 `--class-name`, TS 는 `import type { NoName as WeaveTemplate }`.
 
-⚠️ **LLM 구조화 출력.** judge 가 `weave-template.schema.json` 을 그대로 구조화 출력 스키마로 넘기려면, 파일 간 `$ref` 와 조건절을 지원하는지 그쪽 API 가 정한다. 지원하지 않으면 한 파일로 펼친 변형이 필요하다. 그 변형을 이 저장소가 낼지는 정하지 않았다.
+⚠️ **LLM 구조화 출력.** `weave-template.schema.json` 을 그대로 구조화 출력 스키마로 넘기려면, 파일 간 `$ref` 와 조건절을 지원하는지 그쪽 API 가 정한다. 지원하지 않으면 한 파일로 펼친 변형이 필요하다. 그 변형을 이 저장소가 낼지는 정하지 않았다.
 
 ⚠️ **배포 방법은 미정이다.** 패키지로 낼지, 서브모듈로 둘지, `schema/` 를 복사해 갈지 PM 이 정한다.
 
@@ -202,7 +202,7 @@ npx json-schema-to-typescript@15 --cwd=schema schema/weave-valueset.schema.json 
 - **겹치는 쪽의 「값 없음」 줄은 고른 subject 가 못 섰을 때만 선다.** 못 그린 것을 줄줄이 적으면 그것이 범례다.
 - **주석 앞에 subject 이름을 붙이지 않는다.** 늘 고른 subject 것만 나오므로 이름이 그 사실을 두 번 말한다. 두 묶음은 짧은 선이 가른다. (되돌리려면 `notesHtml` 의 둘째 인자에 이름을 다시 준다.)
 - **전부 비어 있는 값 한 벌도 자리를 얻는다.** 모든 facet 이 「값 없음」이라고 말하고 왜인지는 주석이 말한다.
-- **렌더 인자는 값이 말할 수 없는 것뿐이다.** `focus` · `previousFocus` · `variant` — 전부 사람이 누른 것이다. **고를 수 있는 것**(명단·갈래 목록)은 인자가 아니다.
+- **렌더 인자는 값이 말할 수 없는 것뿐이다.** `focus` · `previousFocus` · `choices` — 전부 사람이 누른 것이다. **고를 수 있는 것**(명단·갈래 목록)은 인자가 아니다.
 - **고르는 자리(`choices`)는 템플릿이 갖는다.** facet 을 템플릿이 갖는 것과 같은 까닭이다 — subject 마다 고를 것이 다르면 견줄 수가 없다. 여럿 선언할 수 있고 없는 것이 기본이다.
 - **선택자는 facet 안에 선다.** 축은 그 facet 이 무엇에 대한 값인지를 말하므로 내용이다. **화면 전체에 걸리는 것만 껍데기**라 밖에 남는다(`focus`·명단·상태 줄) — 「껍데기 없음」의 선이 거기다.
 - **축은 이름으로 선언되고 여러 facet 이 같은 축을 탄다.** 한 번 고르면 전부 따라온다. 어느 축을 타는지는 facet 이 **제 필드로** 말한다 — 두 군데 적으면 어긋난다.
@@ -236,7 +236,7 @@ npx json-schema-to-typescript@15 --cwd=schema schema/weave-valueset.schema.json 
 - **가로로 밀리는 자리가 없다.** 넘치는 것(`rows` 표 · `line` 그림)은 **자기 상자**에서 굴러간다. 페이지는 어느 폭에서도 `scrollWidth === clientWidth` 다.
 - **밖에서 덧대는 CSS 가 없다.** 아티팩트로 올릴 때 기우는 것이 있으면 그 자리가 곧 미대응이다 — 저장소 안에 둔다.
 - **설명서 페이지가 같은 한 장 안에 있다.** primitive element 마다 무엇을 그리는지·어떤 필드를 받는지·최소 템플릿 조각·**그 자리에서 그린 모습**을 보인다.
-- **subject 나 값의 우열을 시각으로 말하지 않는다.** subject 색은 자리 차례로 배정되고 값의 크기와 무관하다. 주석 갈래는 통용 시맨틱을 따르되 색이 값에 닿지 않는다. 선은 색과 점선 무늬로 함께 갈린다. 고정 케이스가 기계로 볼 수 있는 만큼 본다 — 나머지는 사람이 본다.
+- **subject 나 값의 우열을 시각으로 말하지 않는다.** subject 를 가르는 것은 색이 아니라 이름이다 — 자리 차례는 배치일 뿐 우열이 아니다. 주석 갈래는 통용 시맨틱을 따르되 색이 값에 닿지 않는다. 선은 상태색과 굵기·진하기로 함께 갈리고 점선 무늬는 쓰지 않는다. 고정 케이스가 기계로 볼 수 있는 만큼 본다 — 나머지는 사람이 본다.
 
 ## 시각을 고칠 때
 
