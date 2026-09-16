@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-# 값의 타입. 렌더는 이 여덟에만 의존한다.
+# 값의 타입. 렌더는 이 닫힌 목록에만 의존한다.
 Type = Literal["number", "money", "ratio", "multiple", "duration", "age", "boolean", "text", "date"]
 TYPES: tuple[Type, ...] = ("number", "money", "ratio", "multiple", "duration", "age", "boolean", "text", "date",)
 
@@ -22,7 +22,7 @@ AXISTYPES: tuple[AxisType, ...] = ("age", "date", "duration", "number",)
 Shape = Literal["single", "range", "series", "items"]
 SHAPES: tuple[Shape, ...] = ("single", "range", "series", "items",)
 
-# primitive element. 렌더가 구현하는 것은 이 여섯이다.
+# primitive element. 렌더가 구현하는 것은 이 목록뿐이다.
 Element = Literal["stat", "facts", "bars", "line", "rows", "parts"]
 ELEMENTS: tuple[Element, ...] = ("stat", "facts", "bars", "line", "rows", "parts",)
 

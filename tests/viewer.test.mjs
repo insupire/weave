@@ -344,9 +344,9 @@ test("subject 하나가 비면 자리가 남고 아무도 없으면 facet 이 �
   assert.deepEqual(gone.view.dropped, bare.facets.map((f) => f.id));
 
   // **말이 붙어 있으면 선다.** 「이 제안서엔 이 항목이 없습니다」가 적힌 카드는 빈 카드가 아니다 —
-  // 전부 빈 값 한 벌이 「아직 분석하지 않았다」를 말하는 길이 그것이다.
+  // 전부 빈 값 한 벌이 「아직 채우지 않았다」를 말하는 길이 그것이다.
   const said = structuredClone(mute);
-  said[0].facets[bare.facets[0].id].notes = [{ kind: "caution", text: "아직 분석하지 않았습니다." }];
+  said[0].facets[bare.facets[0].id].notes = [{ kind: "caution", text: "아직 값을 채우지 않았습니다." }];
   const kept = renderView({ template: bare, values: said });
   assert.ok(kept.html.includes(`element-${bare.facets[0].element}`), "말이 붙었는데 빠졌다");
   assert.deepEqual(kept.view.dropped, bare.facets.slice(1).map((f) => f.id));
@@ -646,9 +646,9 @@ test("렌더 인자는 값이 말할 수 없는 것뿐이다", () => {
   assert.equal(view({ focus: "proposal-a" }).prior, null);
 });
 
-test("전부 빈 값 한 벌이 미분석의 자리를 이어받는다", () => {
-  // 아직 분석하지 않았다는 것을 구조가 아니라 **빈 값과 주석**이 말한다.
-  const said = "아직 분석하지 않았습니다.";
+test("전부 빈 값 한 벌이 「아직 안 채웠다」의 자리를 이어받는다", () => {
+  // 아직 채우지 않았다는 것을 구조가 아니라 **빈 값과 주석**이 말한다.
+  const said = "아직 값을 채우지 않았습니다.";
   const blank = structuredClone(FIX.empty);
   for (const facet of Object.values(blank.facets)) facet.notes = [{ kind: "caution", text: said }];
   const { html } = renderView({ template: FIX.template, values: [FIX.filled, blank] });
@@ -1385,7 +1385,7 @@ test("값에 붙은 것과 facet 에 붙은 것이 모두 보인다", () => {
   assert.ok(shown.includes("계약의 뼈대가 되는 조건들입니다.")); // 템플릿 facet 에 붙은 것
 });
 
-test("템플릿 주석은 아직 분석된 subject 가 하나도 없어도 남는다", () => {
+test("템플릿 주석은 아직 채워진 subject 가 하나도 없어도 남는다", () => {
   const shown = textOf(renderView({ template: FIX.template, values: [] }).html);
   for (const facet of FIX.template.facets) {
     assert.ok(facet.notes?.length, `${facet.id}: fixture 가 템플릿 주석을 가져야 한다`);
@@ -1850,9 +1850,9 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   for (const facet of bareFacets.facets) delete facet.hint;
   assert.ok(!renderView({ template: bareFacets, values: FIX.values }).html.includes("facet-hint"));
 
-  // **셋이 받는 사람이 다르다.**
-  //   `description` — 분석에게. 무엇을 어떤 단위로 찾을지. 화면에 안 나온다.
-  //   `hint`        — 읽는 사람에게. **이 필드가 무엇인지.** 값이 없어도 필요하다.
+  // **셋이 독자가 다르다.**
+  //   `description` — 채우는 쪽에게. 무엇을 어떤 단위로 담는 자리인지. 화면에 안 나온다.
+  //   `hint`        — 보는 사람에게. **이 필드가 무엇인지.** 값이 없어도 필요하다.
   //   주석          — 이 값에 대해 할 말.
   // 합치면 쓰는 쪽이 매번 「이건 hint 인가 note 인가」를 고민한다. 가르면 그 고민이 없다.
   const field = read("schema/weave-template.schema.json").$defs.Field.properties;
@@ -1915,11 +1915,11 @@ test("이것이 무엇인지는 층마다 hint 가 말한다", () => {
   const bare = structuredClone(FIX.template);
   for (const facet of bare.facets) for (const decl of facet.fields) delete decl.hint;
   assert.ok(!renderView({ template: bare, values: FIX.values }).html.includes("hint-mark"));
-  // **추출 지시는 화면에 나오지 않는다.** 둘이 헷갈리면 쓰는 쪽이 매번 고민한다.
+  // **`description` 은 화면에 나오지 않는다.** 둘이 헷갈리면 쓰는 쪽이 매번 고민한다.
   for (const facet of FIX.template.facets) {
     for (const decl of facet.fields) {
       assert.ok(!textOf(html).includes(decl.description.slice(0, 20)),
-        `${facet.id}/${decl.key}: 분석에게 준 지시가 화면에 났다`);
+        `${facet.id}/${decl.key}: 채우는 쪽에게 준 설명이 화면에 났다`);
     }
   }
 });
@@ -2184,7 +2184,7 @@ test("값이 비는 경우가 샘플에도 남아 있다", () => {
   assert.ok(pages.some((p) => p.includes(NO_VALUE)), "값 없음이 어느 샘플에도 없다");
   assert.ok(sampleNames.some((name) => drawSample(sample(name)).html.includes(NO_VALUE_MARK)),
     "값이 없다는 표기가 어느 샘플에도 서지 않는다");
-  // 전부 빈 값 한 벌이 미분석의 자리를 이어받았다. 샘플에도 그 한 벌이 있어야 한다.
+  // 전부 빈 값 한 벌이 「아직 안 채웠다」의 자리를 이어받았다. 샘플에도 그 한 벌이 있어야 한다.
   const allBlank = sampleNames.flatMap((name) =>
     sample(name).values.filter((doc) =>
       Object.values(doc.facets).every((f) => Object.values(f.fields).every((e) => e.state === "empty"))));
@@ -2384,7 +2384,7 @@ test("빌드된 viewer.html 의 스크립트가 DOM 위에서 돈다", async () 
   const wasBlank = blanks();
 
   // **더하고 지우는 것은 subject 하나뿐이다.** 더하면 전부 비어 있는 값 한 벌이 생긴다 —
-  // 그것이 「아직 분석하지 않았다」를 만드는 길이다.
+  // 그것이 「아직 채우지 않았다」를 만드는 길이다.
   assert.ok(!nodes.get("view").innerHTML.includes(">subject-"), "새 자리는 아직 없다");
   addTab()._on.click();
   assert.equal(seats(), before + 1, "자리가 하나 늘어야 한다");

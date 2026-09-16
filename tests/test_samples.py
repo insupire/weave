@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SAMPLES = ROOT / "samples"
 
 sys.path.insert(0, str(ROOT))
-from tools import build_viewer, catalog  # noqa: E402
+from tools import build_viewer, catalog, reference  # noqa: E402
 
 
 def sample_dirs() -> list[pathlib.Path]:
@@ -148,7 +148,7 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
     def test_empty_values_and_an_all_blank_valueset_survive_in_the_samples(self) -> None:
         """샘플을 가르는 축은 아니지만 그 상태들은 여전히 보여야 한다.
 
-        「아직 분석하지 않았다」의 자리를 **전부 빈 값 한 벌 + 주석**이 이어받았다.
+        「아직 채우지 않았다」의 자리를 **전부 빈 값 한 벌 + 주석**이 이어받았다.
         """
         empties, blanks = [], []
         for folder in sample_dirs():
@@ -165,7 +165,7 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
                 self.assertTrue(said, "왜 비었는지 주석이 말해야 한다")
 
     def test_titles_are_names_and_hints_carry_the_sentence(self) -> None:
-        """**샘플이 본보기다.** 템플릿을 쓰는 Procedure 가 여기 말투를 따라 쓴다.
+        """**샘플이 본보기다.** 템플릿을 쓰는 쪽이 여기 말투를 따라 쓴다.
 
         제목은 **이름**(명사구)이고 「이것이 무엇인지」는 hint 가 진다. 제목이 설명까지
         지면 화면을 훑을 때 무엇에 대한 자리인지가 한눈에 안 들어온다.
@@ -275,6 +275,83 @@ class CatalogCannotDiverge(unittest.TestCase):
         text = catalog.DOCS.read_text(encoding="utf-8")
         self.assertIn(catalog.MARK_START, text)
         self.assertIn(catalog.docs_table(), text)
+
+
+class ReferenceCountsEveryPlace(unittest.TestCase):
+    """**요소 전수 표가 자리 하나도 빠뜨리지 않는다.**
+
+    손으로 적은 목록은 칸이 늘 때 조용히 옛것이 된다. 그래서 표를 스키마에서 뽑고,
+    여기서는 **뽑기가 눈을 감지 않았는지**를 본다 — 훑기가 좁아지면 표가 줄어든 채로
+    통과해 버린다.
+    """
+
+    def _places(self) -> list[tuple[str, str]]:
+        """스키마에 있는 모든 자리. **손으로 세지 않는다.**"""
+        out = []
+
+        def walk(node: object, where: str) -> None:
+            if isinstance(node, dict):
+                for key, sub in node.get("properties", {}).items():
+                    out.append((where, key))
+                    walk(sub, f"{where}.{key}")
+                for key, sub in node.get("$defs", {}).items():
+                    walk(sub, f"{where}#{key}")
+                for key in ("items", "additionalProperties", "then", "not"):
+                    if isinstance(node.get(key), dict):
+                        walk(node[key], where)
+                for key in ("allOf", "anyOf", "oneOf"):
+                    for sub in node.get(key, []):
+                        walk(sub, where)
+
+        for name, doc in documents().items():
+            walk(doc, name)
+        return out
+
+    def test_every_place_is_in_the_table(self) -> None:
+        body = reference.body()
+        missing = sorted({key for _, key in self._places() if f"`{key}`" not in body})
+        self.assertEqual(missing, [], f"요소 전수 표에 없는 자리가 있다: {missing}")
+
+    def test_the_scan_would_notice_a_missing_place(self) -> None:
+        """**대조군.** 자리를 하나 빼 보고 표가 그것을 잃는지 본다."""
+        places = {key for _, key in self._places()}
+        for known in ("subjectLabel", "byOption", "previousFocus", "allowed", "compare"):
+            self.assertIn(known, places, "훑기가 자리를 못 센다")
+        slot = reference.SCHEMAS["weave-valueset.schema.json"]["$defs"]["FieldSlot"]["properties"]
+        gone = slot.pop("byOption")
+        try:
+            self.assertNotIn("`byOption`", reference.body(), "뺀 자리가 표에 남았다")
+        finally:
+            slot["byOption"] = gone
+
+    def test_a_place_without_a_description_stops_the_build(self) -> None:
+        """**대조군.** 설명이 없으면 멈춘다 — 빈 칸을 낸 표는 없는 것만 못하다."""
+        node = reference.SCHEMAS["weave-valueset.schema.json"]["properties"]["subjectLabel"]
+        said = node.pop("description")
+        try:
+            with self.assertRaises(SystemExit):
+                reference.body()
+        finally:
+            node["description"] = said
+
+    def test_the_section_is_generated_not_written(self) -> None:
+        text = catalog.DOCS.read_text(encoding="utf-8")
+        self.assertIn(reference.MARK_START, text)
+        self.assertIn(reference.body(), text)
+
+    def test_the_prose_tells_every_closed_vocabulary_value(self) -> None:
+        """**어휘 하나가 설명서 본문에서 통째로 빠지지 않는다.**
+
+        전수 표가 값을 나열하니 그 뒤는 늘 통과한다 — 그러므로 **표 앞의 글**만 본다.
+        실제로 그렇게 빠져 있었다: 타입 하나가 어휘에 들어온 뒤로 타입 표에 줄이 없었다.
+        """
+        text = catalog.DOCS.read_text(encoding="utf-8")
+        prose = text.partition(reference.MARK_START)[0]
+        defs = documents()["weave-common.schema.json"]["$defs"]
+        for vocabulary in ("Type", "Shape", "Element", "AnnotationKind"):
+            for value in defs[vocabulary]["enum"]:
+                with self.subTest(f"{vocabulary}.{value}"):
+                    self.assertIn(f"`{value}`", prose, f"설명서 본문이 {value} 를 말하지 않는다")
 
 
 class Vocabulary(unittest.TestCase):
@@ -453,6 +530,20 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
             except (UnicodeDecodeError, OSError):
                 continue
         return out
+
+    # **하는 일로 부르는 것도 이름으로 아는 것이다.** 우리 계약을 읽는 쪽이 지금 무슨 일을
+    # 하는지(뽑아낸다·판정한다)를 스키마의 글이 말하기 시작하면, 다른 쪽이 그 자리에 붙는
+    # 날 그 말이 거짓이 된다. 언어가 아는 역할은 **채우는 쪽**과 **그리는 쪽**까지다.
+    # 여기도 조각으로 잇는다 — 통째로 적으면 이 파일이 스스로 걸린다.
+    ROLE_HALVES = [("Proce", "dure"), ("추", "출"), ("분석", "에게")]
+
+    def test_no_consumer_role_is_named(self) -> None:
+        texts = self._texts()
+        for head, tail in self.ROLE_HALVES:
+            word = head + tail
+            hits = sorted(where for where, text in texts.items() if word in text)
+            with self.subTest(word):
+                self.assertEqual(hits, [], f"소비자가 하는 일로 소비자를 불렀다: {word} — {hits}")
 
     def test_no_sibling_repository_is_named(self) -> None:
         texts = self._texts()

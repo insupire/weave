@@ -12,6 +12,7 @@ CDN 도 쓰지 않는다(오프라인에서 죽는다).
 - ``viewer/samples.mjs`` — ``samples/`` 를 글 그대로 담은 모듈. 편집기가 그대로 띄운다
 - ``viewer/catalog.mjs`` — primitive element 카탈로그. 설명서 페이지가 읽는다
 - ``docs/weave.md`` 의 카탈로그 표 — 같은 카탈로그에서 나온다. **둘이 갈릴 수 없다**
+- ``docs/weave.md`` 의 요소 전수 표 — ``schema/`` 를 훑어 낸다(``tools/reference.py``)
 - ``viewer.html`` — 열면 바로 도는 한 장
 
 의존성 없이 stdlib 로 돈다.
@@ -26,7 +27,7 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from tools import catalog  # noqa: E402
+from tools import catalog, reference  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 VIEWER = ROOT / "viewer"
@@ -109,7 +110,8 @@ def artifacts() -> dict[pathlib.Path, str]:
     return {
         OUT_SAMPLES: samples_js,
         OUT_CATALOG: catalog_js,
-        catalog.DOCS: catalog.docs_source(),  # 표와 설명서 페이지가 같은 카탈로그에서 나온다
+        # 설명서 한 장에 자리가 둘이다 — 카탈로그 표와 요소 전수 표. 둘 다 여기서 다시 쓴다.
+        catalog.DOCS: reference.docs_source(catalog.docs_source()),
         OUT_HTML: html_source(samples_js, catalog_js),
     }
 

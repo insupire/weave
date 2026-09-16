@@ -72,7 +72,7 @@ def _duplicates(names: list[str]) -> list[str]:
 
 
 def check_template(doc: object) -> Result:
-    """템플릿을 판정한다. 생성 Procedure 가 템플릿을 낸 직후에 부른다."""
+    """템플릿을 판정한다. 템플릿을 쓰는 쪽이 한 벌을 낸 직후에 부른다."""
     result = Result()
     if not _structural(result, schemas.TEMPLATE, doc):
         return result
@@ -126,7 +126,7 @@ def check_render_args(doc: object) -> Result:
 
 
 def check_valueset(doc: object, template: object | None = None) -> Result:
-    """값 한 벌을 판정한다. 분석 Procedure 가 subject 하나를 끝낸 직후에 부른다.
+    """값 한 벌을 판정한다. 채우는 쪽이 subject 하나를 끝낸 직후에 부른다.
 
     ``template`` 을 주지 않으면 구조만 본다. 타입·모양·덮는 범위는 템플릿이 있어야 안다.
     """

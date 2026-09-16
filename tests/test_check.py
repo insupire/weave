@@ -44,7 +44,7 @@ class TemplatePasses(unittest.TestCase):
         self.assertEqual(used, set(documents()["weave-common.schema.json"]["$defs"]["Element"]["enum"]))
 
     def test_template_author_notes_use_the_same_four_kinds(self) -> None:
-        # subject 무관 지식의 자리. 아직 분석된 subject 가 하나도 없어도 남는다.
+        # subject 무관 지식의 자리. 아직 채워진 subject 가 하나도 없어도 남는다.
         doc = mutate(
             TEMPLATE,
             lambda d: facet(d, "monthly-premium").__setitem__(
@@ -89,10 +89,10 @@ class ValuesPass(unittest.TestCase):
             self.assertTrue(check_valueset(doc, TEMPLATE).ok)
 
     def test_not_analysed_is_an_all_empty_valueset_not_a_state(self) -> None:
-        """아직 분석하지 않았다는 것도 구조가 아니라 **전부 비어 있는 값 한 벌과 주석**이 말한다.
+        """아직 채우지 않았다는 것도 구조가 아니라 **전부 비어 있는 값 한 벌과 주석**이 말한다.
 
         상태를 새로 만드는 길은 막혀 있고(``TEMPLATE_DEFECTS``·``VALUE_DEFECTS`` 참조),
-        전부 빈 값 한 벌은 그냥 통과한다 — 그것이 이 언어가 미분석을 말하는 방법이다.
+        전부 빈 값 한 벌은 그냥 통과한다 — 그것이 이 언어가 「아직 안 채웠다」를 말하는 방법이다.
         """
         self.assertTrue(check_valueset(EMPTY, TEMPLATE).ok)
         states = {
@@ -137,8 +137,8 @@ TEMPLATE_DEFECTS = [
     ("템플릿 주석에 글이 없다", lambda d: facet(d, "contract-terms")["notes"][0].pop("text"), "'text' is a required property"),
     ("템플릿 주석을 아홉 개 단다", lambda d: facet(d, "contract-terms").__setitem__("notes", [{"kind": "note", "text": f"{i}"} for i in range(9)]), "is too long"),
     ("막대에 글을 싣는다", lambda d: field(d, "coverage-amounts", "death-benefit").__setitem__("type", "text"), "is not one of"),
-    ("추출 지시를 뺀다", lambda d: field(d, "monthly-premium", "premium").pop("description"), "'description' is a required property"),
-    ("추출 지시를 빈 글로 둔다", lambda d: field(d, "monthly-premium", "premium").__setitem__("description", "짧다"), "is too short"),
+    ("필드 설명을 뺀다", lambda d: field(d, "monthly-premium", "premium").pop("description"), "'description' is a required property"),
+    ("필드 설명을 너무 짧게 둔다", lambda d: field(d, "monthly-premium", "premium").__setitem__("description", "짧다"), "is too short"),
     ("선에 축이 없다", lambda d: field(d, "premium-by-age", "premium-curve").pop("axis"), "'axis' is a required property"),
     ("글에 구간을 준다", lambda d: field(d, "contract-terms", "entry-age").update({"type": "text"}), "is not one of"),
     ("수치에 필드를 둘 싣는다", lambda d: facet(d, "monthly-premium")["fields"].append(copy.deepcopy(field(d, "contract-terms", "renewal"))), "is too long"),
