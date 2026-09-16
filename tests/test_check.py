@@ -150,6 +150,7 @@ TEMPLATE_DEFECTS = [
     ("facet id 가 겹친다", lambda d: d["facets"].append(copy.deepcopy(facet(d, "riders"))), "facet id 가 겹친다"),
     ("필드 key 가 겹친다", lambda d: facet(d, "contract-terms")["fields"].append(copy.deepcopy(field(d, "contract-terms", "renewal"))), "필드 key 가 겹친다"),
     ("열 key 가 겹친다", lambda d: field(d, "riders", "rider-list")["columns"].append(copy.deepcopy(field(d, "riders", "rider-list")["columns"][0])), "열 key 가 겹친다"),
+    ("글이 아닌 열에 닫힌 목록을 건다", lambda d: field(d, "riders", "rider-list")["columns"][1].__setitem__("allowed", ["가", "나"]), "was expected"),
 ]
 
 
@@ -388,6 +389,74 @@ class RenderArgs(unittest.TestCase):
         # 직전이 현재와 같은 것은 결함이 아니다. 렌더가 직전이 없는 것으로 정리한다.
         self.assertTrue(check_render_args({"focus": "a", "previousFocus": "a"}).ok)
         self.assertFalse(check_render_args({"previousFocus": 3}).ok)
+
+
+class ColumnVocabulary(unittest.TestCase):
+    """**열도 닫힌 목록을 건다.** 필드의 ``allowed`` 와 같은 규율이고 자리만 한 겹 깊다.
+
+    자유 글의 변종이 가장 많이 되풀이되는 자리가 항목의 열이다 — 항목이 수백 줄이면
+    같은 뜻의 말이 몇 가지로 갈린다. **칸만 열고 안 재면 선언이 장식이 되므로**
+    검사기가 그것을 문다.
+    """
+
+    TEMPLATE = {
+        "weave": "1", "id": "t", "title": "t",
+        "facets": [{
+            "id": "f", "title": "f", "element": "rows", "compare": "focus",
+            "fields": [{
+                "key": "list", "label": "목록", "shape": "items",
+                "description": "항목을 하나씩 담는다. 열 선언을 따른다.",
+                "columns": [
+                    {"key": "name", "label": "이름", "type": "text",
+                     "description": "적힌 이름 그대로 담는다."},
+                    {"key": "mode", "label": "방식", "type": "text",
+                     "allowed": ["갱신 없음", "10년 갱신"],
+                     "description": "그 항목의 방식을 적힌 말 그대로 담는다."},
+                ],
+            }],
+        }],
+    }
+
+    def values(self, mode: object) -> dict:
+        return {"weave": "1", "templateId": "t", "subjectId": "s",
+                "facets": {"f": {"fields": {"list": {"state": "filled",
+                                                     "value": [{"name": "가", "mode": mode}]}}}}}
+
+    def test_the_template_may_close_a_text_column(self) -> None:
+        result = check_template(self.TEMPLATE)
+        self.assertTrue(result.ok, [str(p) for p in result.problems])
+
+    def test_a_value_inside_the_list_passes(self) -> None:
+        self.assertTrue(check_valueset(self.values("10년 갱신"), self.TEMPLATE).ok)
+
+    def test_a_variant_is_blocked(self) -> None:
+        """오타와 변종을 막는 자리다 — 「10년갱신」은 같은 뜻이지만 다른 값이다."""
+        result = check_valueset(self.values("10년갱신"), self.TEMPLATE)
+        self.assertFalse(result.ok, "닫힌 목록 밖의 값이 통과했다")
+        joined = " | ".join(str(p) for p in result.problems)
+        self.assertIn("허용한 값이 아니다", joined)
+        self.assertIn("'mode'", joined, "어느 칸인지 말하지 않는다")
+
+    def test_a_column_without_a_list_stays_free(self) -> None:
+        """**대조군.** 목록을 걸지 않은 열은 그대로 자유 글이다."""
+        self.assertTrue(check_valueset(self.values("아무 말"), self.TEMPLATE).ok is False)
+        free = copy.deepcopy(self.TEMPLATE)
+        free["facets"][0]["fields"][0]["columns"][1].pop("allowed")
+        self.assertTrue(check_valueset(self.values("아무 말"), free).ok)
+
+    def test_the_door_for_grades_is_open_and_said_so(self) -> None:
+        """**막지 못한다.** ``allowed`` 는 ``description`` 에 등급을 적는 것의 더 날카로운 판이다.
+
+        자연어가 아니라 **닫힌 목록**이라 소비자가 그대로 갈래로 쓴다. 그런데 막으려면
+        스키마가 도메인 어휘를 알아야 하고, 그러면 「보험이 들어오면 안 된다」가 깨진다.
+        그래서 **막지 못하고 적어 둔다** — 적어 둔 것이 사라지면 여기가 빨개진다.
+        """
+        graded = copy.deepcopy(self.TEMPLATE)
+        graded["facets"][0]["fields"][0]["columns"][1]["allowed"] = ["A등급", "B등급", "C등급"]
+        self.assertTrue(check_template(graded).ok, "막을 수 있게 되었으면 설명서를 고친다")
+        said = (pathlib.Path(__file__).resolve().parents[1] / "docs" / "weave.md").read_text(encoding="utf-8")
+        head = said.split("## 스키마가 못 지키는 것", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("allowed", head, "못 막는다는 사실이 설명서에 없다")
 
 
 if __name__ == "__main__":

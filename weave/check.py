@@ -230,13 +230,18 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             previous = point["at"]
     elif shape == "items":
         assert isinstance(value, list)
-        columns = {c["key"]: c["type"] for c in decl["columns"]}
+        columns = {c["key"]: c for c in decl["columns"]}
         for index, item in enumerate(value):
             for key, cell in item.items():
-                if key not in columns:
+                column = columns.get(key)
+                if column is None:
                     result.add(f"{where}[{index}]", f"템플릿에 없는 열이다: {key}")
                     continue
-                _scalar(result, f"{where}[{index}][{key!r}]", columns[key], cell)
+                spot = f"{where}[{index}][{key!r}]"
+                _scalar(result, spot, column["type"], cell)
+                # 열의 닫힌 목록은 필드의 것과 같은 규율이다 — 자리만 한 겹 깊다.
+                if "allowed" in column and cell not in column["allowed"]:
+                    result.add(spot, f"허용한 값이 아니다: {cell!r}")
 
 
 def _gt(left: object, right: object) -> bool:

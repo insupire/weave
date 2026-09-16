@@ -334,6 +334,9 @@ th.corner, th.row-label { font-weight:600; width:140px; color:var(--mute); }
 svg.line, .chart-blank { min-width:560px; }
 svg.line { display:block; width:100%; height:auto; background:#ffffff; }
 svg .axis { stroke:var(--line); stroke-width:1; }
+/* **0 이 서는 자리.** 축선보다 진해서 틀이 아니라 **기준**으로 읽힌다 — 무채색이고
+   위아래를 칠하지 않는다. 좋고 나쁨이 아니라 「여기가 본전 자리다」라는 사실이다. */
+svg .zero { stroke:var(--mute); stroke-width:1; }
 svg .tick { font-size:11px; fill:var(--mute); }
 svg .ty { text-anchor:end; }
 svg .tx { text-anchor:start; }

@@ -1693,10 +1693,12 @@ test("선은 보는 상태로 갈린다 — 색을 빼도 갈린다", () => {
   // 지키려는 것은 「무늬」가 아니라 **「선이 서로 갈린다」**다. 가르는 자가 무늬에서
   // 상태(지금 보는 것 · 직전에 보던 것 · 나머지)로 바뀌었을 뿐이다.
   const values = structuredClone(FIX.values);
-  for (const [i, at] of [[1, 42], [2, 44]]) {
+  // 셋이 **같은 축 자리**에 선다. 표본이 어긋나면 비운 자리에서 선이 끊기는데,
+  // 그것은 이 시험이 보는 것(갈래가 색·굵기로 갈리는가)이 아니다 — 끊기는 자리는 따로 본다.
+  for (const i of [1, 2]) {
     values[i].facets["premium-by-age"].fields["premium-curve"] = {
       state: "filled",
-      value: [{ at, value: 60000 + i * 9000 }, { at: at + 18, value: 140000 + i * 9000 }],
+      value: [{ at: 40, value: 60000 + i * 9000 }, { at: 60, value: 140000 + i * 9000 }],
     };
   }
   const drawSvg = (args) => sectionOf(renderView({ template: FIX.template, values, ...args }).html, "line");
@@ -1751,6 +1753,103 @@ test("선은 보는 상태로 갈린다 — 색을 빼도 갈린다", () => {
   const labelled = [...svg.matchAll(/<text class="series-label[^"]*"[^>]*>([^<]+)</g)].map((m) => m[1]);
   assert.equal(labelled.length, 3, "이름 없는 선이 있다");
   assert.ok(labelled.every((name) => Object.values(NAMES).includes(name)), labelled.join(" / "));
+});
+
+/** `premium-by-age` 의 선을 subject 마다 갈아 끼우고 그린 svg 를 돌려준다. */
+function curves(points, args = {}) {
+  const values = structuredClone(FIX.values);
+  points.forEach((series, i) => {
+    values[i].facets["premium-by-age"].fields["premium-curve"] =
+      series === null
+        ? { state: "empty" }
+        : { state: "filled", value: series.map(([at, value]) => ({ at, value })) };
+  });
+  return sectionOf(renderView({ template: FIX.template, values, focus: null, ...args }).html, "line");
+}
+
+const polylines = (svg) => [...svg.matchAll(/<polyline[^>]*points="([^"]*)"/g)].map((m) => m[1]);
+
+test("점이 없는 구간을 이어 그리지 않는다", () => {
+  // **자리가 먼저 있어야 「비었다」가 읽힌다.** 둘 이상의 값이 같은 `at` 에 서면 그것이
+  // 이 facet 이 재는 자리이고, 거기 점이 없는 값은 그 자리를 **비운 것**이다.
+  const whole = [[40, 10000], [50, 20000], [60, 30000], [70, 40000]];
+  const emptied = curves([
+    whole,
+    [[40, 11000], [60, 31000], [70, 41000]], // 50 을 비웠다 — 나머지 둘이 50 에 선다
+    whole.map(([at, value]) => [at, value + 2000]),
+  ]);
+  const drawn = polylines(emptied);
+  // 성한 둘은 한 줄씩, 비운 하나는 **토막 둘**로 갈린다 — 한 토막은 점 하나라 선이 아니다.
+  assert.equal(drawn.length, 3, "비운 자리를 사이에 두고도 선이 이어졌다");
+  assert.equal(drawn.filter((coords) => coords.split(" ").length === 2).length, 1, "끊긴 뒤 토막이 없다");
+  const lone = [...emptied.matchAll(/<circle class="series[^"]*"[^>]*r="3\.5"/g)];
+  assert.equal(lone.length, 1, "끊긴 앞 토막이 점으로 서지 않았다");
+  // 성한 선은 그대로 네 점을 잇는다 — 끊는 것은 비운 값뿐이다.
+  assert.equal(drawn.filter((coords) => coords.split(" ").length === 4).length, 2, "성한 선까지 끊었다");
+
+  // **한 값만 아는 자리는 남의 선을 끊지 않는다.** 표본 자리가 다른 것은 정상이다.
+  const alone = curves([
+    [[40, 10000], [60, 30000]],
+    [[45, 11000]], // 45 는 이 값만 안다
+    null,
+  ]);
+  assert.equal(polylines(alone).length, 1, "혼자 아는 표본 자리가 남의 선을 끊었다");
+
+  // **선 바깥은 구멍이 아니다.** 첫 점 앞과 마지막 점 뒤는 그 선이 닿지 않는 자리다.
+  const shorter = curves([
+    [[40, 10000], [50, 20000], [60, 30000]],
+    [[40, 11000], [50, 21000]], // 60 에 안 섰지만 그 앞에서 끝난 것뿐이다
+    [[40, 12000], [50, 22000], [60, 32000]],
+  ]);
+  assert.equal(polylines(shorter).length, 3, "선이 닿지 않는 자리를 구멍으로 셌다");
+
+  // **간격으로 정하지 않는다.** `at` 이 고르지 않은 것은 정상이라 넓이가 아무것도 말하지 않는다.
+  const uneven = curves([
+    [[40, 10000], [41, 11000], [90, 30000]],
+    [[40, 12000], [41, 13000], [90, 32000]],
+    null,
+  ]);
+  assert.equal(polylines(uneven).length, 2, "간격이 넓다고 끊었다");
+});
+
+test("0 이 어디인지 보인다", () => {
+  // **자는 늘 0 을 담고**, 0 이 축선과 다른 자리에 서면 그 자리에 기준선이 선다.
+  // 그리지 않으면 음수가 그냥 작은 수로 읽힌다.
+  const signed = curves([
+    [[40, -20000], [50, 0], [60, 30000]],
+    null,
+    null,
+  ]);
+  const zero = [...signed.matchAll(/<line class="zero"[^>]*y1="([\d.]+)"[^>]*y2="([\d.]+)"/g)];
+  assert.equal(zero.length, 1, "0 선이 서지 않는다");
+  assert.equal(zero[0][1], zero[0][2], "0 선이 기울었다");
+  assert.match(signed, /<text class="tick ty"[^>]*>0원</, "0 눈금이 없다");
+  // 축선보다 위에 선다 — 맨 아래 축선이 0 인 척하면 그것이 문제였다.
+  const floor = Math.max(...[...signed.matchAll(/<line class="axis"[^>]*y1="([\d.]+)"/g)].map((m) => +m[1]));
+  assert.ok(+zero[0][1] < floor, "0 선이 축선 위에 서지 않는다");
+
+  // **자는 늘 0 을 담는다.** 값이 전부 음수여도 0 이 자 밖으로 나가지 않는다 —
+  // 나가면 기준선이 그림 밖에 서고 음수가 그냥 작은 수로 읽힌다.
+  const below = curves([[[40, -30000], [60, -10000]], null, null]);
+  const out = [...below.matchAll(/<line class="zero"[^>]*y1="([\d.]+)"/g)].map((m) => +m[1]);
+  assert.equal(out.length, 1, "값이 전부 음수인데 0 선이 없다");
+  const top = Math.min(...[...below.matchAll(/<line class="axis"[^>]*y1="([\d.]+)"[^>]*y2="([\d.]+)"/g)]
+    .flatMap((m) => [+m[1], +m[2]]));
+  assert.ok(out[0] >= top, `0 선이 그림 밖에 섰다: ${out[0]} < ${top}`);
+  assert.equal((below.match(/>0원</g) ?? []).length, 1, "0 을 두 번 적었다");
+
+  // **0 이 자의 바닥이면 축선이 이미 그 자리다** — 같은 자리에 두 번 긋지 않는다.
+  const positive = curves([[[40, 10000], [60, 30000]], null, null]);
+  assert.ok(!positive.includes('class="zero"'), "0 이 바닥인데 기준선을 또 그었다");
+  assert.match(positive, /<text class="tick ty"[^>]*>0원</, "바닥 눈금이 0 을 안 적는다");
+
+  // **사실의 기준이지 좋고 나쁨이 아니다** — 무채색이고 위아래를 칠하지 않는다.
+  const css = fs.readFileSync(path.join(ROOT, "viewer/style.css"), "utf-8");
+  const body = css.match(/svg \.zero \{([^}]*)\}/)?.[1] ?? "";
+  assert.ok(body, "0 선의 시각 선언이 없다");
+  assert.ok(!/#|rgb|hsl/.test(body.replace(/var\(--[a-z-]+\)/g, "")), `0 선에 색이 있다: ${body}`);
+  assert.ok(!/fill:(?!none)/.test(body), "0 선이 면을 칠한다");
+  assert.ok(!signed.includes("<rect"), "0 위아래를 면으로 가른다");
 });
 
 test("순위·등급 어휘가 화면으로 새지 않는다", () => {

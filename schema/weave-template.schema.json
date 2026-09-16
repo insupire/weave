@@ -286,11 +286,28 @@
           "type": "string", "minLength": 1, "maxLength": 80
         },
         "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
+        "allowed": {
+          "description": "값이 이 목록 안에 있어야 한다. 필드의 allowed 와 같은 규율이고 걸리는 자리만 다르다 — text 를 담는 열에만 쓴다. 자유 글의 변종이 가장 많이 되풀이되는 자리가 항목의 열이라 여기에도 연다: 항목이 수백 줄이면 같은 뜻의 말이 몇 가지로 갈린다.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+        },
         "description": {
           "description": "이 열의 설명. 필드의 description 과 같은 자리다 — 무엇을 담는 칸인지를 그 칸을 채울 수 있을 만큼 기본 단위와 경계까지 적는다.",
           "type": "string", "minLength": 10, "maxLength": 600
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["allowed"] },
+          "then": {
+            "properties": { "type": { "const": "text" } },
+            "required": ["type"]
+          }
+        }
+      ]
     }
   }
 }

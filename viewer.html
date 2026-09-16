@@ -345,6 +345,9 @@ th.corner, th.row-label { font-weight:600; width:140px; color:var(--mute); }
 svg.line, .chart-blank { min-width:560px; }
 svg.line { display:block; width:100%; height:auto; background:#ffffff; }
 svg .axis { stroke:var(--line); stroke-width:1; }
+/* **0 이 서는 자리.** 축선보다 진해서 틀이 아니라 **기준**으로 읽힌다 — 무채색이고
+   위아래를 칠하지 않는다. 좋고 나쁨이 아니라 「여기가 본전 자리다」라는 사실이다. */
+svg .zero { stroke:var(--mute); stroke-width:1; }
 svg .tick { font-size:11px; fill:var(--mute); }
 svg .ty { text-anchor:end; }
 svg .tx { text-anchor:start; }
@@ -1097,8 +1100,9 @@ function line(ctx, facet) {
   // **그림도 표처럼 자기 상자에서 굴러간다.** 좁은 화면에서 통째로 줄이면 축 라벨과 선 끝
   // 이름이 읽을 수 없게 작아진다 — 그림은 제 크기를 지키고 상자가 굴러간다.
   // **자는 고를 것까지 덮는다.** 축을 옮겨도 그림의 자가 안 움직여야 앞뒤를 견줄 수 있다.
+  const measured = everyValue(ctx, facet, decl);
   const span = { x: [], y: [] };
-  for (const value of everyValue(ctx, facet, decl)) {
+  for (const value of measured) {
     if (!Array.isArray(value)) continue;
     for (const point of value) {
       const x = axisNumber(axis, point?.at);
@@ -1111,7 +1115,8 @@ function line(ctx, facet) {
   const body = ctx.subjects.length === 0
     ? `<div class="chart-scroll">${emptyAxes()}</div>`
     : series.length
-      ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
+      ? `<div class="chart-scroll">` +
+        `${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span, stopsOf(measured, axis))}</div>`
       : `<div class="blank">${missMark()}</div>`;
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
@@ -1160,14 +1165,57 @@ function emptyAxes() {
   );
 }
 
-function lineSvg(series, axis, type, focus, prior, span) {
+/**
+ * **이 facet 이 재는 축 자리.** 둘 이상의 값이 점을 세운 `at` 이다.
+ *
+ * 「여기에 값이 없다」를 값이 말하는 길은 **그 자리의 점을 안 내는 것**뿐이라, 그것을 읽으려면
+ * **자리가 먼저 있어야 한다.** 한 값에만 있는 `at` 은 그 값이 재어 온 표본 자리일 뿐이고
+ * 그것으로 남의 선을 끊으면 표본이 다른 subject 가 서로를 부순다. **둘 이상이 같은 자리에
+ * 서면** 그것은 이 facet 이 재는 자리이고, 거기 점이 없는 값은 그 자리를 **비운 것**이다.
+ *
+ * **간격으로 정하지 않는다.** `at` 이 고르지 않은 것은 정상이라 넓이는 아무것도 말하지 않는다.
+ */
+function stopsOf(values, axis) {
+  const count = new Map();
+  for (const value of values) {
+    if (!Array.isArray(value)) continue;
+    const mine = new Set();
+    for (const point of value) {
+      const x = axisNumber(axis, point?.at);
+      if (x !== null) mine.add(x);
+    }
+    for (const x of mine) count.set(x, (count.get(x) ?? 0) + 1);
+  }
+  return [...count.entries()].filter(([, seen]) => seen >= 2).map(([x]) => x);
+}
+
+/**
+ * **비운 자리를 사이에 둔 두 점은 잇지 않는다.** 이으면 직선이 그 자리를 메우고
+ * **없는 값이 있는 것처럼** 보인다 — 「값이 없는 것이 사라지면 안 된다」를 구간에도 건 것이다.
+ *
+ * **선 바깥은 구멍이 아니다.** 첫 점 앞과 마지막 점 뒤는 그 선이 닿지 않는 자리이지
+ * 메운 자리가 아니다. 끊는 것은 **선 안쪽**뿐이다.
+ */
+function segmentsOf(points, stops) {
+  const runs = [[points[0]]];
+  for (let i = 1; i < points.length; i += 1) {
+    const emptied = stops.some((x) => x > points[i - 1].x && x < points[i].x);
+    if (emptied) runs.push([]);
+    runs[runs.length - 1].push(points[i]);
+  }
+  return runs;
+}
+
+function lineSvg(series, axis, type, focus, prior, span, stops) {
   const { W, H, L, R, T, B } = CHART;
   // **그린 것이 아니라 잴 것 전부로 자를 잡는다** — 무엇을 눌러도 축이 안 움직인다.
   const edge = span.x.length ? span.x : series.flatMap((s) => s.points.map((p) => ({ x: p.x, at: p.at })));
   const xs = edge.map((one) => one.x);
   const ys = span.y.length ? span.y : series.flatMap((s) => s.points.map((p) => p.y));
   const xmin = Math.min(...xs), xmax = Math.max(...xs);
-  const ymin = Math.min(...ys, 0), ymax = Math.max(...ys);
+  // **자는 늘 0 을 담는다.** 0 이 자 밖에 있으면 음수가 그냥 작은 수로 읽히고,
+  // 「본전 자리가 여기다」를 그림이 말할 수 없다.
+  const ymin = Math.min(...ys, 0), ymax = Math.max(...ys, 0);
   const xspan = xmax - xmin || 1;
   const yspan = ymax - ymin || 1;
   const px = (x) => L + ((x - xmin) / xspan) * (W - L - R);
@@ -1185,15 +1233,30 @@ function lineSvg(series, axis, type, focus, prior, span) {
     `<text class="tick tx" x="${L}" y="${H - B + 18}">${esc(formatScalar(axis, firstAt))}</text>`,
     `<text class="tick tx end" x="${W - R}" y="${H - B + 18}">${esc(formatScalar(axis, lastAt))}</text>`,
   ];
+  // **0 이 어디인지 보인다.** 축선이 맨 아래에 서면 그것이 기준선처럼 읽혀, 0 이 그 위
+  // 어딘가에 있을 때 음수가 그냥 작은 수가 된다. 0 선은 **사실의 기준**이지 좋고 나쁨이
+  // 아니다 — 무채색이고, 위아래를 칠하지 않고, 어느 쪽이 나은지 말하지 않는다.
+  // 0 이 자의 바닥이면 축선이 이미 그 자리라 따로 긋지 않는다.
+  if (ymin < 0) {
+    const zero = py(0).toFixed(1);
+    parts.push(`<line class="zero" x1="${L}" y1="${zero}" x2="${W - R}" y2="${zero}"/>`);
+    // 자의 끝이 0 이면 그 눈금이 이미 0 을 적고 있다 — 같은 자리에 두 번 적지 않는다.
+    if (ymax > 0) {
+      parts.push(`<text class="tick ty" x="${L - 8}" y="${zero}">${esc(formatScalar(type, 0))}</text>`);
+    }
+  }
   series.forEach(({ subject, points }) => {
     const focused = subject.id === focus;
     // 무늬를 쓰지 않는다. 갈래는 상태에서 나오고 CSS 가 색·굵기·진하기로 함께 말한다.
     const klass = `series trace-${traceOf(subject.id, focus, prior)}${focused ? " is-focus" : ""}`;
-    if (points.length === 1) {
-      parts.push(`<circle class="${klass}" cx="${px(points[0].x).toFixed(1)}" cy="${py(points[0].y).toFixed(1)}" r="3.5"/>`);
-    } else {
-      const coords = points.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
-      parts.push(`<polyline class="${klass}" points="${coords}"/>`);
+    // **비운 자리에서 끊는다.** 한 토막만 남으면 점 하나로 선다 — 잇지 않은 것이 보인다.
+    for (const run of segmentsOf(points, stops)) {
+      if (run.length === 1) {
+        parts.push(`<circle class="${klass}" cx="${px(run[0].x).toFixed(1)}" cy="${py(run[0].y).toFixed(1)}" r="3.5"/>`);
+      } else {
+        const coords = run.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
+        parts.push(`<polyline class="${klass}" points="${coords}"/>`);
+      }
     }
     for (const p of points) {
       parts.push(`<circle class="dot ${klass}" cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="2.5"/>`);
@@ -2101,7 +2164,7 @@ const PAGES = [
     "compareSaid": "겹친다",
     "draws": "축 위의 변화. subject 마다 선 하나가 한 좌표에 겹친다",
     "blank": "두 축과 그림이 들어올 면만 선다. 값이 없으면 눈금도 없고 꺾은선도 없다 — 눈금을 지어내면 그것이 가짜 값이고, 고정된 꺾은선 하나는 눈금이 없어도 추세로 읽힌다. 그 면 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
-    "note": "축이 둘이라 선끼리 갈린다. 누가 누구인지는 선 끝의 이름이 말해 아래에 범례를 두지 않고, 무엇을 보는 중인지는 지금·직전·나머지 세 갈래의 색과 굵기가 말한다. 고른 subject 가 선을 못 세웠을 때만 축 아래가 그 사실을 적는다. 가로축은 age·date·duration·number 만 된다",
+    "note": "축이 둘이라 선끼리 갈린다. 누가 누구인지는 선 끝의 이름이 말해 아래에 범례를 두지 않고, 무엇을 보는 중인지는 지금·직전·나머지 세 갈래의 색과 굵기가 말한다. 고른 subject 가 선을 못 세웠을 때만 축 아래가 그 사실을 적는다. 둘 이상의 값이 함께 선 축 자리를 한 값만 비우면 그 자리에서 선을 끊는다 — 이으면 없는 값이 있는 것처럼 보인다. 자는 늘 0 을 담고 0 이 자의 바닥이 아니면 그 자리에 기준선이 선다 — 본전 자리를 말하는 것이지 우열이 아니다. 가로축은 age·date·duration·number 만 된다",
     "fields": "1",
     "shapes": [
       "series"
