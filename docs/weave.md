@@ -420,7 +420,7 @@ python -m weave args args.json
   채운 쪽만 안다.
 
 「필수」와 「선택」은 그 자리가 늘 있어야 하는가다. **모양과 element 에 따라 더 걸리는 조건**은
-([모양](#모양)의 「함께 선언할 것」과 [primitive element](#primitive-element) 표) 거기서 읽는다.
+[모양](#모양)의 「함께 선언할 것」과 [primitive element](#primitive-element) 표가 말한다.
 
 <!-- reference:start — tools/build_viewer.py 가 쓴다. 손으로 고치지 않는다 -->
 ### 분석 템플릿 — [`weave-template.schema.json`](../schema/weave-template.schema.json)
