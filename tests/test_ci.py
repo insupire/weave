@@ -93,7 +93,7 @@ class TheJobCallsMakeAndNothingElse(unittest.TestCase):
         self.assertIn("make all", self.runs)
 
     def test_it_does_not_list_the_gates_again(self) -> None:
-        gates = ("test", "types-check", "check", "viewer-check", "viewer-test", "viewer")
+        gates = ("test", "types-check", "check", "viewer-check", "viewer-test", "guard-test", "viewer")
         for run in self.runs:
             if run == "make all":
                 continue

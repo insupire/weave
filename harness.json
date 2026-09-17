@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "entrypoint": "AGENTS.md",
+  "verbs": {
+    "relevant": "make relevant",
+    "full": "make all"
+  },
+  "preview": null,
+  "guard": ".claude/settings.json"
+}
