@@ -72,7 +72,7 @@ def _duplicates(names: list[str]) -> list[str]:
 
 
 def check_template(doc: object) -> Result:
-    """템플릿을 판정한다. 생성 Procedure 가 템플릿을 낸 직후에 부른다."""
+    """템플릿을 판정한다. 템플릿을 쓰는 쪽이 한 벌을 낸 직후에 부른다."""
     result = Result()
     if not _structural(result, schemas.TEMPLATE, doc):
         return result
@@ -114,7 +114,7 @@ def check_template(doc: object) -> Result:
 
 
 def check_render_args(doc: object) -> Result:
-    """렌더 인자를 판정한다. 화면 상태 둘(``focus`` · ``previousFocus``)뿐이고 구조만 본다.
+    """렌더 인자를 판정한다. 화면 상태 셋(``focus`` · ``previousFocus`` · ``choices``)뿐이고 구조만 본다.
 
     값 한 벌에 없는 id 는 결함이 아니다 — 그 경우 그 상태만 사라지는 것이 규약이다.
     ``previousFocus`` 가 ``focus`` 와 같은 것도 결함이 아니다. 직전이 현재와 같을 수는
@@ -126,7 +126,7 @@ def check_render_args(doc: object) -> Result:
 
 
 def check_valueset(doc: object, template: object | None = None) -> Result:
-    """값 한 벌을 판정한다. 분석 Procedure 가 subject 하나를 끝낸 직후에 부른다.
+    """값 한 벌을 판정한다. 채우는 쪽이 subject 하나를 끝낸 직후에 부른다.
 
     ``template`` 을 주지 않으면 구조만 본다. 타입·모양·덮는 범위는 템플릿이 있어야 안다.
     """
@@ -230,13 +230,18 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             previous = point["at"]
     elif shape == "items":
         assert isinstance(value, list)
-        columns = {c["key"]: c["type"] for c in decl["columns"]}
+        columns = {c["key"]: c for c in decl["columns"]}
         for index, item in enumerate(value):
             for key, cell in item.items():
-                if key not in columns:
+                column = columns.get(key)
+                if column is None:
                     result.add(f"{where}[{index}]", f"템플릿에 없는 열이다: {key}")
                     continue
-                _scalar(result, f"{where}[{index}][{key!r}]", columns[key], cell)
+                spot = f"{where}[{index}][{key!r}]"
+                _scalar(result, spot, column["type"], cell)
+                # 열의 닫힌 목록은 필드의 것과 같은 규율이다 — 자리만 한 겹 깊다.
+                if "allowed" in column and cell not in column["allowed"]:
+                    result.add(spot, f"허용한 값이 아니다: {cell!r}")
 
 
 def _gt(left: object, right: object) -> bool:

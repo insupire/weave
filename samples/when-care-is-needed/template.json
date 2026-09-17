@@ -131,6 +131,7 @@
       "title": "보장하는 상태",
       "hint": "고른 설계가 보장하는 상태와 그때 나오는 금액입니다.",
       "element": "rows",
+      "compare": "focus",
       "fields": [
         {
           "key": "state-list",

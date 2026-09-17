@@ -166,7 +166,8 @@
       "id": "covered-items",
       "title": "담보별 가입금액",
       "hint": "위 총액을 이루는 담보를 제안서끼리 나란히 둔 것입니다.",
-      "element": "list",
+      "element": "rows",
+      "compare": "overlay",
       "fields": [
         {
           "key": "covered-list",
@@ -229,6 +230,7 @@
       "title": "담보 목록",
       "hint": "고른 제안서에 붙은 담보를 설계안에 적힌 순서 그대로 편 것입니다.",
       "element": "rows",
+      "compare": "focus",
       "fields": [
         {
           "key": "rider-list",

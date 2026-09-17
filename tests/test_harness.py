@@ -79,7 +79,7 @@ class ThePickerPicks(unittest.TestCase):
     def test_it_picks_only_what_the_change_needs(self) -> None:
         cases = {
             "weave/check.py": ["test", "check"],
-            "viewer/render.mjs": ["test", "viewer-check", "viewer-test"],
+            "render/render.mjs": ["test", "viewer-check", "viewer-test"],
             "generated/weave-vocab.ts": ["types-check"],
             "tools/workspace-guard.mjs": ["guard-test"],
             ".claude/settings.json": ["guard-test"],
@@ -89,9 +89,14 @@ class ThePickerPicks(unittest.TestCase):
             with self.subTest(path):
                 self.assertEqual(targets_for([path]), expected)
 
-    def test_a_documentation_only_change_runs_nothing(self) -> None:
-        """여기가 비지 않으면 문서 한 줄에 전체 게이트가 돈다."""
-        self.assertEqual(targets_for(["docs/weave.md", "AGENTS.md", "README.md", "", "  "]), [])
+    def test_a_documentation_only_change_runs_the_pointer_check_and_no_more(self) -> None:
+        """산문도 자리를 가리킨다 — `make test` 는 돌고 전체 게이트는 안 돈다.
+
+        여기가 넓어지면 문서 한 줄에 전체 게이트가 돈다. 여기가 비면 옮긴 폴더를
+        가리키던 글이 죽은 채로 지나간다 — 둘 다 고장이라 함께 본다.
+        """
+        self.assertEqual(targets_for(["docs/weave.md", "AGENTS.md", "README.md"]), ["test"])
+        self.assertEqual(targets_for(["", "  "]), [])
 
     def test_the_schema_and_anything_unknown_widen_to_everything(self) -> None:
         """고를 근거가 없으면 넓힌다. 좁게 틀리는 것이 더 비싸다."""

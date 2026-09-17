@@ -2,14 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "weave-template.schema.json",
   "title": "분석 템플릿",
-  "description": "무엇을 그릴지와 무엇을 찾을지를 함께 말한다. 생성 Procedure 가 쓴다.",
+  "description": "무엇을 그릴지와 각 필드가 무엇을 담는지를 함께 말한다. 값 한 벌이 여기 선언된 필드를 채운다.",
   "type": "object",
   "additionalProperties": false,
   "required": ["weave", "id", "title", "facets"],
   "properties": {
     "weave": { "$ref": "weave-common.schema.json#/$defs/Version" },
     "id": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
-    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "title": {
+      "description": "이 분석뷰 전체의 제목. 짧은 명사구로 쓴다.",
+      "type": "string", "minLength": 1, "maxLength": 120
+    },
     "choices": {
       "description": "고르는 자리. 사람이 하나를 고르면 그것을 타는 필드의 값이 바뀐다. 무엇을 고를 수 있는지만 말하고 **어떻게 생겼는지는 말하지 않는다** — 칩인지 드롭다운인지는 앱이 정한다. 골격이므로 값 한 벌이 아니라 여기 선다: subject 마다 고를 것이 다르면 견줄 수가 없다. 고른 것이 바뀌어도 **어떤 facet 이 서는지는 달라지지 않는다** — 달라지는 것은 그것을 타는 필드의 값뿐이다. 여럿 선언할 수 있으나 선언한 만큼 값을 채워야 한다.",
       "type": "array",
@@ -33,7 +36,10 @@
       "required": ["id", "label", "options"],
       "properties": {
         "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
-        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "label": {
+          "description": "이 고르는 자리의 이름. 무엇을 고르는 자리인지 말한다.",
+          "type": "string", "minLength": 1, "maxLength": 80
+        },
         "options": {
           "description": "고를 수 있는 것들. 값 한 벌은 이 id 마다 값을 하나씩 채운다.",
           "type": "array",
@@ -44,12 +50,16 @@
       }
     },
     "Option": {
+      "description": "고를 것 하나. 값 한 벌은 이 id 마다 값을 하나 채운다.",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "label"],
       "properties": {
         "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
-        "label": { "type": "string", "minLength": 1, "maxLength": 80 }
+        "label": {
+          "description": "고를 것 하나의 이름.",
+          "type": "string", "minLength": 1, "maxLength": 80
+        }
       }
     },
     "Facet": {
@@ -59,16 +69,24 @@
       "required": ["id", "title", "element", "fields"],
       "properties": {
         "id": { "$ref": "weave-common.schema.json#/$defs/Key" },
-        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "title": {
+          "description": "이 facet 의 이름. 짧은 명사구로 쓰고 설명은 hint 가 진다.",
+          "type": "string", "minLength": 1, "maxLength": 120
+        },
         "hint": {
-          "description": "이 facet 이 무엇인지 한 문장. 제목 아래에 **늘 보인다.** 제목은 짧은 이름이고 설명은 여기 산다 — 제목이 설명까지 지면 화면을 훑을 때 무엇에 대한 자리인지가 한눈에 안 들어온다. 필드의 hint 와 뜻이 같다: 층만 다르다. 필드 것보다 조금 긴 것은 facet 하나를 통째로 말하기 때문이고, 늘 보이는 것은 facet 이 화면에 서넛뿐이라 한 줄씩 붙어도 길어지지 않기 때문이다.",
+          "description": "이 facet 이 무엇인지 한 문장. 제목은 짧은 이름이고 설명은 여기 산다 — 제목이 설명까지 지면 이름이 이름으로 읽히지 않는다. 필드의 hint 와 뜻이 같고 층만 다르다: 이쪽은 facet 하나를 통째로 말하므로 조금 길다.",
           "type": "string",
           "minLength": 1,
           "maxLength": 120,
           "pattern": "^[^\\n\\r]+$"
         },
         "element": { "$ref": "weave-common.schema.json#/$defs/Element" },
+        "compare": {
+          "description": "`rows` 에서만 쓴다. 항목을 겹칠지(overlay) 고른 것만 펼지(focus)를 이 facet 이 스스로 말한다 — 두 표현 단위가 다른 element 였던 것을 하나로 줄이고 겹침을 이 자리로 옮겼다. 다른 element 는 비교하는 법이 이름 자체로 정해지므로 이 자리를 갖지 않는다.",
+          "$ref": "weave-common.schema.json#/$defs/Compare"
+        },
         "fields": {
+          "description": "이 facet 이 그릴 값들의 선언. 몇 개까지 서는지와 어떤 shape·type 이 되는지는 element 가 정한다.",
           "type": "array",
           "minItems": 1,
           "maxItems": 12,
@@ -83,6 +101,7 @@
         {
           "if": { "properties": { "element": { "const": "stat" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 1,
@@ -94,6 +113,7 @@
         {
           "if": { "properties": { "element": { "const": "facts" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 12,
@@ -105,6 +125,7 @@
         {
           "if": { "properties": { "element": { "const": "bars" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 6,
@@ -121,6 +142,7 @@
         {
           "if": { "properties": { "element": { "const": "line" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 1,
@@ -135,19 +157,9 @@
           }
         },
         {
-          "if": { "properties": { "element": { "const": "list" } }, "required": ["element"] },
-          "then": {
-            "properties": {
-              "fields": {
-                "maxItems": 1,
-                "items": { "properties": { "shape": { "const": "items" } } }
-              }
-            }
-          }
-        },
-        {
           "if": { "properties": { "element": { "const": "rows" } }, "required": ["element"] },
           "then": {
+            "required": ["compare"],
             "properties": {
               "fields": {
                 "maxItems": 1,
@@ -159,6 +171,7 @@
         {
           "if": { "properties": { "element": { "const": "parts" } }, "required": ["element"] },
           "then": {
+            "not": { "required": ["compare"] },
             "properties": {
               "fields": {
                 "maxItems": 1,
@@ -175,13 +188,16 @@
       ]
     },
     "Field": {
-      "description": "필드 선언이 곧 추출 지시다. description 이 무엇을 찾을지 말한다.",
+      "description": "값 하나가 설 자리의 선언. description 이 무엇을 담는 자리인지 말한다.",
       "type": "object",
       "additionalProperties": false,
       "required": ["key", "label", "shape", "description"],
       "properties": {
         "key": { "$ref": "weave-common.schema.json#/$defs/Key" },
-        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "label": {
+          "description": "이 필드의 이름. 값이 아니라 템플릿의 것이라 subject 가 바뀌어도 같다.",
+          "type": "string", "minLength": 1, "maxLength": 80
+        },
         "shape": { "$ref": "weave-common.schema.json#/$defs/Shape" },
         "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
         "axis": { "$ref": "weave-common.schema.json#/$defs/AxisType" },
@@ -190,7 +206,7 @@
           "$ref": "weave-common.schema.json#/$defs/Key"
         },
         "hint": {
-          "description": "읽는 사람에게 **늘 보이는 한 줄.** 이 필드가 무엇인지를 말한다 — 값이 없어도 필요한 말이다. 주석과 다르다: 주석은 **이 값에 대해 할 말**이고 hint 는 **이 필드가 무엇인가**다. description 과도 다르다 — 그쪽은 분석에게 주는 추출 지시이고 화면에 나오지 않는다. 한 줄이고 필드에 매인다: 값과 무관한 자유 문장을 여기 두지 않는다.",
+          "description": "이 필드가 무엇인지 **한 줄로.** 값이 없어도 필요한 말이다 — 필드에 매이고 값에 매이지 않는다. 주석과 다르다: 주석은 **이 값에 대해 할 말**이고 hint 는 **이 필드가 무엇인가**다. description 과도 다르다: **깊이**가 갈린다 — hint 는 한 줄로 가리키기만 하고, description 은 그 자리를 채울 수 있을 만큼 기본 단위와 경계까지 적는다. 그래서 hint 는 없어도 되고 description 은 없으면 안 된다. 값과 무관한 자유 문장을 여기 두지 않는다.",
           "type": "string",
           "minLength": 1,
           "maxLength": 80,
@@ -205,13 +221,14 @@
           "items": { "type": "string", "minLength": 1, "maxLength": 80 }
         },
         "columns": {
+          "description": "items 필드가 담을 항목의 열 선언. shape 가 items 일 때만 선다.",
           "type": "array",
           "minItems": 1,
           "maxItems": 6,
           "items": { "$ref": "#/$defs/Column" }
         },
         "description": {
-          "description": "분석 Procedure 에게 주는 자연어 지시. 기본 단위까지 적는다.",
+          "description": "이 필드의 설명. 무엇을 담는 자리인지를 **그 자리를 채울 수 있을 만큼** 자연어로 적는다 — 기본 단위와 경계까지. hint 와 같은 설명이고 깊이가 다르다: hint 는 한 줄로 가리키고 여기는 끝까지 적는다.",
           "type": "string",
           "minLength": 10,
           "maxLength": 600
@@ -258,16 +275,39 @@
       ]
     },
     "Column": {
-      "description": "items 한 칸의 선언. 열도 추출 지시를 갖는다.",
+      "description": "items 한 칸의 선언. 열도 제 description 을 갖는다.",
       "type": "object",
       "additionalProperties": false,
       "required": ["key", "label", "type", "description"],
       "properties": {
         "key": { "$ref": "weave-common.schema.json#/$defs/Key" },
-        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "label": {
+          "description": "이 열의 이름. 값이 아니라 템플릿의 것이라 subject 가 바뀌어도 같다.",
+          "type": "string", "minLength": 1, "maxLength": 80
+        },
         "type": { "$ref": "weave-common.schema.json#/$defs/Type" },
-        "description": { "type": "string", "minLength": 10, "maxLength": 600 }
-      }
+        "allowed": {
+          "description": "값이 이 목록 안에 있어야 한다. 필드의 allowed 와 같은 규율이고 걸리는 자리만 다르다 — text 를 담는 열에만 쓴다. 자유 글의 변종이 가장 많이 되풀이되는 자리가 항목의 열이라 여기에도 연다: 항목이 수백 줄이면 같은 뜻의 말이 몇 가지로 갈린다.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+        },
+        "description": {
+          "description": "이 열의 설명. 필드의 description 과 같은 자리다 — 무엇을 담는 칸인지를 그 칸을 채울 수 있을 만큼 기본 단위와 경계까지 적는다.",
+          "type": "string", "minLength": 10, "maxLength": 600
+        }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["allowed"] },
+          "then": {
+            "properties": { "type": { "const": "text" } },
+            "required": ["type"]
+          }
+        }
+      ]
     }
   }
 }

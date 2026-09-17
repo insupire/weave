@@ -5,10 +5,10 @@
 //
 // **판정하지 않는다.** JSON 으로 읽히는지만 보고 스키마 판정은 Python 검사기가 갖는다.
 
-import { esc, renderView } from "./render.mjs";
+import { esc, renderView } from "../render/render.mjs";
 import { SAMPLES } from "./samples.mjs";
 import { PAGES } from "./catalog.mjs";
-import { ICON } from "./icons.mjs";
+import { ICON } from "../render/icons.mjs";
 
 const $ = (id) => document.getElementById(id);
 
@@ -122,7 +122,7 @@ function elementPage(page) {
 //
 // **탭은 값 한 벌마다 하나다.** subject 마다 값 한 벌이 정확히 하나 있으므로 탭이 곧 subject 다.
 // 값 한 벌이 없는 subject 라는 것이 없으니 자리와 값을 가르던 상태도 없다.
-// 아직 분석하지 않았다는 것은 **전부 비어 있는 값 한 벌과 주석**이 말한다.
+// 아직 채우지 않았다는 것은 **전부 비어 있는 값 한 벌과 주석**이 말한다.
 
 function loadSample(key) {
   const sample = SAMPLES[key];
@@ -322,7 +322,7 @@ function addSubject() {
   for (const facet of doc?.facets ?? []) {
     blank.facets[facet.id] = {
       fields: Object.fromEntries((facet.fields ?? []).map((f) => [f.key, { state: "empty" }])),
-      notes: [{ kind: "caution", text: "아직 분석하지 않았습니다." }],
+      notes: [{ kind: "caution", text: "아직 값을 채우지 않았습니다." }],
     };
   }
   state.values.push(pretty(blank));

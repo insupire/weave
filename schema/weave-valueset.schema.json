@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "weave-valueset.schema.json",
   "title": "값 한 벌",
-  "description": "subject 하나에 대한 필드별 상태와 값과 주석. 분석 Procedure 가 subject 하나당 한 벌을 낸다. 아직 분석되지 않은 subject 는 이 문서 자체가 없다.",
+  "description": "subject 하나에 대한 필드별 상태와 값과 주석. subject 하나당 한 벌이다. 아직 채워지지 않은 subject 는 이 문서 자체가 없다.",
   "type": "object",
   "additionalProperties": false,
   "required": ["weave", "templateId", "subjectId", "facets"],
@@ -11,7 +11,7 @@
     "templateId": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
     "subjectId": { "$ref": "weave-common.schema.json#/$defs/ExternalId" },
     "subjectLabel": {
-      "description": "화면에 쓸 이름. 없으면 렌더가 subjectId 를 쓴다.",
+      "description": "이 subject 의 이름. 없으면 subjectId 가 이름을 대신한다.",
       "type": "string",
       "minLength": 1,
       "maxLength": 120
@@ -26,16 +26,21 @@
   },
   "$defs": {
     "FacetValues": {
+      "description": "facet 하나에 대한 이 subject 의 값들. 라벨은 갖지 않는다 — 제목과 이름은 전부 템플릿에서 온다.",
       "type": "object",
       "additionalProperties": false,
       "required": ["fields"],
       "properties": {
         "fields": {
+          "description": "템플릿이 이 facet 에 선언한 필드 key 를 키로. 빠짐도 덤도 없이 전부 덮는다.",
           "type": "object",
           "propertyNames": { "$ref": "weave-common.schema.json#/$defs/Key" },
           "additionalProperties": { "$ref": "#/$defs/FieldSlot" }
         },
-        "notes": { "$ref": "weave-common.schema.json#/$defs/Annotations" }
+        "notes": {
+          "description": "이 subject 의 이 facet 전체에 대해 할 말. subject 와 무관한 지식은 템플릿 쪽 notes 에 둔다.",
+          "$ref": "weave-common.schema.json#/$defs/Annotations"
+        }
       }
     },
     "FieldSlot": {
@@ -43,9 +48,15 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "state": { "enum": ["filled", "empty"] },
+        "state": {
+          "description": "이 자리가 찼는지. 값의 것이다 — 템플릿은 자리가 선다는 것만 말하고 찼는지는 채운 쪽만 안다.",
+          "enum": ["filled", "empty"]
+        },
         "value": { "$ref": "#/$defs/Value" },
-        "notes": { "$ref": "weave-common.schema.json#/$defs/Annotations" },
+        "notes": {
+          "description": "이 값 하나에 대해 할 말.",
+          "$ref": "weave-common.schema.json#/$defs/Annotations"
+        },
         "byOption": {
           "description": "고르는 자리의 고를 것마다 따로 있는 값. 키는 그 자리의 option id 이고 빠짐도 덤도 없이 전부 덮는다.",
           "type": "object",
@@ -73,9 +84,15 @@
       "additionalProperties": false,
       "required": ["state"],
       "properties": {
-        "state": { "enum": ["filled", "empty"] },
+        "state": {
+          "description": "이 자리가 찼는지. filled 면 value 가 있고 empty 면 없다.",
+          "enum": ["filled", "empty"]
+        },
         "value": { "$ref": "#/$defs/Value" },
-        "notes": { "$ref": "weave-common.schema.json#/$defs/Annotations" }
+        "notes": {
+          "description": "이 값 하나에 대해 할 말. 왜 비었는지도 여기에 글로 적는다.",
+          "$ref": "weave-common.schema.json#/$defs/Annotations"
+        }
       },
       "allOf": [
         {
@@ -118,8 +135,14 @@
         "additionalProperties": false,
         "required": ["at", "value"],
         "properties": {
-          "at": { "$ref": "weave-common.schema.json#/$defs/Scalar" },
-          "value": { "$ref": "weave-common.schema.json#/$defs/Scalar" }
+          "at": {
+            "description": "가로축 위의 자리. 필드가 선언한 axis 의 타입으로 읽는다.",
+            "$ref": "weave-common.schema.json#/$defs/Scalar"
+          },
+          "value": {
+            "description": "그 자리의 값. 필드가 선언한 type 으로 읽는다.",
+            "$ref": "weave-common.schema.json#/$defs/Scalar"
+          }
         }
       }
     },

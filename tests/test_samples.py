@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import sys
 import unittest
 
@@ -22,7 +23,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SAMPLES = ROOT / "samples"
 
 sys.path.insert(0, str(ROOT))
-from tools import build_viewer, catalog  # noqa: E402
+from tools import build_viewer, catalog, reference  # noqa: E402
 
 
 def sample_dirs() -> list[pathlib.Path]:
@@ -148,7 +149,7 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
     def test_empty_values_and_an_all_blank_valueset_survive_in_the_samples(self) -> None:
         """샘플을 가르는 축은 아니지만 그 상태들은 여전히 보여야 한다.
 
-        「아직 분석하지 않았다」의 자리를 **전부 빈 값 한 벌 + 주석**이 이어받았다.
+        「아직 채우지 않았다」의 자리를 **전부 빈 값 한 벌 + 주석**이 이어받았다.
         """
         empties, blanks = [], []
         for folder in sample_dirs():
@@ -165,7 +166,7 @@ class SamplesCoverWhatTheViewerMustShow(unittest.TestCase):
                 self.assertTrue(said, "왜 비었는지 주석이 말해야 한다")
 
     def test_titles_are_names_and_hints_carry_the_sentence(self) -> None:
-        """**샘플이 본보기다.** 템플릿을 쓰는 Procedure 가 여기 말투를 따라 쓴다.
+        """**샘플이 본보기다.** 템플릿을 쓰는 쪽이 여기 말투를 따라 쓴다.
 
         제목은 **이름**(명사구)이고 「이것이 무엇인지」는 hint 가 진다. 제목이 설명까지
         지면 화면을 훑을 때 무엇에 대한 자리인지가 한눈에 안 들어온다.
@@ -226,7 +227,8 @@ class CatalogCannotDiverge(unittest.TestCase):
                 continue
             with self.subTest(element):
                 self.assertEqual(set(entry), {"compare", "draws", "blank", "note", "demo"})
-                self.assertIn(entry["compare"], {"overlay", "focus"})
+                # "chosen" 은 rows 처럼 facet 의 compare 필드가 스스로 고르는 element 다.
+                self.assertIn(entry["compare"], {"overlay", "focus", "chosen"})
 
     def test_prose_is_plain_text(self) -> None:
         """표에서는 살고 화면에서는 글자로 새는 markdown 을 막는다. 두 자리에 같게 나와야 한다."""
@@ -253,13 +255,19 @@ class CatalogCannotDiverge(unittest.TestCase):
         self.assertEqual(len({p["id"] for p in pages}), len(pages), "목차에 같은 id 가 둘 있다")
 
     def test_every_demo_passes_the_checker(self) -> None:
-        """보기가 실제로 쓸 수 있는 템플릿이어야 설명서 노릇을 한다."""
+        """보기가 실제로 쓸 수 있는 템플릿이어야 설명서 노릇을 한다.
+
+        보기 하나에 facet 이 여럿일 수 있다 — `rows` 처럼 compare 로 갈리는 갈래를
+        하나의 demo 로 함께 보이는 경우다. 다만 전부 그 카탈로그 항목의 element 여야 한다.
+        """
         for row in catalog.catalog():
             demo = row["demo"]
             with self.subTest(row["element"]):
                 result = check_template(demo["template"])
                 self.assertTrue(result.ok, [str(p) for p in result.problems])
-                self.assertEqual([f["element"] for f in demo["template"]["facets"]], [row["element"]])
+                elements = [f["element"] for f in demo["template"]["facets"]]
+                self.assertTrue(elements, "demo 에 facet 이 하나도 없다")
+                self.assertEqual(set(elements), {row["element"]})
                 for doc in demo["values"]:
                     result = check_valueset(doc, demo["template"])
                     self.assertTrue(result.ok, [str(p) for p in result.problems])
@@ -268,6 +276,83 @@ class CatalogCannotDiverge(unittest.TestCase):
         text = catalog.DOCS.read_text(encoding="utf-8")
         self.assertIn(catalog.MARK_START, text)
         self.assertIn(catalog.docs_table(), text)
+
+
+class ReferenceCountsEveryPlace(unittest.TestCase):
+    """**요소 전수 표가 자리 하나도 빠뜨리지 않는다.**
+
+    손으로 적은 목록은 칸이 늘 때 조용히 옛것이 된다. 그래서 표를 스키마에서 뽑고,
+    여기서는 **뽑기가 눈을 감지 않았는지**를 본다 — 훑기가 좁아지면 표가 줄어든 채로
+    통과해 버린다.
+    """
+
+    def _places(self) -> list[tuple[str, str]]:
+        """스키마에 있는 모든 자리. **손으로 세지 않는다.**"""
+        out = []
+
+        def walk(node: object, where: str) -> None:
+            if isinstance(node, dict):
+                for key, sub in node.get("properties", {}).items():
+                    out.append((where, key))
+                    walk(sub, f"{where}.{key}")
+                for key, sub in node.get("$defs", {}).items():
+                    walk(sub, f"{where}#{key}")
+                for key in ("items", "additionalProperties", "then", "not"):
+                    if isinstance(node.get(key), dict):
+                        walk(node[key], where)
+                for key in ("allOf", "anyOf", "oneOf"):
+                    for sub in node.get(key, []):
+                        walk(sub, where)
+
+        for name, doc in documents().items():
+            walk(doc, name)
+        return out
+
+    def test_every_place_is_in_the_table(self) -> None:
+        body = reference.body()
+        missing = sorted({key for _, key in self._places() if f"`{key}`" not in body})
+        self.assertEqual(missing, [], f"요소 전수 표에 없는 자리가 있다: {missing}")
+
+    def test_the_scan_would_notice_a_missing_place(self) -> None:
+        """**대조군.** 자리를 하나 빼 보고 표가 그것을 잃는지 본다."""
+        places = {key for _, key in self._places()}
+        for known in ("subjectLabel", "byOption", "previousFocus", "allowed", "compare"):
+            self.assertIn(known, places, "훑기가 자리를 못 센다")
+        slot = reference.SCHEMAS["weave-valueset.schema.json"]["$defs"]["FieldSlot"]["properties"]
+        gone = slot.pop("byOption")
+        try:
+            self.assertNotIn("`byOption`", reference.body(), "뺀 자리가 표에 남았다")
+        finally:
+            slot["byOption"] = gone
+
+    def test_a_place_without_a_description_stops_the_build(self) -> None:
+        """**대조군.** 설명이 없으면 멈춘다 — 빈 칸을 낸 표는 없는 것만 못하다."""
+        node = reference.SCHEMAS["weave-valueset.schema.json"]["properties"]["subjectLabel"]
+        said = node.pop("description")
+        try:
+            with self.assertRaises(SystemExit):
+                reference.body()
+        finally:
+            node["description"] = said
+
+    def test_the_section_is_generated_not_written(self) -> None:
+        text = catalog.DOCS.read_text(encoding="utf-8")
+        self.assertIn(reference.MARK_START, text)
+        self.assertIn(reference.body(), text)
+
+    def test_the_prose_tells_every_closed_vocabulary_value(self) -> None:
+        """**어휘 하나가 설명서 본문에서 통째로 빠지지 않는다.**
+
+        전수 표가 값을 나열하니 그 뒤는 늘 통과한다 — 그러므로 **표 앞의 글**만 본다.
+        실제로 그렇게 빠져 있었다: 타입 하나가 어휘에 들어온 뒤로 타입 표에 줄이 없었다.
+        """
+        text = catalog.DOCS.read_text(encoding="utf-8")
+        prose = text.partition(reference.MARK_START)[0]
+        defs = documents()["weave-common.schema.json"]["$defs"]
+        for vocabulary in ("Type", "Shape", "Element", "AnnotationKind"):
+            for value in defs[vocabulary]["enum"]:
+                with self.subTest(f"{vocabulary}.{value}"):
+                    self.assertIn(f"`{value}`", prose, f"설명서 본문이 {value} 를 말하지 않는다")
 
 
 class Vocabulary(unittest.TestCase):
@@ -288,6 +373,70 @@ class Vocabulary(unittest.TestCase):
             if needle in text:
                 hits.append(str(path.relative_to(ROOT)))
         self.assertEqual(hits, [], f"번역어가 남아 있다: {hits}")
+
+
+class MarkdownPointsAtRealPlaces(unittest.TestCase):
+    """**자리를 옮기면 그것을 가리키던 글이 같이 따라와야 한다.**
+
+    폴더 하나를 옮겨 보니 ``make all`` 이 코드의 경로는 전부 잡는데 **산문의 경로는 못 잡았다** —
+    ``AGENTS.md`` 의 레이아웃 표와 ``README.md`` 의 안내가 없는 파일을 가리켜도 통과했다.
+    """
+
+    LINK = re.compile(r"\]\(([^)\s]+)\)")
+    SKIP = {".git", ".venv", "__pycache__", "node_modules"}
+
+    # **적어 둔 명령도 자리를 가리킨다.** 링크만 재면 울타리 안의 경로는 아무도 안 보고,
+    # 폴더가 없어진 뒤에도 설명서의 **첫 명령**이 그대로 서 있는다. 실제로 그랬다.
+    # 명령은 저장소 뿌리에서 돈다 — 그래서 뿌리 기준으로 푼다. 맨 위 폴더 이름으로
+    # 시작하는 것만 경로로 본다: 폴더가 늘면 훑기도 같이 는다.
+    FENCE = re.compile(r"^```.*?^```", re.S | re.M)
+
+    @classmethod
+    def tops(cls) -> set[str]:
+        return {p.name for p in ROOT.iterdir() if p.is_dir() and not p.name.startswith(".")} - cls.SKIP
+
+    def test_every_path_in_a_command_resolves(self) -> None:
+        pattern = re.compile(r"(?<![\w/.-])((?:%s)/[\w./*-]+)" % "|".join(sorted(self.tops())))
+        dead = []
+        for path in ROOT.rglob("*.md"):
+            if set(path.relative_to(ROOT).parts) & self.SKIP:
+                continue
+            for fence in self.FENCE.findall(path.read_text(encoding="utf-8")):
+                for target in pattern.findall(fence):
+                    target = target.rstrip(".,)")
+                    if not list(ROOT.glob(target)):
+                        dead.append(f"{path.relative_to(ROOT)} → {target}")
+        self.assertEqual(dead, [], f"적어 둔 명령이 없는 자리를 가리킨다: {dead}")
+
+    def test_every_repo_link_resolves(self) -> None:
+        dead = []
+        for path in ROOT.rglob("*.md"):
+            if set(path.relative_to(ROOT).parts) & self.SKIP:
+                continue
+            for target in self.LINK.findall(path.read_text(encoding="utf-8")):
+                if target.startswith(("http://", "https://", "mailto:", "#")):
+                    continue
+                where = (path.parent / target.split("#", 1)[0]).resolve()
+                if not where.exists():
+                    dead.append(f"{path.relative_to(ROOT)} → {target}")
+        self.assertEqual(dead, [], f"가리키는 자리가 없다: {dead}")
+
+    def test_the_scan_would_notice(self) -> None:
+        """**대조군.** 위 판정이 죽은 링크를 실제로 무는지."""
+        self.assertEqual(self.LINK.findall("[글](../render) 과 [딴 것](docs/weave.md#자리)"),
+                         ["../render", "docs/weave.md#자리"])
+        self.assertFalse((ROOT / "render" / "nowhere.mjs").exists())
+
+        # 울타리 쪽도 같은 자로 잰다 — 무는지와, 안 물 것은 안 무는지.
+        pattern = re.compile(r"(?<![\w/.-])((?:%s)/[\w./*-]+)" % "|".join(sorted(self.tops())))
+        fences = self.FENCE.findall("앞\n```sh\npython -m weave template samples/nowhere/template.json\n```\n뒤\n")
+        self.assertEqual(len(fences), 1, "울타리를 못 찾는다")
+        self.assertEqual(pattern.findall(fences[0]), ["samples/nowhere/template.json"])
+        self.assertEqual(list(ROOT.glob("samples/nowhere/template.json")), [], "없는 자리가 있다")
+        self.assertTrue(list(ROOT.glob("samples/*/template.json")), "별표를 못 푼다")
+        # 경로가 아닌 것은 안 문다 — 옵션 값도 산출물 이름도 자리가 아니다.
+        self.assertEqual(pattern.findall("npx tool --cwd=schema -o weave_template.d.ts"), [])
+        self.assertIn("samples", self.tops())
 
 
 class BuiltViewerIsNotStale(unittest.TestCase):
@@ -407,7 +556,7 @@ class CountsAreNotWrittenOutInProse(unittest.TestCase):
         texts = self._texts()
         # 글이 사는 자리 — 문서·렌더·앱·아이콘·고정 케이스·도구가 전부 훑기에 들어야 한다.
         for name in ("AGENTS.md", "docs/weave.md", "catalog/elements.json",
-                     "viewer/render.mjs", "viewer/app.mjs", "viewer/icons.mjs",
+                     "render/render.mjs", "viewer/app.mjs", "render/icons.mjs",
                      "tests/viewer.test.mjs", "tests/test_samples.py", "tools/catalog.py"):
             self.assertIn(name, texts, f"훑기가 {name} 를 안 본다")
         self.assertGreater(len(texts), 30, "훑은 파일이 너무 적다")
@@ -426,11 +575,20 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
     「이 저장소에 그 이름이 없다」가 더는 참이 아니게 된다. 조각으로 이어 붙인다.
     """
 
-    HALVES = [
+    # **조각은 맨이름도 담지 않는다.** 아래 BARE 가 맨이름까지 막으므로, 조각 하나가
+    # 통째로 맨이름이면 이 파일이 스스로 걸린다 — 실제로 그런 조각이 하나 있었다.
+    NAMES = [
         ("claim", "-mobile"), ("claim", "-web"), ("claim", "-chat"),
-        ("claim", "-design-system"), ("eightytwo", "-judge"),
-        ("insurance", "-policy-search"), ("ip", "ix"),
+        ("claim", "-design", "-system"), ("eighty", "two", "-jud", "ge"),
+        ("insurance", "-policy", "-search"), ("ip", "ix"),
     ]
+
+    # **맨이름도 이름이다.** 전체 이름만 찾으면 앞을 뗀 한 마디가 그대로 지나간다 —
+    # 실제로 지나갔고, 저장소를 고치는 쪽이 읽는 글에 그 한 마디가 서 있었다.
+    # 여기 서는 것은 **그 저장소 말고는 가리킬 것이 없는 말**뿐이다. 흔한 말(web·chat·claim)은
+    # 두고 `NAMES` 가 전체 이름으로만 잡는다 — 막으면 `-webkit-` 같은 자리가 억울하게
+    # 빨개지고, 억울한 판정은 다음 사람이 걷어낸다.
+    BARE = [("jud", "ge"), ("eighty", "two"), ("design", "-system"), ("policy", "-search")]
     SKIP = {".git", ".venv", "__pycache__"}
     SUFFIXES = {".md", ".py", ".mjs", ".js", ".json", ".css", ".html", ".yml", ".txt", ""}
 
@@ -447,10 +605,24 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
                 continue
         return out
 
+    # **하는 일로 부르는 것도 이름으로 아는 것이다.** 우리 계약을 읽는 쪽이 지금 무슨 일을
+    # 하는지(뽑아낸다·판정한다)를 스키마의 글이 말하기 시작하면, 다른 쪽이 그 자리에 붙는
+    # 날 그 말이 거짓이 된다. 언어가 아는 역할은 **채우는 쪽**과 **그리는 쪽**까지다.
+    # 여기도 조각으로 잇는다 — 통째로 적으면 이 파일이 스스로 걸린다.
+    ROLE_HALVES = [("Proce", "dure"), ("추", "출"), ("분석", "에게")]
+
+    def test_no_consumer_role_is_named(self) -> None:
+        texts = self._texts()
+        for head, tail in self.ROLE_HALVES:
+            word = head + tail
+            hits = sorted(where for where, text in texts.items() if word in text)
+            with self.subTest(word):
+                self.assertEqual(hits, [], f"소비자가 하는 일로 소비자를 불렀다: {word} — {hits}")
+
     def test_no_sibling_repository_is_named(self) -> None:
         texts = self._texts()
-        for head, tail in self.HALVES:
-            name = head + tail
+        for pieces in self.NAMES + self.BARE:
+            name = "".join(pieces)
             hits = sorted(where for where, text in texts.items() if name in text)
             with self.subTest(name):
                 self.assertEqual(hits, [], f"형제 저장소 이름이 남아 있다: {name} — {hits}")
@@ -463,3 +635,110 @@ class TheRepoDoesNotKnowItsConsumersByName(unittest.TestCase):
         # 있는 것은 찾아낸다 — 같은 훑기로 확실히 있는 말을 집어 본다.
         found = [where for where, text in texts.items() if "primitive element" in text]
         self.assertGreater(len(found), 3, "훑기가 글을 못 읽는다")
+        # **조각이 스스로 맨이름이면** 이 파일이 걸려 판정 전체가 못 쓰게 된다.
+        for pieces in self.NAMES:
+            for piece in pieces:
+                for bare in self.BARE:
+                    self.assertNotIn("".join(bare), piece, "조각 하나가 이미 맨이름이다")
+
+
+class TheLanguageDoesNotSayWhatIsShown(unittest.TestCase):
+    """**언어는 그 자리가 무엇인지까지만 말한다. 무엇을 화면에 낼지는 렌더가 고른다.**
+
+    보험을 모르기로 한 것·소비자를 이름으로 모르기로 한 것과 같은 줄이다. 스키마의 설명
+    글이 「이것은 늘 보인다」·「이것은 화면에 안 나온다」라고 말하기 시작하면, 그 자리를
+    내기로 한 렌더가 나타나는 날 그 말이 거짓이 된다. **렌더는 우리가 아는 하나가 아니다.**
+
+    갈리는 선은 이렇다.
+
+    | 언어가 말한다 | 렌더가 고른다 |
+    | --- | --- |
+    | 그것이 무엇인가 — 「이 필드의 이름」·「이 필드의 설명」 | 그것을 내는가 |
+    | 어디에 매이는가 — 「필드에 매인다」·「표의 열 하나」 | 어느 자리에 내는가 |
+    | 값과의 관계 — 「값이 없어도 필요한 말이다」 | 늘 내는가, 열어야 나오는가 |
+
+    **그리는 법이 곧 뜻인 자리는 여기 걸리지 않는다** — `element`·`compare`·렌더 인자는
+    화면을 말하는 것이 제 일이다. 막는 것은 **글과 이름이 설 자리**가 제 렌더를 정하는 것뿐이라,
+    아래 어휘도 「보임」과 「자리」로만 골랐다.
+    """
+
+    # 자리를 정하거나 보임을 못 박는 말. 각각이 **렌더가 어떻게 다뤄야 하는가**다.
+    BANNED = [
+        "화면에 보인다", "화면에 나온다", "화면에 나오지", "화면에는 나오",
+        "화면에서", "화면에 쓸", "화면을 훑",
+        "늘 보인다", "늘 보이는", "늘 읽",
+        "제목 아래", "맨 위에", "머리에 선다", "옆에 선다",
+        "보여준다", "표시된다", "숨는다", "숨긴다",
+    ]
+
+    @staticmethod
+    def _walk(node: object, where: str) -> dict[str, str]:
+        """문서 하나에서 사람 글을 모은다 — `description` 과 `title`."""
+        out: dict[str, str] = {}
+
+        def go(node: object, where: str) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if key in ("description", "title") and isinstance(value, str):
+                        out[f"{where}/{key}"] = value
+                    else:
+                        go(value, f"{where}/{key}")
+            elif isinstance(node, list):
+                for i, value in enumerate(node):
+                    go(value, f"{where}[{i}]")
+
+        go(node, where)
+        return out
+
+    def _prose(self) -> dict[str, str]:
+        """스키마에 적힌 사람 글을 **전부** 모은다."""
+        out: dict[str, str] = {}
+        for path in sorted((ROOT / "schema").glob("*.json")):
+            out.update(self._walk(json.loads(path.read_text(encoding="utf-8")), path.name))
+        return out
+
+    def test_no_description_decides_what_the_render_shows(self) -> None:
+        prose = self._prose()
+        for word in self.BANNED:
+            hits = sorted(where for where, text in prose.items() if word in text)
+            with self.subTest(word):
+                self.assertEqual(hits, [], f"언어가 렌더의 선택을 미리 정했다: {word} — {hits}")
+
+    def test_the_scan_actually_reads_the_schemas(self) -> None:
+        """**대조군.** 훑는 자리가 비어 있거나 어휘가 안 물면 위 판정은 늘 통과한다."""
+        prose = self._prose()
+        self.assertGreater(len(prose), 60, "훑은 설명 글이 너무 적다")
+        for name in ("weave-template.schema.json", "weave-valueset.schema.json",
+                     "weave-render-args.schema.json", "weave-common.schema.json"):
+            self.assertTrue(any(where.startswith(name) for where in prose),
+                            f"훑기가 {name} 를 안 본다")
+        # 심은 것을 실제로 문다 — 결함을 **훑기가 지나가는 길**에 심고 같은 길로 잰다.
+        # 문장 안에 든 말을 그 문장에서 다시 찾으면 무엇을 심어도 참이라 아무것도 안 잰다.
+        for word in self.BANNED:
+            planted = self._walk(
+                {"$defs": {"Field": {"properties": {"hint": {"description": f"이 자리의 이름. {word}."}}}}},
+                "planted.json",
+            )
+            with self.subTest(word):
+                hits = [where for where, text in planted.items() if word in text]
+                self.assertEqual(hits, ["planted.json/$defs/Field/properties/hint/description"],
+                                 f"깊이 심은 것을 훑기가 못 본다: {word}")
+        # **설명 글이 아닌 자리는 안 본다.** 닫힌 어휘의 값까지 물면 쓸 수 있는 말이 줄어든다.
+        elsewhere = self._walk({"$defs": {"Kind": {"enum": ["화면에 보인다"], "const": "늘 보인다"}}}, "x.json")
+        self.assertEqual(elsewhere, {}, "설명 글이 아닌 자리를 글로 읽는다")
+
+    def test_the_hint_and_the_description_are_told_apart_by_depth(self) -> None:
+        """**둘이 갈리는 까닭이 형에 이미 있다.** 없어지면 칸 하나를 지워야 한다는 뜻이다.
+
+        독자로도 보임으로도 가르지 않기로 했으므로 남는 축은 **깊이**다. 그 축은 글이
+        아니라 형이 진다 — `hint` 는 한 줄이라 가리키기밖에 못 하고, `description` 은
+        단위와 경계를 끝까지 적을 만큼 길다. 그래서 하나는 선택이고 하나는 필수다.
+        """
+        field = documents()["weave-template.schema.json"]["$defs"]["Field"]
+        hint, desc = field["properties"]["hint"], field["properties"]["description"]
+        self.assertEqual(hint["maxLength"], 80, "한 줄을 넘기면 가리키는 말이 아니다")
+        self.assertRegex(hint["pattern"], r"\\n", "줄바꿈을 막지 않으면 한 줄이 아니다")
+        self.assertGreaterEqual(desc["maxLength"], 600, "끝까지 적을 자리가 없다")
+        self.assertGreater(desc["minLength"], 1, "한 마디로 때울 수 있으면 깊이가 축이 아니다")
+        self.assertIn("description", field["required"], "채울 수 없는 자리가 생긴다")
+        self.assertNotIn("hint", field["required"], "가리키는 말은 없어도 자리를 채운다")

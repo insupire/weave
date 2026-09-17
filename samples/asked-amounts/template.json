@@ -8,6 +8,7 @@
       "title": "요청 금액 대조",
       "hint": "요청한 가입금액과 이 제안서가 넣은 가입금액을 나란히 둔 것입니다.",
       "element": "rows",
+      "compare": "focus",
       "fields": [
         {
           "key": "asked-vs-given",
@@ -52,7 +53,8 @@
       "id": "by-cover",
       "title": "담보별 가입금액",
       "hint": "담보 하나가 한 줄에 서고 칸마다 제안서가 갈립니다.",
-      "element": "list",
+      "element": "rows",
+      "compare": "overlay",
       "fields": [
         {
           "key": "cover-list",

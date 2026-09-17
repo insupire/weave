@@ -13,7 +13,7 @@ relevant: setup
 	@changed="$$(git diff --name-only $(BASE)...HEAD; git diff --name-only; \
 	             git ls-files --others --exclude-standard)"; \
 	targets="$$(printf '%s\n' "$$changed" | python3 tools/relevant.py)"; \
-	if [ -z "$$targets" ]; then echo "관련 검사 없음 — 바뀐 자리가 문서뿐이다"; \
+	if [ -z "$$targets" ]; then echo "관련 검사 없음 — 바뀐 자리가 없다"; \
 	else echo "관련 검사: $$targets"; $(MAKE) $$targets; fi
 
 setup: .venv/.stamp
@@ -47,7 +47,7 @@ types:
 types-check:
 	python3 tools/emit_types.py --check
 
-# viewer/ 와 samples/ 를 의존성 없는 한 장으로 묶는다.
+# render/ 와 viewer/ 와 samples/ 를 의존성 없는 한 장으로 묶는다.
 viewer:
 	python3 tools/build_viewer.py
 

@@ -5,7 +5,7 @@
 //
 // **facet 종류를 아는 분기가 없다.** element 로만 고른다 (ELEMENTS 표).
 // **subject 마다 값 한 벌이 정확히 하나 있다.** 비어 있을 수 있고, 누가 자리에 서는지는 그 값 한 벌들이
-// 말한다 — 명단을 따로 받지 않는다. 아직 분석되지 않았다는 것도 특별한 상태가 아니라
+// 말한다 — 명단을 따로 받지 않는다. 아직 채워지지 않았다는 것도 특별한 상태가 아니라
 // **전부 비어 있는 값 한 벌과 주석**이 말한다.
 // **판정하지 않는다.** 스키마 판정의 정본은 Python 검사기 하나다. 여기서는 그리지 못하는
 // 자리를 표시하고 무엇이 이상한지 적기만 한다.
@@ -115,7 +115,7 @@ export function formatScalar(type, value) {
   return grouped(value);
 }
 
-export function formatValue(decl, value) {
+function formatValue(decl, value) {
   if (decl.shape === "single") return formatScalar(decl.type, value);
   if (decl.shape === "range") {
     if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
@@ -296,15 +296,23 @@ function drawCell(report, where, decl, value) {
 // 순위 문법을 스키마에서 뺀 대신 **비교를 시각이 맡는다**(glossary §3.14 원칙 7).
 // 다만 방법이 하나가 아니다 — **primitive element 마다 다르게 비교한다.**
 //
-// - **겹친다** (`line` · `list`) — 축이나 항목이라는 공유하는 자리가 있어 겹칠수록 읽을 것이 많아진다.
-// - **focus 를 따라 바뀐다** (`stat` · `facts` · `bars`) — 겹칠 자리가 없어 억지로 늘어놓는 대신
+// - **겹친다** (`line`, `rows` 가운데 `compare: "overlay"`) — 축이나 항목이라는 공유하는
+//   자리가 있어 겹칠수록 읽을 것이 많아진다.
+// - **focus 를 따라 바뀐다** (`stat` · `facts` · `bars` · `parts`, `rows` 가운데
+//   `compare: "focus"`) — 겹칠 자리가 없거나 한 subject 의 안쪽이라, 억지로 늘어놓는 대신
 //   **무엇을 그릴지 focus 가 고른다.** focus 가 강조 장치에서 고르는 자리로 커진다.
+//
+// **`rows` 만 둘 다 할 수 있다.** 항목을 겹쳐 편 표(옛 `list`)와 고른 것만 편 표(옛 `rows`)는
+// 같은 값(항목 배열)을 받는 같은 모양이라 — 라벨이 값이 가져온 항목이고 열이 그 항목의
+// 속성이라는 점이 같다 — element 를 둘로 가르는 대신 **facet 이 `compare` 로 스스로 말하게**
+// 줄였다. 「누가 그 항목을 갖고 누가 안 갖는지」(항목 × subject)라는 겹치는 길은
+// `compare: "overlay"` 가 그대로 잇는다 — 사라지지 않는다.
 //
 // **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
 // 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
 export const COMPARE = {
-  stat: "focus", facts: "focus", bars: "focus", rows: "focus", parts: "focus",
-  line: "overlay", list: "overlay",
+  stat: "focus", facts: "focus", bars: "focus", parts: "focus",
+  line: "overlay", rows: "chosen",
 };
 
 /**
@@ -416,9 +424,8 @@ function facts(ctx, facet) {
   return `<dl class="facts">${rows.join("")}</dl>`;
 }
 
-/** 크기 비교. **자는 subject 전체의 최대값으로 고정한다** — focus 를 옮겨도 길이를 견줄 수 있어야 한다. */
 /**
- * 크기 비교. **자는 facet 하나에 하나다.**
+ * 크기 비교. **자는 facet 하나에 하나이고 0 에 매여 있다.**
  *
  * 필드마다 따로 재면 3등급 1,000만이 1등급 3,000만보다 길어진다 — 그림이 거짓말을 한다.
  * 「한 facet 은 비교 축 하나여야 한다」가 이미 언어의 규칙이니 같은 축이면 같은 자를
@@ -427,6 +434,11 @@ function facts(ctx, facet) {
  * 자는 이 facet 의 **모든 필드 × 모든 subject × 모든 고를 것**을 덮는다. 무엇을 누르든
  * 자가 안 움직인다. 범위가 크게 다른 필드가 섞이면 작은 것이 짧아지는데, 그것이
  * **「이 facet 은 축이 둘이다」라는 신호**다 — 감추지 않는다.
+ *
+ * **그리고 자는 0 을 담는다.** 최대값만 보고 재면 음수가 길이를 얻지 못해 막대가 아예
+ * 서지 않고, 그 자리는 **값이 없는 자리와 똑같이 보인다** — 「0 이 아닌 값은 길이 0 이
+ * 되지 않는다」가 바로 거기서 깨진다. 0 이 자의 안쪽이면 그 자리에 기준선이 서고
+ * 막대는 그 선에서 자란다.
  */
 function bars(ctx, facet) {
   // **빈 자가 그대로 선다.** `.track` 이 이미 「막대가 여기까지 갈 수 있다」는 자리라
@@ -442,21 +454,38 @@ function bars(ctx, facet) {
   const numbers = facet.fields
     .flatMap((decl) => everyValue(ctx, facet, decl))
     .filter((value) => typeof value === "number" && Number.isFinite(value));
-  const top = numbers.length ? Math.max(...numbers) : 0;
+  // **자는 늘 0 을 담는다.** 0 을 자 밖에 두면 음수가 길이를 얻지 못해 막대가 아예 서지
+  // 않고, 그 자리가 **「값이 없다」와 구별되지 않는다** — `line` 의 세로축과 같은 규칙이다.
+  // 값이 전부 양수면 자의 왼쪽 끝이 그대로 0 이라 지금까지의 그림과 한 수도 달라지지 않는다.
+  const lo = Math.min(...numbers, 0);
+  const hi = Math.max(...numbers, 0);
+  const reach = hi - lo || 1;
+  const at = (value) => ((value - lo) / reach) * 100; // 자 위의 자리, %
+  const zero = at(0);
+  // **0 이 자의 끝이면 track 의 모서리가 이미 그 자리다** — 같은 자리에 두 번 긋지 않는다.
+  // 기준선은 사실의 기준이라 무채색이고 위아래를 가르지 않는다(스타일시트가 갖는다).
+  const rule = lo < 0 ? `<span class="zero" style="left:${zero.toFixed(4)}%"></span>` : "";
+  // 자는 facet 하나에 하나라 **값이 없는 줄에도 기준선이 선다** — 줄마다 자가 달라 보이면
+  // 그것이 곧 자가 움직이는 것이다.
+  const track = (inside) => `<span class="track">${inside}${rule}</span>`;
 
   const rows = facet.fields.map((decl) => {
     const where = `${facet.id}/${decl.key}/${subject.id}`;
     const { state, entry } = oneRead(ctx, facet, decl, subject);
-    let mark = '<span class="track"></span>';
+    let mark = track("");
     let text;
     if (state !== "filled") {
       text = missMark();
     } else if (typeof entry.value === "number" && Number.isFinite(entry.value)) {
       // 0 은 길이 0 이다 — 진짜 0 이니까. 0 이 아닌 값은 바닥을 둔다: 길이 0 으로
       // 사라지면 「값이 없다」와 구별이 안 된다. 정확한 수는 옆에 늘 적혀 있다.
-      const share = top > 0 && entry.value > 0 ? (entry.value / top) * 100 : 0;
-      const width = share > 0 ? Math.max(share, FLOOR) : 0;
-      mark = `<span class="track"><span class="fill" style="width:${width.toFixed(4)}%"></span></span>`;
+      // **막대는 0 에서 자란다** — 음수는 0 의 왼쪽으로, 양수는 오른쪽으로.
+      const span = Math.abs(at(entry.value) - zero);
+      const width = entry.value === 0 ? 0 : Math.max(span, FLOOR);
+      const left = entry.value < 0 ? Math.max(zero - width, 0) : zero;
+      mark = track(
+        `<span class="fill" style="left:${left.toFixed(4)}%;width:${width.toFixed(4)}%"></span>`,
+      );
       text = esc(formatScalar(decl.type, entry.value));
     } else {
       text = undrawable(ctx.report, where, "막대는 수를 요구한다", JSON.stringify(entry.value));
@@ -510,8 +539,9 @@ function line(ctx, facet) {
   // **그림도 표처럼 자기 상자에서 굴러간다.** 좁은 화면에서 통째로 줄이면 축 라벨과 선 끝
   // 이름이 읽을 수 없게 작아진다 — 그림은 제 크기를 지키고 상자가 굴러간다.
   // **자는 고를 것까지 덮는다.** 축을 옮겨도 그림의 자가 안 움직여야 앞뒤를 견줄 수 있다.
+  const measured = everyValue(ctx, facet, decl);
   const span = { x: [], y: [] };
-  for (const value of everyValue(ctx, facet, decl)) {
+  for (const value of measured) {
     if (!Array.isArray(value)) continue;
     for (const point of value) {
       const x = axisNumber(axis, point?.at);
@@ -524,7 +554,8 @@ function line(ctx, facet) {
   const body = ctx.subjects.length === 0
     ? `<div class="chart-scroll">${emptyAxes()}</div>`
     : series.length
-      ? `<div class="chart-scroll">${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span)}</div>`
+      ? `<div class="chart-scroll">` +
+        `${lineSvg(series, axis, decl.type, ctx.focus, ctx.prior, span, stopsOf(measured, axis))}</div>`
       : `<div class="blank">${missMark()}</div>`;
   return (
     // 값에 붙은 말은 다른 element 와 같은 자리에 — 라벨 옆 표시를 가리키면 열린다.
@@ -573,14 +604,57 @@ function emptyAxes() {
   );
 }
 
-function lineSvg(series, axis, type, focus, prior, span) {
+/**
+ * **이 facet 이 재는 축 자리.** 둘 이상의 값이 점을 세운 `at` 이다.
+ *
+ * 「여기에 값이 없다」를 값이 말하는 길은 **그 자리의 점을 안 내는 것**뿐이라, 그것을 읽으려면
+ * **자리가 먼저 있어야 한다.** 한 값에만 있는 `at` 은 그 값이 재어 온 표본 자리일 뿐이고
+ * 그것으로 남의 선을 끊으면 표본이 다른 subject 가 서로를 부순다. **둘 이상이 같은 자리에
+ * 서면** 그것은 이 facet 이 재는 자리이고, 거기 점이 없는 값은 그 자리를 **비운 것**이다.
+ *
+ * **간격으로 정하지 않는다.** `at` 이 고르지 않은 것은 정상이라 넓이는 아무것도 말하지 않는다.
+ */
+function stopsOf(values, axis) {
+  const count = new Map();
+  for (const value of values) {
+    if (!Array.isArray(value)) continue;
+    const mine = new Set();
+    for (const point of value) {
+      const x = axisNumber(axis, point?.at);
+      if (x !== null) mine.add(x);
+    }
+    for (const x of mine) count.set(x, (count.get(x) ?? 0) + 1);
+  }
+  return [...count.entries()].filter(([, seen]) => seen >= 2).map(([x]) => x);
+}
+
+/**
+ * **비운 자리를 사이에 둔 두 점은 잇지 않는다.** 이으면 직선이 그 자리를 메우고
+ * **없는 값이 있는 것처럼** 보인다 — 「값이 없는 것이 사라지면 안 된다」를 구간에도 건 것이다.
+ *
+ * **선 바깥은 구멍이 아니다.** 첫 점 앞과 마지막 점 뒤는 그 선이 닿지 않는 자리이지
+ * 메운 자리가 아니다. 끊는 것은 **선 안쪽**뿐이다.
+ */
+function segmentsOf(points, stops) {
+  const runs = [[points[0]]];
+  for (let i = 1; i < points.length; i += 1) {
+    const emptied = stops.some((x) => x > points[i - 1].x && x < points[i].x);
+    if (emptied) runs.push([]);
+    runs[runs.length - 1].push(points[i]);
+  }
+  return runs;
+}
+
+function lineSvg(series, axis, type, focus, prior, span, stops) {
   const { W, H, L, R, T, B } = CHART;
   // **그린 것이 아니라 잴 것 전부로 자를 잡는다** — 무엇을 눌러도 축이 안 움직인다.
   const edge = span.x.length ? span.x : series.flatMap((s) => s.points.map((p) => ({ x: p.x, at: p.at })));
   const xs = edge.map((one) => one.x);
   const ys = span.y.length ? span.y : series.flatMap((s) => s.points.map((p) => p.y));
   const xmin = Math.min(...xs), xmax = Math.max(...xs);
-  const ymin = Math.min(...ys, 0), ymax = Math.max(...ys);
+  // **자는 늘 0 을 담는다.** 0 이 자 밖에 있으면 음수가 그냥 작은 수로 읽히고,
+  // 「본전 자리가 여기다」를 그림이 말할 수 없다.
+  const ymin = Math.min(...ys, 0), ymax = Math.max(...ys, 0);
   const xspan = xmax - xmin || 1;
   const yspan = ymax - ymin || 1;
   const px = (x) => L + ((x - xmin) / xspan) * (W - L - R);
@@ -598,15 +672,30 @@ function lineSvg(series, axis, type, focus, prior, span) {
     `<text class="tick tx" x="${L}" y="${H - B + 18}">${esc(formatScalar(axis, firstAt))}</text>`,
     `<text class="tick tx end" x="${W - R}" y="${H - B + 18}">${esc(formatScalar(axis, lastAt))}</text>`,
   ];
+  // **0 이 어디인지 보인다.** 축선이 맨 아래에 서면 그것이 기준선처럼 읽혀, 0 이 그 위
+  // 어딘가에 있을 때 음수가 그냥 작은 수가 된다. 0 선은 **사실의 기준**이지 좋고 나쁨이
+  // 아니다 — 무채색이고, 위아래를 칠하지 않고, 어느 쪽이 나은지 말하지 않는다.
+  // 0 이 자의 바닥이면 축선이 이미 그 자리라 따로 긋지 않는다.
+  if (ymin < 0) {
+    const zero = py(0).toFixed(1);
+    parts.push(`<line class="zero" x1="${L}" y1="${zero}" x2="${W - R}" y2="${zero}"/>`);
+    // 자의 끝이 0 이면 그 눈금이 이미 0 을 적고 있다 — 같은 자리에 두 번 적지 않는다.
+    if (ymax > 0) {
+      parts.push(`<text class="tick ty" x="${L - 8}" y="${zero}">${esc(formatScalar(type, 0))}</text>`);
+    }
+  }
   series.forEach(({ subject, points }) => {
     const focused = subject.id === focus;
     // 무늬를 쓰지 않는다. 갈래는 상태에서 나오고 CSS 가 색·굵기·진하기로 함께 말한다.
     const klass = `series trace-${traceOf(subject.id, focus, prior)}${focused ? " is-focus" : ""}`;
-    if (points.length === 1) {
-      parts.push(`<circle class="${klass}" cx="${px(points[0].x).toFixed(1)}" cy="${py(points[0].y).toFixed(1)}" r="3.5"/>`);
-    } else {
-      const coords = points.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
-      parts.push(`<polyline class="${klass}" points="${coords}"/>`);
+    // **비운 자리에서 끊는다.** 한 토막만 남으면 점 하나로 선다 — 잇지 않은 것이 보인다.
+    for (const run of segmentsOf(points, stops)) {
+      if (run.length === 1) {
+        parts.push(`<circle class="${klass}" cx="${px(run[0].x).toFixed(1)}" cy="${py(run[0].y).toFixed(1)}" r="3.5"/>`);
+      } else {
+        const coords = run.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
+        parts.push(`<polyline class="${klass}" points="${coords}"/>`);
+      }
     }
     for (const p of points) {
       parts.push(`<circle class="dot ${klass}" cx="${px(p.x).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="2.5"/>`);
@@ -621,11 +710,24 @@ function lineSvg(series, axis, type, focus, prior, span) {
 }
 
 /**
+ * **항목을 표로 편다.** `compare` 가 갈래를 가른다 — 겹치지 않고 지금 보는 subject 것만
+ * 펴려면 `focus`, 항목 이름으로 겹쳐 subject 마다 열을 세우려면 `overlay`.
+ *
+ * 둘은 같은 값(항목 배열)을 받는 같은 모양이다 — 라벨이 값이 가져온 항목이고 열이 그
+ * 속성이라는 점이 같아, element 를 둘로 가르는 대신 facet 이 `compare` 로 스스로 말하게
+ * 줄였다. 「비교 방법은 이름으로 갈린다」는 이제 element 가 아니라 `compare` 값이 진다 —
+ * 한 facet 은 여전히 `compare` 하나만 가지므로 비교 축은 하나다.
+ */
+function rows(ctx, facet) {
+  return facet.compare === "overlay" ? rowsOverlay(ctx, facet) : rowsFocus(ctx, facet);
+}
+
+/**
  * 겹치는 좌표가 **항목**이다. subject 마다 표를 따로 두지 않고 목록을 하나로 합친다 —
  * 누가 무엇을 갖고 누가 안 갖는지가 한 줄에서 읽힌다.
  * 한 항목의 여러 열은 하나의 자로 줄일 수 없어 그 안에서만 나란히 선다 (원칙 9).
  */
-function list(ctx, facet) {
+function rowsOverlay(ctx, facet) {
   const decl = facet.fields[0];
   const columns = Array.isArray(decl.columns) ? decl.columns : [];
   if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
@@ -651,7 +753,7 @@ function list(ctx, facet) {
   const blanks = reads
     .filter(({ subject }) => unread.has(subject.id))
     .map(({ subject }) => ({ ...subject }));
-  // list 는 값이 subject 열에 선다 — 값 주석 표시는 그 열 머리로 간다.
+  // overlay 는 값이 subject 열에 선다 — 값 주석 표시는 그 열 머리로 간다.
   const label = `<div class="field-label">${esc(decl.label ?? decl.key)}${hintMark(decl)}</div>`;
   // **열은 subject 가 만든다.** 아직 아무도 없으니 키 열만 서고 그 옆 한 칸이
   // 「subject 가 오면 여기에 한 열씩 선다」는 자리로 비어 있는다. 이름을 지어내지 않는다.
@@ -712,13 +814,10 @@ function list(ctx, facet) {
 }
 
 /**
- * **고른 subject 의 항목을 행으로 편다.** `list` 와 같은 값(항목 배열)을 받지만 비교하는
- * 법이 다르다 — `list` 는 여럿을 한 표에 겹치고, `rows` 는 지금 보고 있는 하나만 편다.
- *
- * 둘을 한 element 로 두고 템플릿이 고르게 하면 「비교 방법은 primitive element 가 정한다」가
- * 깨진다. 같은 이름이 화면마다 다르게 굴면 이름만 보고 알 수 없다. 그래서 이름을 가른다.
+ * **고른 subject 의 항목을 행으로 편다.** `rowsOverlay` 와 같은 값(항목 배열)을 받지만
+ * 겹치지 않고 지금 보고 있는 하나만 편다 — `compare: "focus"` 일 때다.
  */
-function rows(ctx, facet) {
+function rowsFocus(ctx, facet) {
   const decl = facet.fields[0];
   const columns = Array.isArray(decl.columns) ? decl.columns : [];
   if (columns.length === 0) return `<div class="blank">${missMark()}</div>`;
@@ -824,7 +923,7 @@ function parts(ctx, facet) {
   );
 }
 
-export const ELEMENTS = { stat, facts, bars, line, list, rows, parts };
+export const ELEMENTS = { stat, facts, bars, line, rows, parts };
 
 // ---------------------------------------------------------------- 페이지
 
@@ -917,7 +1016,7 @@ export function renderView({
   }
 
   // 자리는 값 한 벌들이 정한다. 차례는 넘어온 차례이고 배치일 뿐 우열이 아니다.
-  // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 무늬다.
+  // **자리에 색을 붙이지 않는다.** subject 를 가르는 것은 이름이고, 겹치는 선은 보는 상태로 갈린다.
   const seats = [...byId.entries()].map(([id, doc]) => ({ id, name: doc.subjectLabel || id }));
 
   // **고르는 자리.** 무엇을 고를 수 있는지는 템플릿이 말한다 — 골격이라 subject 마다
@@ -960,7 +1059,7 @@ export function renderView({
    * 없으니 골격이 달라질 일도 없고, 남는 것은 빈 카드뿐이다.
    *
    * 다만 **말이 붙어 있으면 선다.** 「이 제안서엔 이 항목이 없습니다」라고 적힌 카드는
-   * 빈 카드가 아니다 — 전부 비어 있는 값 한 벌이 「아직 분석하지 않았다」를 말하는 길이
+   * 빈 카드가 아니다 — 전부 비어 있는 값 한 벌이 「아직 채우지 않았다」를 말하는 길이
    * 그것이라, 말까지 지우면 그 자리가 사라진다.
    *
    * subject 가 하나도 없으면 이 규칙을 쓰지 않는다. 견줄 대상이 없는 것과 전원이 빈 것은

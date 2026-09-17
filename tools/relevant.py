@@ -34,14 +34,17 @@ RULES: dict[str, tuple[str, ...]] = {
     "tests/viewer.test.mjs": ("viewer-test",),
     "tests/fixtures/": ("test", "check"),
     "tests/": ("test",),
+    "render/": ("test", "viewer-check", "viewer-test"),
     "viewer/": ("test", "viewer-check", "viewer-test"),
     "viewer.html": ("viewer-check",),
     "samples/": ("test", "check", "viewer-check", "viewer-test"),
     "catalog/": ("test", "check", "viewer-check", "viewer-test"),
     "harness.json": ("test",),  # 매니페스트가 참인지는 tests/test_harness.py 가 본다
-    "docs/": (),
-    "AGENTS.md": (),
-    "README.md": (),
+    # 산문도 자리를 가리킨다 — `make test` 가 가리키는 자리가 사는지 본다.
+    # 전체 게이트는 안 돈다: 문서 한 줄에 전부 도는 것이 애초에 막으려던 것이다.
+    "docs/": ("test",),
+    "AGENTS.md": ("test",),
+    "README.md": ("test",),
 }
 
 _BY_LENGTH = sorted(RULES, key=len, reverse=True)

@@ -20,7 +20,7 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
     },
     "Type": {
-      "description": "값의 타입. 렌더는 이 여덟에만 의존한다.",
+      "description": "값의 타입. 렌더는 이 닫힌 목록에만 의존한다.",
       "enum": ["number", "money", "ratio", "multiple", "duration", "age", "boolean", "text", "date"]
     },
     "NumericType": {
@@ -40,8 +40,12 @@
       "enum": ["single", "range", "series", "items"]
     },
     "Element": {
-      "description": "primitive element. 렌더가 구현하는 것은 이 일곱이다.",
-      "enum": ["stat", "facts", "bars", "line", "list", "rows", "parts"]
+      "description": "primitive element. 렌더가 구현하는 것은 이 목록뿐이다.",
+      "enum": ["stat", "facts", "bars", "line", "rows", "parts"]
+    },
+    "Compare": {
+      "description": "`rows` 가 항목을 겹칠지 고른 것만 펼지. `focus` 는 지금 보는 subject 의 항목만 행으로 펴고, `overlay` 는 항목을 이름으로 겹쳐 subject 마다 열을 세운다. rows 만 갖는다 — 한 facet 은 비교 축 하나이므로 이 값이 그 축을 말한다.",
+      "enum": ["focus", "overlay"]
     },
     "Number": {
       "description": "숫자. 기본 단위 없음.",
@@ -94,15 +98,20 @@
       "enum": ["quote", "tip", "note", "caution"]
     },
     "Annotation": {
+      "description": "주석 하나. 갈래와 글뿐이고 확실성 수치는 없다.",
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "text"],
       "properties": {
         "kind": { "$ref": "#/$defs/AnnotationKind" },
-        "text": { "type": "string", "minLength": 1, "maxLength": 600 }
+        "text": {
+          "description": "주석의 글. 한 문단까지다 — 더 길어지면 값이 아니라 문서가 된다.",
+          "type": "string", "minLength": 1, "maxLength": 600
+        }
       }
     },
     "Annotations": {
+      "description": "한 자리에 붙는 주석들. 템플릿 쪽에 서면 저작자의 말이고 값 한 벌 쪽에 서면 그 subject 에 대한 말이다.",
       "type": "array",
       "maxItems": 8,
       "items": { "$ref": "#/$defs/Annotation" }

@@ -9,7 +9,7 @@ export const PAGES = [
     "lead": "분석뷰를 선언하는 스키마와 그것을 그리는 참조 구현이다. 보험을 모른다.",
     "paragraphs": [
       "분석 템플릿 하나에 subject 마다 값 한 벌이 주입되어 분석뷰가 된다. 렌더는 여러 벌을 한 화면에 그리되 나란히 늘어놓지 않고 한 좌표에 겹친다 — 순위를 문장으로 말하지 않는 대신 비교를 시각이 맡기로 한 설계다. 겹칠 수 없는 것(참거짓·글)만 나란히 가른다.",
-      "템플릿은 facet 의 배열이고, facet 하나는 primitive element 하나와 그것이 요구하는 필드들이다. 필드 선언에 붙은 설명이 곧 분석에게 주는 추출 지시다. 무엇을 그릴지와 무엇을 찾을지를 한 문서가 함께 말한다.",
+      "템플릿은 facet 의 배열이고, facet 하나는 primitive element 하나와 그것이 요구하는 필드들이다. 필드 선언에 붙은 설명이 그 필드가 무엇을 담는 자리인지 말한다. 무엇을 그릴지와 무엇이 들어갈지를 한 문서가 함께 말한다.",
       "순위·등급·점수·경고색·확실성 수치를 표현할 문법이 없다. 객관성을 문서가 아니라 스키마로 강제하는 자리다. 문법에 없으므로 나올 수 없다.",
       "왼쪽에서 primitive element 를 하나씩 보고, 플레이그라운드에서 직접 고쳐 가며 화면이 어떻게 되는지 볼 수 있다."
     ]
@@ -364,7 +364,7 @@ export const PAGES = [
     "compareSaid": "겹친다",
     "draws": "축 위의 변화. subject 마다 선 하나가 한 좌표에 겹친다",
     "blank": "두 축과 그림이 들어올 면만 선다. 값이 없으면 눈금도 없고 꺾은선도 없다 — 눈금을 지어내면 그것이 가짜 값이고, 고정된 꺾은선 하나는 눈금이 없어도 추세로 읽힌다. 그 면 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
-    "note": "축이 둘이라 선끼리 갈린다. 누가 누구인지는 선 끝의 이름이 말해 아래에 범례를 두지 않고, 무엇을 보는 중인지는 지금·직전·나머지 세 갈래의 색과 굵기가 말한다. 고른 subject 가 선을 못 세웠을 때만 축 아래가 그 사실을 적는다. 가로축은 age·date·duration·number 만 된다",
+    "note": "축이 둘이라 선끼리 갈린다. 누가 누구인지는 선 끝의 이름이 말해 아래에 범례를 두지 않고, 무엇을 보는 중인지는 지금·직전·나머지 세 갈래의 색과 굵기가 말한다. 고른 subject 가 선을 못 세웠을 때만 축 아래가 그 사실을 적는다. 둘 이상의 값이 함께 선 축 자리를 한 값만 비우면 그 자리에서 선을 끊는다 — 이으면 없는 값이 있는 것처럼 보인다. 자는 늘 0 을 담고 0 이 자의 바닥이 아니면 그 자리에 기준선이 선다 — 본전 자리를 말하는 것이지 우열이 아니다. 가로축은 age·date·duration·number 만 된다",
     "fields": "1",
     "shapes": [
       "series"
@@ -471,15 +471,15 @@ export const PAGES = [
     }
   },
   {
-    "id": "list",
+    "id": "rows",
     "kind": "element",
     "group": "primitive element",
-    "title": "list",
-    "compare": "overlay",
-    "compareSaid": "겹친다",
-    "draws": "반복되는 항목을 하나로 합친다. 같은 항목이 한 줄에 서고 subject 가 그 줄에서 갈린다",
-    "blank": "키 열이 서고 그 옆 한 칸이 subject 가 올 자리로 비어 있는다. 열은 subject 가 만든다. 열 머리와 칸이 값의 생김새를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
-    "note": "누가 그 항목을 갖고 누가 안 갖는지가 한 줄에서 읽힌다. 겹치지 않고 고른 것만 펴려면 rows 다. 목록을 못 읽어 모르는 것은 표기(—)로, 읽었고 그 항목이 없다는 아는 사실은 글(없음)로 선다",
+    "title": "rows",
+    "compare": "chosen",
+    "compareSaid": "facet 의 compare 로 고른다(focus·overlay)",
+    "draws": "항목을 표로 편다. compare 가 고른 것만 펼지 겹칠지를 가른다 — focus 는 고른 subject 의 항목만 행으로 펴고, overlay 는 항목 이름으로 겹쳐 subject 마다 열을 세운다",
+    "blank": "focus 는 열 머리가 전부 선다 — 열은 템플릿이 선언한 것이라 subject 없이도 안다. overlay 는 키 열이 서고 그 옆 한 칸이 subject 가 올 자리로 비어 있는다 — 열은 subject 가 만든다. 어느 쪽이든 칸은 값의 생김새를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
+    "note": "같은 값(항목 배열)을 받는 같은 모양이라 겹치는 표와 하나만 펴는 표를 element 로 가르지 않고 facet 의 compare 가 스스로 말한다. overlay 는 누가 그 항목을 갖고 누가 안 갖는지를 한 줄에서 읽는다 — 목록을 못 읽어 모르는 것은 표기(—)로, 읽었고 그 항목이 없다는 아는 사실은 글(없음)로 선다",
     "fields": "1",
     "shapes": [
       "items"
@@ -499,14 +499,57 @@ export const PAGES = [
     "demo": {
       "template": {
         "weave": "1",
-        "id": "demo-list",
-        "title": "list 보기",
+        "id": "demo-rows",
+        "title": "rows 보기",
         "facets": [
           {
             "id": "riders",
+            "title": "담보",
+            "hint": "고른 제안서에 붙은 담보를 설계안 순서 그대로 편 것입니다.",
+            "element": "rows",
+            "compare": "focus",
+            "fields": [
+              {
+                "key": "rider-list",
+                "label": "담보 목록",
+                "shape": "items",
+                "description": "보장내역 표에 적힌 담보를 적힌 순서 그대로 하나씩 담는다.",
+                "columns": [
+                  {
+                    "key": "name",
+                    "label": "담보",
+                    "type": "text",
+                    "description": "설계안에 적힌 이름 그대로 담는다."
+                  },
+                  {
+                    "key": "amount",
+                    "label": "가입금액",
+                    "type": "money",
+                    "description": "그 담보의 가입금액을 원 단위 정수로 담는다."
+                  },
+                  {
+                    "key": "premium",
+                    "label": "월 보험료",
+                    "type": "money",
+                    "description": "그 담보 몫의 월 보험료를 원 단위 정수로 담는다."
+                  }
+                ],
+                "hint": "설계안에 적힌 순서 그대로예요."
+              }
+            ],
+            "notes": [
+              {
+                "kind": "note",
+                "text": "고른 제안서의 것만 폅니다. 나란히 견주려면 아래 특약처럼 compare 를 overlay 로 둡니다."
+              }
+            ]
+          },
+          {
+            "id": "shared-riders",
             "title": "특약",
             "hint": "제안서마다 어떤 특약을 넣었는지 나란히 둔 것입니다.",
-            "element": "list",
+            "element": "rows",
+            "compare": "overlay",
             "fields": [
               {
                 "key": "rider-list",
@@ -547,138 +590,6 @@ export const PAGES = [
       "values": [
         {
           "weave": "1",
-          "templateId": "demo-list",
-          "subjectId": "a",
-          "subjectLabel": "가",
-          "facets": {
-            "riders": {
-              "fields": {
-                "rider-list": {
-                  "state": "filled",
-                  "value": [
-                    {
-                      "name": "암진단비(유사암제외)",
-                      "amount": 30000000,
-                      "renews": false
-                    },
-                    {
-                      "name": "질병입원일당",
-                      "amount": 30000,
-                      "renews": true
-                    },
-                    {
-                      "name": "상해수술비",
-                      "amount": 300000
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          "weave": "1",
-          "templateId": "demo-list",
-          "subjectId": "b",
-          "subjectLabel": "나",
-          "facets": {
-            "riders": {
-              "fields": {
-                "rider-list": {
-                  "state": "filled",
-                  "value": [],
-                  "notes": [
-                    {
-                      "kind": "tip",
-                      "text": "특약 없이 주계약 하나로만 된 설계입니다."
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      ]
-    }
-  },
-  {
-    "id": "rows",
-    "kind": "element",
-    "group": "primitive element",
-    "title": "rows",
-    "compare": "focus",
-    "compareSaid": "focus 를 따라 바뀐다",
-    "draws": "고른 subject 의 항목을 행으로 편다. 겹치지 않는다",
-    "blank": "열 머리가 전부 선다. 열은 템플릿이 선언한 것이라 subject 없이도 안다. 칸마다 그 열의 생김새를 따르고, 그 위로 빛줄기를 지나가게 하는 것은 뷰어다 — 산출물은 자리만 낸다",
-    "note": "list 와 같은 값을 받지만 비교하는 법이 다르다 — list 는 여럿을 한 표에 겹치고 rows 는 지금 보고 있는 하나만 편다. 이름만 보고 어느 쪽인지 알 수 있게 갈라 두었다",
-    "fields": "1",
-    "shapes": [
-      "items"
-    ],
-    "types": [
-      "number",
-      "money",
-      "ratio",
-      "multiple",
-      "duration",
-      "age",
-      "boolean",
-      "text",
-      "date"
-    ],
-    "everyType": true,
-    "demo": {
-      "template": {
-        "weave": "1",
-        "id": "demo-rows",
-        "title": "rows 보기",
-        "facets": [
-          {
-            "id": "riders",
-            "title": "담보",
-            "hint": "고른 제안서에 붙은 담보를 설계안 순서 그대로 편 것입니다.",
-            "element": "rows",
-            "fields": [
-              {
-                "key": "rider-list",
-                "label": "담보 목록",
-                "shape": "items",
-                "description": "보장내역 표에 적힌 담보를 적힌 순서 그대로 하나씩 담는다.",
-                "columns": [
-                  {
-                    "key": "name",
-                    "label": "담보",
-                    "type": "text",
-                    "description": "설계안에 적힌 이름 그대로 담는다."
-                  },
-                  {
-                    "key": "amount",
-                    "label": "가입금액",
-                    "type": "money",
-                    "description": "그 담보의 가입금액을 원 단위 정수로 담는다."
-                  },
-                  {
-                    "key": "premium",
-                    "label": "월 보험료",
-                    "type": "money",
-                    "description": "그 담보 몫의 월 보험료를 원 단위 정수로 담는다."
-                  }
-                ],
-                "hint": "설계안에 적힌 순서 그대로예요."
-              }
-            ],
-            "notes": [
-              {
-                "kind": "note",
-                "text": "고른 제안서의 것만 폅니다. 나란히 견주려면 list 를 씁니다."
-              }
-            ]
-          }
-        ]
-      },
-      "values": [
-        {
-          "weave": "1",
           "templateId": "demo-rows",
           "subjectId": "a",
           "subjectLabel": "가",
@@ -705,6 +616,29 @@ export const PAGES = [
                   ]
                 }
               }
+            },
+            "shared-riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [
+                    {
+                      "name": "암진단비(유사암제외)",
+                      "amount": 30000000,
+                      "renews": false
+                    },
+                    {
+                      "name": "질병입원일당",
+                      "amount": 30000,
+                      "renews": true
+                    },
+                    {
+                      "name": "상해수술비",
+                      "amount": 300000
+                    }
+                  ]
+                }
+              }
             }
           }
         },
@@ -722,6 +656,20 @@ export const PAGES = [
                     {
                       "kind": "caution",
                       "text": "보장내역 표가 사진에 담기지 않았습니다."
+                    }
+                  ]
+                }
+              }
+            },
+            "shared-riders": {
+              "fields": {
+                "rider-list": {
+                  "state": "filled",
+                  "value": [],
+                  "notes": [
+                    {
+                      "kind": "tip",
+                      "text": "특약 없이 주계약 하나로만 된 설계입니다."
                     }
                   ]
                 }
@@ -867,7 +815,7 @@ export const PAGES = [
     "lead": "템플릿과 값을 고치면 분석뷰가 그 자리에서 바뀐다.",
     "paragraphs": [
       "여기는 JSON 으로 읽히는지만 본다. 스키마 판정은 검사기가 한다 — python -m weave template tpl.json · python -m weave values --template tpl.json values-a.json · python -m weave args args.json",
-      "subject 를 더하고 빼는 것은 화면의 동작이다. 더하면 전부 비어 있는 값 한 벌이 생긴다 — subject 마다 값 한 벌이 정확히 하나 있고, 아직 분석하지 않았다는 것도 빈 값과 주석이 말한다."
+      "subject 를 더하고 빼는 것은 화면의 동작이다. 더하면 전부 비어 있는 값 한 벌이 생긴다 — subject 마다 값 한 벌이 정확히 하나 있고, 아직 채우지 않았다는 것도 빈 값과 주석이 말한다."
     ]
   }
 ];
