@@ -20,6 +20,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 from relevant import ALL, RULES, targets_for  # noqa: E402
+from version_lock import current, locked, verdict  # noqa: E402
 
 MANIFEST = json.loads((ROOT / "harness.json").read_text(encoding="utf-8"))
 MAKEFILE = (ROOT / "Makefile").read_text(encoding="utf-8")
@@ -78,12 +79,15 @@ class ThePickerPicks(unittest.TestCase):
 
     def test_it_picks_only_what_the_change_needs(self) -> None:
         cases = {
-            "weave/check.py": ["test", "check"],
+            "weave/check.py": ["test", "check", "install-check"],
             "render/render.mjs": ["test", "viewer-check", "viewer-test"],
             "generated/weave-vocab.ts": ["types-check"],
             "tools/workspace-guard.mjs": ["guard-test"],
             ".claude/settings.json": ["guard-test"],
             "tests/fixtures/ok/template.json": ["test", "check"],
+            "pyproject.toml": ["install-check"],
+            "schema-lock.json": ["version-check"],
+            "weave/__init__.py": ["test", "version-check", "check", "install-check"],
         }
         for path, expected in cases.items():
             with self.subTest(path):
@@ -106,14 +110,14 @@ class ThePickerPicks(unittest.TestCase):
 
     def test_it_unions_and_keeps_the_makefile_order(self) -> None:
         picked = targets_for(["generated/weave-vocab.ts", "weave/check.py", "viewer.html"])
-        self.assertEqual(picked, ["test", "types-check", "check", "viewer-check"])
+        self.assertEqual(picked, ["test", "types-check", "check", "viewer-check", "install-check"])
 
     def test_it_never_picks_a_verb_that_rewrites_the_tree(self) -> None:
         """고르는 것은 확인하는 동사뿐이다. 검사를 부르는 자리가 나무를 고치면 무엇을 쟀는지 모른다."""
         for targets in list(RULES.values()) + [ALL]:
             for target in targets:
                 with self.subTest(target):
-                    self.assertNotIn(target, {"viewer", "types", "setup", "clean"})
+                    self.assertNotIn(target, {"viewer", "types", "version", "setup", "clean"})
 
     def test_every_target_it_can_name_is_a_real_target(self) -> None:
         for target in ALL:
@@ -125,6 +129,45 @@ class ThePickerPicks(unittest.TestCase):
         for place in RULES:
             with self.subTest(place):
                 self.assertTrue((ROOT / place.rstrip("/")).exists(), place)
+
+
+class TheVersionIsTiedToTheSchema(unittest.TestCase):
+    """**스키마가 바뀌면 판이 올라야 한다**(사람 결정 2026-09-20).
+
+    판은 소비자가 고정하는 자리다. 형상이 바뀌었는데 판이 그대로면 고정한 쪽은 판이
+    안 움직인 것을 보고 「안 바뀌었다」고 읽는다 — 조용히 낡는 자리가 정확히 거기다.
+
+    **판정이 무는 것과 지나 보내는 것을 함께 본다.** 늘 막는 판정과 아무것도 안 막는
+    판정은 둘 다 고장이고, 통과만으로는 구별되지 않는다.
+    """
+
+    WAS = {"version": "0.1.0", "schema": {"a.json": "aaa", "b.json": "bbb"}}
+
+    def test_the_tree_matches_the_lock(self) -> None:
+        self.assertIsNone(verdict(current(), locked()))
+
+    def test_it_counts_only_the_schema(self) -> None:
+        """판이 매다는 것은 소비자가 기대는 형상뿐이다 — 잠근 자리에 다른 폴더가 없다."""
+        names = set(locked()["schema"])
+        self.assertEqual(names, {path.name for path in (ROOT / "schema").glob("*.json")})
+        self.assertTrue(names, "잠근 것이 없으면 늘 같아 보인다")
+
+    def test_a_schema_change_without_a_bump_is_blocked(self) -> None:
+        now = {"version": "0.1.0", "schema": {"a.json": "CHANGED", "b.json": "bbb"}}
+        reason = verdict(now, self.WAS)
+        self.assertIsNotNone(reason)
+        self.assertIn("a.json", reason, reason)
+        self.assertNotIn("b.json", reason, "안 바뀐 자리를 지목한다")
+
+    def test_a_schema_change_with_a_bump_passes_once_it_is_relocked(self) -> None:
+        """**정상 사례.** 판을 함께 올리고 잠그면 지나간다 — 안 그러면 아무도 판을 못 올린다."""
+        bumped = {"version": "0.2.0", "schema": {"a.json": "CHANGED", "b.json": "bbb"}}
+        self.assertIsNotNone(verdict(bumped, self.WAS), "잠그기 전에는 갈린 채다")
+        self.assertIsNone(verdict(bumped, bumped))
+
+    def test_a_bump_without_relocking_is_blocked_too(self) -> None:
+        """판만 올리고 잠그지 않으면 잠근 것이 거짓말을 한다."""
+        self.assertIsNotNone(verdict({**self.WAS, "version": "0.2.0"}, self.WAS))
 
 
 if __name__ == "__main__":

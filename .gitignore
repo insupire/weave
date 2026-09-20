@@ -1,3 +1,5 @@
 .venv/
 __pycache__/
 *.pyc
+# uv 로 깐 환경이 남기는 것. 의존 정본은 pyproject.toml 하나다 — 두 자리가 되면 갈린다.
+uv.lock

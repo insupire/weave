@@ -3,9 +3,9 @@ PY := .venv/bin/python
 BASE ?= origin/develop
 
 .PHONY: all relevant setup test check types types-check viewer viewer-check \
-        node-check viewer-test guard-test clean
+        node-check viewer-test guard-test version version-check install-check clean
 
-all: test types-check check viewer-check viewer-test guard-test
+all: test types-check version-check check viewer-check viewer-test guard-test install-check
 
 # 변경에 필요한 검사만. 고르는 표의 정본은 tools/relevant.py 이고 AGENTS.md 가 그것을 사람 말로 적는다.
 # **확인하는 동사만 고른다** — 산출물을 다시 쓰는 viewer·types 는 사람이 부른다.
@@ -47,6 +47,15 @@ types:
 types-check:
 	python3 tools/emit_types.py --check
 
+# **스키마가 바뀌었는데 판이 그대로인가.** 판이 매다는 것은 소비자가 기대는 형상뿐이라
+# schema/*.json 만 센다 — 설명서나 카탈로그로 판이 움직이면 그 판은 아무것도 약속하지 않는다.
+version-check:
+	python3 tools/version_lock.py --check
+
+# 갈렸으면 다시 쓴다. 판을 안 올렸으면 쓰지 않고 그 사실을 말한다.
+version:
+	python3 tools/version_lock.py
+
 # render/ 와 viewer/ 와 samples/ 를 의존성 없는 한 장으로 묶는다.
 viewer:
 	python3 tools/build_viewer.py
@@ -69,6 +78,16 @@ viewer-test: node-check
 # 작업공간 가드가 무엇을 물고 무엇을 지나 보내는가.
 guard-test: node-check
 	node --test tests/workspace-guard.test.mjs
+
+# **설치본만으로 검사기가 도는가.** 저장소 안에서 도는 것은 든 쪽이 겪는 것이 아니다 —
+# 정본 스키마가 설치본에 함께 실리지 않으면 여기서 멈춘다.
+# venv 는 **나무 밖**에 세운다: 안에 두면 저장소를 훑는 판정들이 남의 패키지까지 함께 읽는다.
+# 받아 올 것이 있어 망 없이는 돌지 않는다. 조용히 건너뛰지 않는다 — 통과와 구별되지 않는다.
+install-check:
+	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
+	  python3 -m venv "$$tmp/venv" && \
+	  "$$tmp/venv/bin/pip" install --quiet . && \
+	  cd "$$tmp" && "$$tmp/venv/bin/python" $(CURDIR)/tests/install_probe.py
 
 clean:
 	rm -rf .venv
