@@ -3,9 +3,9 @@ PY := .venv/bin/python
 BASE ?= origin/develop
 
 .PHONY: all relevant setup test check types types-check viewer viewer-check \
-        node-check viewer-test guard-test install-check clean
+        node-check viewer-test guard-test version version-check install-check clean
 
-all: test types-check check viewer-check viewer-test guard-test install-check
+all: test types-check version-check check viewer-check viewer-test guard-test install-check
 
 # 변경에 필요한 검사만. 고르는 표의 정본은 tools/relevant.py 이고 AGENTS.md 가 그것을 사람 말로 적는다.
 # **확인하는 동사만 고른다** — 산출물을 다시 쓰는 viewer·types 는 사람이 부른다.
@@ -46,6 +46,15 @@ types:
 # generated/ 가 스키마와 갈렸는지 본다.
 types-check:
 	python3 tools/emit_types.py --check
+
+# **스키마가 바뀌었는데 판이 그대로인가.** 판이 매다는 것은 소비자가 기대는 형상뿐이라
+# schema/*.json 만 센다 — 설명서나 카탈로그로 판이 움직이면 그 판은 아무것도 약속하지 않는다.
+version-check:
+	python3 tools/version_lock.py --check
+
+# 갈렸으면 다시 쓴다. 판을 안 올렸으면 쓰지 않고 그 사실을 말한다.
+version:
+	python3 tools/version_lock.py
 
 # render/ 와 viewer/ 와 samples/ 를 의존성 없는 한 장으로 묶는다.
 viewer:
