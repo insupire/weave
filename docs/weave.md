@@ -438,10 +438,14 @@ from weave import check_valueset
 result = check_valueset(값_한_벌, 템플릿)   # 템플릿 없이 부르면 구조만 본다
 if not result.ok:
     for problem in result.problems:
-        print(problem)                      # "어디: 무엇이 틀렸나"
+        print(problem)
+        # $['facets']['riders']['fields']['rider-list']: declared field is missing: premium
 ```
 
 `check_template` 과 `check_render_args` 도 같은 모양이다. 셸에서 쓰는 법은 아래 만져 보기에 있다.
+
+**결함 문구는 영어다**(사람 결정 2026-09-20). 이 저장소는 소비자를 이름으로 알지 않고, 그 문구는
+사람에게도 모델에게도 간다 — 한국어로 내면 소비자 한쪽의 말을 공유 계약이 지게 된다.
 
 **무엇으로 쟀는지.** 판 하나가 스키마와 검사기를 함께 가리킨다 — 검사기는 스키마를 읽어 판정하기만 해서
 둘이 따로 움직이지 않는다. 든 쪽은 `weave.__version__`(셸은 `python -m weave --version`)을 값으로 읽어

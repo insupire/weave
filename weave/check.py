@@ -1,8 +1,9 @@
-"""템플릿과 값 한 벌을 판정한다.
+"""Check templates and valuesets.
 
-두 겹이다. 첫 겹은 정본 JSON Schema 가 구조를 본다. 둘째 겹은 JSON Schema 로
-쓸 수 없는 것만 본다 — 같은 문서 안의 키 중복, 값 한 벌과 템플릿의 대조,
-series 의 축 순서. 어휘와 모양은 전부 첫 겹이 갖는다.
+Two layers. The first is the canonical JSON Schema looking at structure. The second
+looks only at what JSON Schema cannot say — duplicate keys inside one document, a
+valueset compared against its template, the axis order of a series. The vocabulary
+and the shapes all belong to the first layer.
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ def _structural(result: Result, schema_id: str, doc: object, prefix: str = "$") 
 def _scalar(result: Result, where: str, type_name: str, value: object) -> None:
     pointer = "#/$defs/" + type_name.capitalize()
     if not schemas.validator(schemas.COMMON, pointer).is_valid(value):
-        result.add(where, f"{type_name} 타입이 아니다 (기본 단위로 정규화했는지 본다): {value!r}")
+        result.add(where, f"not a valid {type_name} value (check it is normalized to the base unit): {value!r}")
 
 
 def _duplicates(names: list[str]) -> list[str]:
@@ -72,53 +73,53 @@ def _duplicates(names: list[str]) -> list[str]:
 
 
 def check_template(doc: object) -> Result:
-    """템플릿을 판정한다. 템플릿을 쓰는 쪽이 한 벌을 낸 직후에 부른다."""
+    """Check a template. The side that writes templates calls this right after producing one."""
     result = Result()
     if not _structural(result, schemas.TEMPLATE, doc):
         return result
     assert isinstance(doc, dict)
 
     for name in _duplicates([f["id"] for f in doc["facets"]]):
-        result.add("$['facets']", f"facet id 가 겹친다: {name}")
+        result.add("$['facets']", f"duplicate facet id: {name}")
 
     choices = {c["id"]: [o["id"] for o in c["options"]] for c in doc.get("choices", [])}
     for name in _duplicates([c["id"] for c in doc.get("choices", [])]):
-        result.add("$['choices']", f"고르는 자리 id 가 겹친다: {name}")
+        result.add("$['choices']", f"duplicate choice id: {name}")
     for index, choice in enumerate(doc.get("choices", [])):
         for name in _duplicates([o["id"] for o in choice["options"]]):
-            result.add(f"$['choices'][{index}]", f"고를 것의 id 가 겹친다: {name}")
+            result.add(f"$['choices'][{index}]", f"duplicate option id: {name}")
 
     for index, facet in enumerate(doc["facets"]):
         base = f"$['facets'][{index}]"
         for name in _duplicates([f["key"] for f in facet["fields"]]):
-            result.add(base, f"필드 key 가 겹친다: {name}")
+            result.add(base, f"duplicate field key: {name}")
         for findex, decl in enumerate(facet["fields"]):
             if decl["shape"] == "items":
                 columns = [c["key"] for c in decl["columns"]]
                 for name in _duplicates(columns):
-                    result.add(f"{base}['fields'][{findex}]", f"열 key 가 겹친다: {name}")
-            # parts 는 **하나를 쪼갠 것**이라 둘째 열이 몫이어야 한다. 쪼갤 수 없으면 그릴 수 없다.
+                    result.add(f"{base}['fields'][{findex}]", f"duplicate column key: {name}")
+            # parts splits one whole, so its second column must be the share. What cannot be split cannot be drawn.
             if facet["element"] == "parts" and decl["shape"] == "items":
                 share = decl["columns"][1] if len(decl["columns"]) > 1 else None
                 numeric = documents()[schemas.COMMON]["$defs"]["NumericType"]["enum"]
                 if share is None or share["type"] not in numeric:
                     result.add(
                         f"{base}['fields'][{findex}]",
-                        "parts 의 둘째 열은 몫이라 수치형이어야 한다",
+                        "the second column of parts is the share, so it must be a numeric type",
                     )
-            # 선언하지 않은 자리를 타는 필드는 가리킬 것이 없다.
+            # A field riding an undeclared choice has nothing to point at.
             where = f"{base}['fields'][{findex}]"
             if "choice" in decl and decl["choice"] not in choices:
-                result.add(where, f"템플릿이 선언하지 않은 고르는 자리다: {decl['choice']}")
+                result.add(where, f"choice not declared by the template: {decl['choice']}")
     return result
 
 
 def check_render_args(doc: object) -> Result:
-    """렌더 인자를 판정한다. 화면 상태 셋(``focus`` · ``previousFocus`` · ``choices``)뿐이고 구조만 본다.
+    """Check render args. Only the three screen states (``focus`` · ``previousFocus`` · ``choices``), structure only.
 
-    값 한 벌에 없는 id 는 결함이 아니다 — 그 경우 그 상태만 사라지는 것이 규약이다.
-    ``previousFocus`` 가 ``focus`` 와 같은 것도 결함이 아니다. 직전이 현재와 같을 수는
-    없으므로 렌더가 직전이 없는 것으로 본다.
+    An id that no valueset carries is not a defect — the convention is that this
+    state simply drops. ``previousFocus`` equal to ``focus`` is not a defect either:
+    the previous cannot be the current, so the render reads it as having no previous.
     """
     result = Result()
     _structural(result, schemas.RENDER_ARGS, doc)
@@ -126,9 +127,10 @@ def check_render_args(doc: object) -> Result:
 
 
 def check_valueset(doc: object, template: object | None = None) -> Result:
-    """값 한 벌을 판정한다. 채우는 쪽이 subject 하나를 끝낸 직후에 부른다.
+    """Check one valueset. The side that fills values calls this right after finishing one subject.
 
-    ``template`` 을 주지 않으면 구조만 본다. 타입·모양·덮는 범위는 템플릿이 있어야 안다.
+    Without ``template`` only the structure is checked. Types, shapes and coverage
+    cannot be known without the template.
     """
     result = Result()
     if not _structural(result, schemas.VALUESET, doc):
@@ -139,12 +141,12 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
 
     tresult = check_template(template)
     if not tresult.ok:
-        result.add("$", "템플릿 자체가 스키마에 맞지 않아 값을 대조할 수 없다")
+        result.add("$", "the template itself does not match the schema, so values cannot be compared against it")
         return result
     assert isinstance(template, dict)
 
     if doc["templateId"] != template["id"]:
-        result.add("$['templateId']", f"템플릿 id 가 다르다: {doc['templateId']!r} != {template['id']!r}")
+        result.add("$['templateId']", f"template id does not match: {doc['templateId']!r} != {template['id']!r}")
 
     facets = {f["id"]: f for f in template["facets"]}
     _compare_keys(result, "$['facets']", "facet", set(facets), set(doc["facets"]))
@@ -156,7 +158,7 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
             continue
         base = f"$['facets'][{facet_id!r}]"
         decls = {d["key"]: d for d in declared["fields"]}
-        _compare_keys(result, f"{base}['fields']", "필드", set(decls), set(given["fields"]))
+        _compare_keys(result, f"{base}['fields']", "field", set(decls), set(given["fields"]))
         for key, decl in decls.items():
             slot = given["fields"].get(key)
             if slot is None:
@@ -167,30 +169,31 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
                     continue
                 _check_value(result, f"{label}['value']", decl, entry["value"])
                 if "allowed" in decl and entry["value"] not in decl["allowed"]:
-                    result.add(f"{label}['value']", f"허용한 값이 아니다: {entry['value']!r}")
+                    result.add(f"{label}['value']", f"not an allowed value: {entry['value']!r}")
     return result
 
 
 def _entries(result: Result, where: str, decl: dict, choices: dict, slot: dict):
-    """필드 한 자리에서 판정할 값들. 고르는 자리를 타면 고를 것마다 하나다.
+    """The values to check at one field slot. One per option when the field rides a choice.
 
-    **어느 모양이어야 하는지는 템플릿이 정한다.** 스키마는 둘 다 받으므로 여기서 가른다 —
-    타는 필드에 값 하나만 주거나, 안 타는 필드를 쪼개면 그것이 결함이다.
+    **The template decides which shape it must be.** The schema accepts both, so the
+    split happens here — a single value on a riding field, or a per-option value on a
+    field that does not ride, is the defect.
 
-    **선언한 만큼 채워야 한다.** 고를 것이 여섯이면 값도 여섯이다 — 고르는 자리를 늘리는
-    값이 여기서 드러난다.
+    **Fill as much as was declared.** Six options mean six values — a value that invents
+    an option shows up here.
     """
     rides = decl.get("choice")
     given = "byOption" in slot
     if rides and not given:
-        result.add(where, f"고르는 자리({rides})를 타는 필드인데 값이 하나다")
+        result.add(where, f"field rides the choice ({rides}) but carries a single value")
         return []
     if not rides and given:
-        result.add(where, "고르는 자리를 타지 않는 필드인데 고를 것마다 값을 뒀다")
+        result.add(where, "field rides no choice but carries a value per option")
         return []
     if not rides:
         return [(where, slot)]
-    _compare_keys(result, f"{where}['byOption']", "고를 것", choices.get(rides, set()), set(slot["byOption"]))
+    _compare_keys(result, f"{where}['byOption']", "option", choices.get(rides, set()), set(slot["byOption"]))
     return [
         (f"{where}['byOption'][{name!r}]", entry)
         for name, entry in slot["byOption"].items()
@@ -200,9 +203,9 @@ def _entries(result: Result, where: str, decl: dict, choices: dict, slot: dict):
 
 def _compare_keys(result: Result, where: str, what: str, declared: set[str], given: set[str]) -> None:
     for name in sorted(declared - given):
-        result.add(where, f"템플릿이 선언한 {what} 이 빠졌다: {name}")
+        result.add(where, f"declared {what} is missing: {name}")
     for name in sorted(given - declared):
-        result.add(where, f"템플릿에 없는 {what} 이다: {name}")
+        result.add(where, f"{what} not in the template: {name}")
 
 
 def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
@@ -218,7 +221,7 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             if bound in value:
                 _scalar(result, f"{where}[{bound!r}]", decl["type"], value[bound])
         if "min" in value and "max" in value and _gt(value["min"], value["max"]):
-            result.add(where, "구간의 min 이 max 보다 크다")
+            result.add(where, "range min is greater than max")
     elif shape == "series":
         assert isinstance(value, list)
         previous = None
@@ -226,7 +229,7 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             _scalar(result, f"{where}[{index}]['at']", decl["axis"], point["at"])
             _scalar(result, f"{where}[{index}]['value']", decl["type"], point["value"])
             if previous is not None and not _gt(point["at"], previous):
-                result.add(f"{where}[{index}]['at']", "series 의 at 은 오름차순이고 겹치지 않는다")
+                result.add(f"{where}[{index}]['at']", "series at values must ascend and never repeat")
             previous = point["at"]
     elif shape == "items":
         assert isinstance(value, list)
@@ -235,13 +238,13 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             for key, cell in item.items():
                 column = columns.get(key)
                 if column is None:
-                    result.add(f"{where}[{index}]", f"템플릿에 없는 열이다: {key}")
+                    result.add(f"{where}[{index}]", f"column not in the template: {key}")
                     continue
                 spot = f"{where}[{index}][{key!r}]"
                 _scalar(result, spot, column["type"], cell)
-                # 열의 닫힌 목록은 필드의 것과 같은 규율이다 — 자리만 한 겹 깊다.
+                # A column closed list follows the same discipline as a field one — just one layer deeper.
                 if "allowed" in column and cell not in column["allowed"]:
-                    result.add(spot, f"허용한 값이 아니다: {cell!r}")
+                    result.add(spot, f"not an allowed value: {cell!r}")
 
 
 def _gt(left: object, right: object) -> bool:
@@ -256,21 +259,22 @@ def _load(path: str) -> object:
 
 
 def main(argv: list[str] | None = None) -> int:
-    from weave import __version__  # 여기서 든다 — 모듈 머리에서 들면 되감긴다.
+    from weave import __version__  # imported here — at module level it would loop back.
 
-    parser = argparse.ArgumentParser(prog="python -m weave.check", description="weave 스키마 검사기")
-    # 무엇으로 쟀는지를 셸에서도 묻는다. 라이브러리 쪽은 `weave.__version__` 이 같은 값을 준다.
+    parser = argparse.ArgumentParser(prog="python -m weave.check", description="weave schema checker")
+    # Ask what it measured with from the shell too. The library side reads the same value
+    # from `weave.__version__`.
     parser.add_argument("--version", action="version", version=f"weave {__version__}")
     sub = parser.add_subparsers(dest="what", required=True)
 
-    p_template = sub.add_parser("template", help="분석 템플릿을 판정한다")
+    p_template = sub.add_parser("template", help="check an analysis template")
     p_template.add_argument("files", nargs="+")
 
-    p_values = sub.add_parser("values", help="값 한 벌을 판정한다")
-    p_values.add_argument("--template", required=False, help="대조할 분석 템플릿")
+    p_values = sub.add_parser("values", help="check one valueset")
+    p_values.add_argument("--template", required=False, help="the analysis template to check against")
     p_values.add_argument("files", nargs="+")
 
-    p_args = sub.add_parser("args", help="렌더 인자를 판정한다")
+    p_args = sub.add_parser("args", help="check render args")
     p_args.add_argument("files", nargs="+")
 
     args = parser.parse_args(argv)
@@ -278,7 +282,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         template = _load(args.template) if getattr(args, "template", None) else None
     except (OSError, json.JSONDecodeError) as exc:
-        print(f"템플릿을 읽지 못했다: {exc}", file=sys.stderr)
+        print(f"could not read the template: {exc}", file=sys.stderr)
         return 2
 
     failed = False
@@ -286,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             doc = _load(path)
         except (OSError, json.JSONDecodeError) as exc:
-            print(f"FAIL {path}\n  읽지 못했다: {exc}")
+            print(f"FAIL {path}\n  could not read: {exc}")
             failed = True
             continue
         if args.what == "template":
