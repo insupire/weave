@@ -54,7 +54,8 @@
 | `tools/workspace-guard.mjs` · `.claude/settings.json` | 작업공간 가드와 그 선언. 도구를 부르는 시점에 막는다 |
 | `tools/emit_types.py` | 닫힌 어휘를 소비자 언어로 내보낸다 |
 | `generated/` | 그 산출물. 손으로 고치지 않는다 |
-| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그와 문서가 가리키는 자리는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 하네스 표면과 고르는 판정은 `test_harness.py`, 그리는 쪽은 `viewer.test.mjs`, 가드는 `workspace-guard.test.mjs` |
+| **`pyproject.toml`** | **패키지 선언.** 검사기를 의존으로 들 수 있게 낸다. 정본 스키마는 자리를 옮기지 않고 설치본 안으로 함께 실린다 |
+| `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그와 문서가 가리키는 자리는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 하네스 표면과 고르는 판정은 `test_harness.py`, 그리는 쪽은 `viewer.test.mjs`, 가드는 `workspace-guard.test.mjs`, 설치본이 서는지는 `install_probe.py`(`make install-check` 가 부른다) |
 
 `schema/` — `weave-common`(어휘) · `weave-template`(분석 템플릿) · `weave-valueset`(값 한 벌) · `weave-render-args`(화면 상태 셋).
 파일 사이 참조는 상대 `$ref` 라 그대로 복사해 가도 풀린다.
@@ -63,14 +64,14 @@
 
 ```sh
 make setup   # .venv 를 만들고 jsonschema 를 넣는다 (유일한 런타임 의존)
-make all     # test + types-check + check + viewer-check + viewer-test + guard-test
+make all     # test + types-check + check + viewer-check + viewer-test + guard-test + install-check
 make viewer  # render/ 와 viewer/ 와 samples/ 를 viewer.html 한 장으로 다시 묶는다
 ```
 
 **상주 서버·컨테이너·프리뷰를 세우지 않는다.** `viewer.html` 을 브라우저로 열면 그대로 돈다.
 CDN 도 쓰지 않는다 — 오프라인에서 죽으면 안 된다.
 
-`make viewer-test` 만 `node` 를 쓴다. **개발용이고 런타임 의존이 아니다** — 저장소의 런타임 의존은 `jsonschema` 하나 그대로다.
+`make viewer-test` 와 `make guard-test` 만 `node` 를 쓰고 `make install-check` 만 망을 쓴다. **셋 다 개발용이고 런타임 의존이 아니다** — 저장소의 런타임 의존은 `jsonschema` 하나 그대로다.
 
 검사기는 라이브러리로도 CLI 로도 쓴다.
 
@@ -99,8 +100,9 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `make viewer-check` | `viewer.html` 이 소스·샘플과 갈렸는지 본다 |
 | `make viewer-test` | 그리는 쪽의 고정 케이스. `node` 가 있어야 돈다 |
 | `make guard-test` | 작업공간 가드의 고정 케이스. 마찬가지로 `node` 가 있어야 돈다 |
+| `make install-check` | **설치본만으로 검사기가 도는가.** 나무 밖 깨끗한 venv 에 넣고 저장소 밖에서 부른다. 받아 올 것이 있어 망이 있어야 돈다 |
 | `make relevant` | **아래 표를 대신 읽어** 바뀐 자리에 필요한 것만 돌린다. 견줄 기준은 `BASE`(기본 `origin/develop`) |
-| `make all` | `test` · `types-check` · `check` · `viewer-check` · `viewer-test` · `guard-test` |
+| `make all` | `test` · `types-check` · `check` · `viewer-check` · `viewer-test` · `guard-test` · `install-check` |
 
 **이 sprint 의 남은 weave 변경은 작업 브랜치 하나에 쌓는다.** 중간 PR 도 `develop` 머지도 하지 않고 sprint 종료 때 PR 하나로 올린다(PM `orchestrator.md` §4).
 
@@ -111,7 +113,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | 무엇을 고쳤나 | 돌릴 것 |
 | --- | --- |
 | `schema/` | `make all` — 어휘가 바뀌면 `generated/` 도 같이 커밋한다 |
-| `weave/` (검사기) | `make test check` |
+| `weave/` (검사기) | `make test check install-check` — 스키마를 찾는 자리가 여기 있어 설치본이 함께 선다 |
 | `render/` · `viewer/` | `make viewer viewer-test test` — **`viewer.html` 을 같이 커밋한다** |
 | `samples/` · `catalog/` | `make viewer check test viewer-test` — 마찬가지로 산출물을 같이 커밋한다 |
 | `schema/weave-render-args` | `make all` — 소비자 둘에게 알린다 |
@@ -119,6 +121,7 @@ exit 0 통과 · 1 결함 · 2 읽지 못함.
 | `tests/fixtures/` | `make test check` |
 | `tools/emit_types.py` · `generated/` | `make types-check` |
 | `tools/workspace-guard.mjs` · `.claude/` | `make guard-test` |
+| `pyproject.toml` | `make install-check` — 패키지 선언이 갈리면 설치본이 먼저 죽는다 |
 | `harness.json` | `make test` — 적힌 자리와 동사가 실제로 있는지를 `tests/test_harness.py` 가 본다 |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다. 트리거의 형태는 `tests/test_ci.py` 가 본다 |
 | CSS 캐스케이드 · 움직임 · `@media` 분기 | `make all` 에 더해 **브라우저로 계산값을 확인한다** — 아래를 본다 |
@@ -205,7 +208,20 @@ npx json-schema-to-typescript@15 --cwd=schema schema/weave-valueset.schema.json 
 
 ⚠️ **LLM 구조화 출력.** `weave-template.schema.json` 을 그대로 구조화 출력 스키마로 넘기려면, 파일 간 `$ref` 와 조건절을 지원하는지 그쪽 API 가 정한다. 지원하지 않으면 한 파일로 펼친 변형이 필요하다. 그 변형을 이 저장소가 낼지는 정하지 않았다.
 
-⚠️ **배포 방법은 미정이다.** 패키지로 낼지, 서브모듈로 둘지, `schema/` 를 복사해 갈지 PM 이 정한다.
+**배포는 패키지다** — 아래를 본다.
+
+## 패키지로 내는 길
+
+**이 저장소가 내는 계약은 검사기 하나다.** 그것을 못 부르는 쪽은 스키마를 베껴 자기 자리에서 다시 판정하고, 그 순간 검사기가 두 벌이 된다. 베낀 쪽은 우리가 스키마를 고치는 날 조용히 낡는다. `pyproject.toml` 이 그 자리를 없앤다 — 든 쪽은 의존으로 들고 `check_valueset` 을 부른다.
+
+- **정본 스키마가 설치본에 함께 간다.** `weave/` 는 판정만 갖고 어휘·모양·제약은 전부 `schema/` 에 있다. 그것이 빠진 설치본은 읽을 것이 없어 첫 호출에서 죽는다. `force-include` 가 최상위 `schema/` 를 **옮기지 않고** 설치본 안으로 넣는다 — 저장소의 정본 자리도, 그리는 쪽이 상대 `$ref` 를 그대로 복사해 가는 자리도 그대로다.
+- **찾는 자리는 `weave/schemas.py` 한 곳이다.** 설치본 쪽을 먼저 보고 없으면 체크아웃의 최상위로 떨어진다. 어느 쪽에서도 못 찾으면 **이름을 대고 멈춘다** — 빈 채로 가면 「아무 결함도 없다」로 보여 통과와 구별되지 않는다.
+- **판은 하나다.** 스키마와 검사기가 따로 판을 갖지 않는다 — 검사기는 스키마를 읽어 판정하기만 해서 둘이 따로 움직일 수 없고, 번호가 둘이면 맞추는 일이 생기고 맞추는 일은 어긋난다. 정본은 `weave/__init__.py` 의 `__version__` 이고 `pyproject.toml` 이 그것을 읽는다. **어휘·모양·제약이 바뀌면 minor, 판정만 고치면 patch** 다 — 1.0 전이라 minor 가 어긋나는 자리다.
+- **든 쪽이 판을 값으로 읽는다.** 라이브러리는 `weave.__version__`, 셸은 `python -m weave --version`. 무엇으로 쟀는지를 남겨야 하는 쪽이 그것을 묻는다.
+- **판을 올릴 때 태그를 같이 민다.** 든 쪽은 태그로 고정한다 — 스키마가 바뀌었는데 판이 그대로면 고정한 쪽이 모르고 낡는다.
+- **`make install-check` 가 못박는다.** 저장소 안에서만 도는 것은 든 쪽이 겪는 것이 아니다 — 나무 밖 깨끗한 venv 에 넣고 저장소 밖에서 부른다. 정상 사례와 결함 사례를 함께 본다: 스키마를 못 읽는 설치본은 「아무 결함도 없다」와 똑같이 보인다.
+
+⚠️ **PyPI 에는 올리지 않는다 — git 에서 든다.** `weave` 라는 이름은 PyPI 에 이미 다른 것이 서 있어, 올리려면 배포 이름을 먼저 정해야 한다.
 
 ## 설명서 한 장
 

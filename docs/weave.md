@@ -422,6 +422,31 @@ subject 명단은 인자가 아니라 **값 한 벌들 자체**다.
 - **0 선은 얇은 무채색 선 하나다.** `line` 은 그 자리에 눈금으로 0 을 적고, `bars` 는 값이
   옆에 글로 적혀 있어 눈금을 두지 않는다.
 
+## 검사기를 든다
+
+**값 한 벌이 맞는지는 이 저장소의 검사기가 말한다.** 스키마를 베껴 자기 자리에서 다시 판정하지 않는다 —
+베낀 것은 스키마가 바뀌는 날 조용히 낡고, 그때 두 판정이 갈린다. **정본 스키마는 설치본에 함께 실리므로
+따로 받아 둘 것이 없다.**
+
+```sh
+pip install "weave @ git+https://github.com/insupire/weave@v0.1.0"
+```
+
+```python
+from weave import check_valueset
+
+result = check_valueset(값_한_벌, 템플릿)   # 템플릿 없이 부르면 구조만 본다
+if not result.ok:
+    for problem in result.problems:
+        print(problem)                      # "어디: 무엇이 틀렸나"
+```
+
+`check_template` 과 `check_render_args` 도 같은 모양이다. 셸에서 쓰는 법은 아래 만져 보기에 있다.
+
+**무엇으로 쟀는지.** 판 하나가 스키마와 검사기를 함께 가리킨다 — 검사기는 스키마를 읽어 판정하기만 해서
+둘이 따로 움직이지 않는다. 든 쪽은 `weave.__version__`(셸은 `python -m weave --version`)을 값으로 읽어
+**무엇으로 쟀는가에 적고 태그로 고정한다.** 어휘·모양·제약이 바뀌면 minor, 판정만 고치면 patch 다.
+
 ## 만져 보기
 
 저장소 뿌리의 [`viewer.html`](../viewer.html) 을 **브라우저로 연다.** 서버도 설치도 없다.

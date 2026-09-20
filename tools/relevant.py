@@ -17,12 +17,14 @@ import sys
 from collections.abc import Iterable
 
 # Makefile 의 `all` 차례. 고른 것도 이 차례로 낸다.
-ALL = ("test", "types-check", "check", "viewer-check", "viewer-test", "guard-test")
+ALL = (
+    "test", "types-check", "check", "viewer-check", "viewer-test", "guard-test", "install-check",
+)
 
 # 자리 → 돌릴 것. 긴 자리가 이긴다.
 RULES: dict[str, tuple[str, ...]] = {
     "schema/": ALL,
-    "weave/": ("test", "check"),
+    "weave/": ("test", "check", "install-check"),
     "generated/": ("types-check",),
     "tools/emit_types.py": ("types-check",),
     "tools/build_viewer.py": ("viewer-check",),
@@ -32,6 +34,7 @@ RULES: dict[str, tuple[str, ...]] = {
     ".claude/": ("guard-test",),
     "tests/workspace-guard.test.mjs": ("guard-test",),
     "tests/viewer.test.mjs": ("viewer-test",),
+    "tests/install_probe.py": ("install-check",),
     "tests/fixtures/": ("test", "check"),
     "tests/": ("test",),
     "render/": ("test", "viewer-check", "viewer-test"),
@@ -39,6 +42,7 @@ RULES: dict[str, tuple[str, ...]] = {
     "viewer.html": ("viewer-check",),
     "samples/": ("test", "check", "viewer-check", "viewer-test"),
     "catalog/": ("test", "check", "viewer-check", "viewer-test"),
+    "pyproject.toml": ("install-check",),  # 패키지 선언이 갈리면 설치본이 먼저 죽는다
     "harness.json": ("test",),  # 매니페스트가 참인지는 tests/test_harness.py 가 본다
     # 산문도 자리를 가리킨다 — `make test` 가 가리키는 자리가 사는지 본다.
     # 전체 게이트는 안 돈다: 문서 한 줄에 전부 도는 것이 애초에 막으려던 것이다.

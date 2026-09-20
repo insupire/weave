@@ -256,7 +256,11 @@ def _load(path: str) -> object:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from weave import __version__  # 여기서 든다 — 모듈 머리에서 들면 되감긴다.
+
     parser = argparse.ArgumentParser(prog="python -m weave.check", description="weave 스키마 검사기")
+    # 무엇으로 쟀는지를 셸에서도 묻는다. 라이브러리 쪽은 `weave.__version__` 이 같은 값을 준다.
+    parser.add_argument("--version", action="version", version=f"weave {__version__}")
     sub = parser.add_subparsers(dest="what", required=True)
 
     p_template = sub.add_parser("template", help="분석 템플릿을 판정한다")

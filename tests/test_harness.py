@@ -78,12 +78,13 @@ class ThePickerPicks(unittest.TestCase):
 
     def test_it_picks_only_what_the_change_needs(self) -> None:
         cases = {
-            "weave/check.py": ["test", "check"],
+            "weave/check.py": ["test", "check", "install-check"],
             "render/render.mjs": ["test", "viewer-check", "viewer-test"],
             "generated/weave-vocab.ts": ["types-check"],
             "tools/workspace-guard.mjs": ["guard-test"],
             ".claude/settings.json": ["guard-test"],
             "tests/fixtures/ok/template.json": ["test", "check"],
+            "pyproject.toml": ["install-check"],
         }
         for path, expected in cases.items():
             with self.subTest(path):
@@ -106,7 +107,7 @@ class ThePickerPicks(unittest.TestCase):
 
     def test_it_unions_and_keeps_the_makefile_order(self) -> None:
         picked = targets_for(["generated/weave-vocab.ts", "weave/check.py", "viewer.html"])
-        self.assertEqual(picked, ["test", "types-check", "check", "viewer-check"])
+        self.assertEqual(picked, ["test", "types-check", "check", "viewer-check", "install-check"])
 
     def test_it_never_picks_a_verb_that_rewrites_the_tree(self) -> None:
         """고르는 것은 확인하는 동사뿐이다. 검사를 부르는 자리가 나무를 고치면 무엇을 쟀는지 모른다."""
