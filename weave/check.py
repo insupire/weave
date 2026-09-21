@@ -46,30 +46,81 @@ class Result:
         self.problems.append(Problem(where, message))
 
 
-def _structural(result: Result, schema_id: str, doc: object, prefix: str = "$") -> bool:
+def _spot(path) -> str:
+    return "".join(f"[{p!r}]" if isinstance(p, str) else f"[{p}]" for p in path)
+
+
+def _because(error) -> str:
+    """One schema error's message, with the branch failures an ``anyOf`` folds away.
+
+    Folded, the reader is told the value is wrong under *something* and never what any
+    of the alternatives wanted — which is exactly the part they cannot recover. The
+    branch failures are placed relative to the value the branches were tried on.
+    """
+    if not error.context:
+        return error.message
+    inner: list[str] = []
+    for sub in sorted(error.context, key=lambda e: list(e.relative_path)):
+        spot = _spot(sub.relative_path)
+        line = f"{spot}: {_because(sub)}" if spot else _because(sub)
+        if line not in inner:
+            inner.append(line)
+    return f"{error.message}  because: {'; '.join(inner)}"
+
+
+def _structural(result: Result, schema_id: str, doc: object, prefix: str = "$", note: str = "") -> bool:
+    """Run the canonical schema. ``note`` rides on every message it raises.
+
+    The note is for what the value alone cannot show — at a field slot, what the template
+    declared there.
+    """
     errors = sorted(
         schemas.validator(schema_id).iter_errors(doc), key=lambda e: list(e.absolute_path)
     )
     for error in errors:
-        where = prefix + "".join(f"[{p!r}]" if isinstance(p, str) else f"[{p}]" for p in error.absolute_path)
-        result.add(where, error.message)
+        where = prefix + _spot(error.absolute_path)
+        result.add(where, _because(error) + note)
     return not errors
+
+
+# The keywords a scalar type is declared with, in the order they read. Anything the
+# canonical schema does not use is simply absent from a message.
+_CONDITIONS = (
+    "type", "const", "enum", "pattern", "format", "multipleOf",
+    "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "minLength", "maxLength",
+)
+
+
+def _declared(type_name: str) -> str:
+    """What the canonical schema requires of one scalar type, as data.
+
+    Read off ``weave-common.schema.json`` rather than written out here, so a message
+    cannot drift from the constraint it reports. The ``description`` beside it is not
+    read — it is prose, and prose is what this is replacing.
+    """
+    node = documents()[schemas.COMMON]["$defs"][type_name.capitalize()]
+    return " ".join(f"{key}={node[key]}" for key in _CONDITIONS if key in node)
 
 
 def _scalar(result: Result, where: str, type_name: str, value: object) -> None:
     pointer = "#/$defs/" + type_name.capitalize()
     if not schemas.validator(schemas.COMMON, pointer).is_valid(value):
-        result.add(where, f"not a valid {type_name} value (check it is normalized to the base unit): {value!r}")
+        result.add(
+            where,
+            f"not a valid {type_name} value: {value!r}  expected: {_declared(type_name)}",
+        )
 
 
-def _duplicates(names: list[str]) -> list[str]:
-    seen: set[str] = set()
-    dupes: list[str] = []
-    for name in names:
-        if name in seen and name not in dupes:
-            dupes.append(name)
-        seen.add(name)
-    return dupes
+def _duplicates(names: list[str]) -> list[tuple[str, list[int]]]:
+    """Every name that appears more than once, with **every position it stands at**.
+
+    The name alone leaves the reader to scan for the other one. The positions are the
+    part of the defect the reader cannot recover from the message.
+    """
+    places: dict[str, list[int]] = {}
+    for index, name in enumerate(names):
+        places.setdefault(name, []).append(index)
+    return [(name, spots) for name, spots in places.items() if len(spots) > 1]
 
 
 def check_template(doc: object) -> Result:
@@ -79,38 +130,49 @@ def check_template(doc: object) -> Result:
         return result
     assert isinstance(doc, dict)
 
-    for name in _duplicates([f["id"] for f in doc["facets"]]):
-        result.add("$['facets']", f"duplicate facet id: {name}")
+    for name, spots in _duplicates([f["id"] for f in doc["facets"]]):
+        result.add("$['facets']", f"duplicate facet id: {name!r}  at: {spots}")
 
     choices = {c["id"]: [o["id"] for o in c["options"]] for c in doc.get("choices", [])}
-    for name in _duplicates([c["id"] for c in doc.get("choices", [])]):
-        result.add("$['choices']", f"duplicate choice id: {name}")
+    for name, spots in _duplicates([c["id"] for c in doc.get("choices", [])]):
+        result.add("$['choices']", f"duplicate choice id: {name!r}  at: {spots}")
     for index, choice in enumerate(doc.get("choices", [])):
-        for name in _duplicates([o["id"] for o in choice["options"]]):
-            result.add(f"$['choices'][{index}]", f"duplicate option id: {name}")
+        for name, spots in _duplicates([o["id"] for o in choice["options"]]):
+            result.add(f"$['choices'][{index}]", f"duplicate option id: {name!r}  at: {spots}")
 
     for index, facet in enumerate(doc["facets"]):
         base = f"$['facets'][{index}]"
-        for name in _duplicates([f["key"] for f in facet["fields"]]):
-            result.add(base, f"duplicate field key: {name}")
+        for name, spots in _duplicates([f["key"] for f in facet["fields"]]):
+            result.add(base, f"duplicate field key: {name!r}  at: {spots}")
         for findex, decl in enumerate(facet["fields"]):
             if decl["shape"] == "items":
                 columns = [c["key"] for c in decl["columns"]]
-                for name in _duplicates(columns):
-                    result.add(f"{base}['fields'][{findex}]", f"duplicate column key: {name}")
+                for name, spots in _duplicates(columns):
+                    result.add(f"{base}['fields'][{findex}]", f"duplicate column key: {name!r}  at: {spots}")
             # parts splits one whole, so its second column must be the share. What cannot be split cannot be drawn.
             if facet["element"] == "parts" and decl["shape"] == "items":
                 share = decl["columns"][1] if len(decl["columns"]) > 1 else None
                 numeric = documents()[schemas.COMMON]["$defs"]["NumericType"]["enum"]
-                if share is None or share["type"] not in numeric:
+                if share is None:
                     result.add(
                         f"{base}['fields'][{findex}]",
-                        "the second column of parts is the share, so it must be a numeric type",
+                        "the second column of parts is the share, so it must be a numeric type, "
+                        f"but only {len(decl['columns'])} column(s) are declared: "
+                        f"{[c['key'] for c in decl['columns']]}  numeric: {numeric}",
+                    )
+                elif share["type"] not in numeric:
+                    result.add(
+                        f"{base}['fields'][{findex}]",
+                        "the second column of parts is the share, so it must be a numeric type: "
+                        f"{share['key']!r} is {share['type']}  numeric: {numeric}",
                     )
             # A field riding an undeclared choice has nothing to point at.
             where = f"{base}['fields'][{findex}]"
             if "choice" in decl and decl["choice"] not in choices:
-                result.add(where, f"choice not declared by the template: {decl['choice']}")
+                result.add(
+                    where,
+                    f"choice not declared by the template: {decl['choice']!r}  declared: {list(choices)}",
+                )
     return result
 
 
@@ -141,16 +203,26 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
 
     tresult = check_template(template)
     if not tresult.ok:
-        result.add("$", "the template itself does not match the schema, so values cannot be compared against it")
+        # Carry the template's own defects along. Saying only that it does not match leaves
+        # the reader holding nothing they can act on.
+        result.add(
+            "$",
+            "the template itself does not match the schema, so values cannot be compared against it: "
+            + " | ".join(str(problem) for problem in tresult.problems),
+        )
         return result
     assert isinstance(template, dict)
 
     if doc["templateId"] != template["id"]:
-        result.add("$['templateId']", f"template id does not match: {doc['templateId']!r} != {template['id']!r}")
+        result.add(
+            "$['templateId']",
+            f"template id does not match: the valueset says {doc['templateId']!r} "
+            f"and the template says {template['id']!r}",
+        )
 
     facets = {f["id"]: f for f in template["facets"]}
-    _compare_keys(result, "$['facets']", "facet", set(facets), set(doc["facets"]))
-    choices = {c["id"]: {o["id"] for o in c["options"]} for c in template.get("choices", [])}
+    _compare_keys(result, "$['facets']", "facet", list(facets), doc["facets"])
+    choices = {c["id"]: [o["id"] for o in c["options"]] for c in template.get("choices", [])}
 
     for facet_id, declared in facets.items():
         given = doc["facets"].get(facet_id)
@@ -158,7 +230,7 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
             continue
         base = f"$['facets'][{facet_id!r}]"
         decls = {d["key"]: d for d in declared["fields"]}
-        _compare_keys(result, f"{base}['fields']", "field", set(decls), set(given["fields"]))
+        _compare_keys(result, f"{base}['fields']", "field", list(decls), given["fields"])
         for key, decl in decls.items():
             slot = given["fields"].get(key)
             if slot is None:
@@ -169,7 +241,10 @@ def check_valueset(doc: object, template: object | None = None) -> Result:
                     continue
                 _check_value(result, f"{label}['value']", decl, entry["value"])
                 if "allowed" in decl and entry["value"] not in decl["allowed"]:
-                    result.add(f"{label}['value']", f"not an allowed value: {entry['value']!r}")
+                    result.add(
+                        f"{label}['value']",
+                        f"not an allowed value: {entry['value']!r}  allowed: {decl['allowed']}",
+                    )
     return result
 
 
@@ -184,33 +259,67 @@ def _entries(result: Result, where: str, decl: dict, choices: dict, slot: dict):
     an option shows up here.
     """
     rides = decl.get("choice")
+    options = choices.get(rides, [])
     given = "byOption" in slot
     if rides and not given:
-        result.add(where, f"field rides the choice ({rides}) but carries a single value")
+        result.add(
+            where,
+            f"field rides the choice ({rides!r}) but carries a single value  "
+            f"expected byOption keyed by: {options}",
+        )
         return []
     if not rides and given:
-        result.add(where, "field rides no choice but carries a value per option")
+        result.add(
+            where,
+            "field rides no choice but carries a value per option: "
+            f"{sorted(slot['byOption'])}  expected one value",
+        )
         return []
     if not rides:
         return [(where, slot)]
-    _compare_keys(result, f"{where}['byOption']", "option", choices.get(rides, set()), set(slot["byOption"]))
+    _compare_keys(result, f"{where}['byOption']", "option", options, slot["byOption"])
     return [
         (f"{where}['byOption'][{name!r}]", entry)
         for name, entry in slot["byOption"].items()
-        if name in choices.get(rides, set())
+        if name in options
     ]
 
 
-def _compare_keys(result: Result, where: str, what: str, declared: set[str], given: set[str]) -> None:
-    for name in sorted(declared - given):
-        result.add(where, f"declared {what} is missing: {name}")
-    for name in sorted(given - declared):
-        result.add(where, f"{what} not in the template: {name}")
+def _compare_keys(result: Result, where: str, what: str, declared: list[str], given) -> None:
+    """Declared against given, both ways. The **declared list rides along** on the extra side.
+
+    A name the template does not carry is only half a defect without the names it does
+    carry — the reader has to guess what they meant to write. A missing name is already
+    whole: the message names the very thing to add.
+    """
+    given = list(given)
+    for name in sorted(set(declared) - set(given)):
+        result.add(where, f"declared {what} is missing: {name!r}")
+    for name in sorted(set(given) - set(declared)):
+        result.add(where, f"{what} not in the template: {name!r}  the template declares: {declared}")
+
+
+def _declares(decl: dict) -> str:
+    """What the template declared at one field, as data.
+
+    A value cannot show the shape it was supposed to have, so a shape defect that only
+    reports what the value is leaves the reader with nothing to aim at.
+    """
+    parts = [f"shape={decl['shape']}"]
+    for key in ("type", "axis"):
+        if key in decl:
+            parts.append(f"{key}={decl[key]}")
+    if "columns" in decl:
+        parts.append("columns=" + str([f"{c['key']}:{c['type']}" for c in decl["columns"]]))
+    if "allowed" in decl:
+        parts.append(f"allowed={decl['allowed']}")
+    return " ".join(parts)
 
 
 def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
     shape = decl["shape"]
-    if not _structural(result, schemas.VALUESET + SHAPE_DEF[shape], value, prefix=where):
+    declared = f"  the template declares: {_declares(decl)}"
+    if not _structural(result, schemas.VALUESET + SHAPE_DEF[shape], value, prefix=where, note=declared):
         return
 
     if shape == "single":
@@ -221,7 +330,7 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             if bound in value:
                 _scalar(result, f"{where}[{bound!r}]", decl["type"], value[bound])
         if "min" in value and "max" in value and _gt(value["min"], value["max"]):
-            result.add(where, "range min is greater than max")
+            result.add(where, f"range min is greater than max: min={value['min']!r} max={value['max']!r}")
     elif shape == "series":
         assert isinstance(value, list)
         previous = None
@@ -229,7 +338,11 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             _scalar(result, f"{where}[{index}]['at']", decl["axis"], point["at"])
             _scalar(result, f"{where}[{index}]['value']", decl["type"], point["value"])
             if previous is not None and not _gt(point["at"], previous):
-                result.add(f"{where}[{index}]['at']", "series at values must ascend and never repeat")
+                result.add(
+                    f"{where}[{index}]['at']",
+                    f"series at values must ascend and never repeat: "
+                    f"at={point['at']!r} stands after at={previous!r}",
+                )
             previous = point["at"]
     elif shape == "items":
         assert isinstance(value, list)
@@ -238,13 +351,16 @@ def _check_value(result: Result, where: str, decl: dict, value: object) -> None:
             for key, cell in item.items():
                 column = columns.get(key)
                 if column is None:
-                    result.add(f"{where}[{index}]", f"column not in the template: {key}")
+                    result.add(
+                        f"{where}[{index}]",
+                        f"column not in the template: {key!r}  the template declares: {list(columns)}",
+                    )
                     continue
                 spot = f"{where}[{index}][{key!r}]"
                 _scalar(result, spot, column["type"], cell)
                 # A column closed list follows the same discipline as a field one — just one layer deeper.
                 if "allowed" in column and cell not in column["allowed"]:
-                    result.add(spot, f"not an allowed value: {cell!r}")
+                    result.add(spot, f"not an allowed value: {cell!r}  allowed: {column['allowed']}")
 
 
 def _gt(left: object, right: object) -> bool:

@@ -429,7 +429,7 @@ subject 명단은 인자가 아니라 **값 한 벌들 자체**다.
 따로 받아 둘 것이 없다.**
 
 ```sh
-pip install "weave @ git+https://github.com/insupire/weave@v0.1.0"
+pip install "weave @ git+https://github.com/insupire/weave@v0.1.1"
 ```
 
 ```python
@@ -439,13 +439,28 @@ result = check_valueset(값_한_벌, 템플릿)   # 템플릿 없이 부르면 �
 if not result.ok:
     for problem in result.problems:
         print(problem)
-        # $['facets']['riders']['fields']['rider-list']: declared field is missing: premium
+        # $['facets']['riders']['fields']: declared field is missing: 'premium'
 ```
 
 `check_template` 과 `check_render_args` 도 같은 모양이다. 셸에서 쓰는 법은 아래 만져 보기에 있다.
 
 **결함 문구는 영어다**(사람 결정 2026-09-20). 이 저장소는 소비자를 이름으로 알지 않고, 그 문구는
 사람에게도 모델에게도 간다 — 한국어로 내면 소비자 한쪽의 말을 공유 계약이 지게 된다.
+
+**문구는 쥔 것을 싣는다.** 자리만 말하고 값을 빼면 읽는 쪽이 고칠 수 없다. 그래서 받은 값과 기대한 것이
+같은 줄에 선다 — 산문으로 풀지 않고 **데이터로** 붙인다.
+
+```
+$['facets']['overview']['fields']['source']['value']: not an allowed value: '설계사가 준 것'  allowed: ['설계사 제안', '직접 업로드']
+$['facets']['riders']['fields']['rider-list']['value'][0]: column not in the template: 'period'  the template declares: ['name', 'amount', 'renews']
+$['facets']['premium']['fields']['monthly-premium']['value']: not a valid money value: 87400.5  expected: type=integer
+```
+
+**한 결함은 한 줄이다.** 같은 줄이 두 번 서면 읽는 쪽은 결함이 둘이라고 읽는다.
+
+실을 수 있는 것과 없는 것을 가르는 자리는 **말인가 값인가**다. `allowed` 와 열 이름은 template 이 선언한
+**값**이라 그대로 싣는다. `label`·`description`·`hint` 는 template 을 쓴 쪽이 **쓴 말**이라 싣지 않는다 —
+그것을 실으면 결함 문구가 소비자 한쪽의 언어를 지게 되고 위의 결정이 깨진다.
 
 **무엇으로 쟀는지.** 판 하나가 스키마와 검사기를 함께 가리킨다 — 검사기는 스키마를 읽어 판정하기만 해서
 둘이 따로 움직이지 않는다. 든 쪽은 `weave.__version__`(셸은 `python -m weave --version`)을 값으로 읽어
@@ -669,6 +684,8 @@ python -m weave args args.json   # 렌더 인자를 따로 적어 두었다면 �
 | `state` | 이 자리가 찼는지. filled 면 value 가 있고 empty 면 없다. | 필수 |
 | `value` | 선언된 shape 를 모르는 자리에서 쓰는 느슨한 합집합. 정확한 판정은 검사기가 템플릿을 들고 한다. | 선택 |
 | `notes` | 이 값 하나에 대해 할 말. 왜 비었는지도 여기에 글로 적는다. | 선택 |
+
+**`FilledOrEmpty`** — 상태와 값이 서로를 못박는 매듭. filled 면 value 가 있고 empty 면 없다. 자리가 무엇을 받는지는 여기서 말하지 않는다 — 그것은 FieldValue 가 갖는다. 매듭만 따로 세운 까닭은 쓰는 자리가 둘이기 때문이다. FieldSlot 이 FieldValue 를 통째로 $ref 하면 같은 값이 같은 제약에 두 번 걸려 **같은 결함이 두 번 실린다**.
 
 **`Value`** — 선언된 shape 를 모르는 자리에서 쓰는 느슨한 합집합. 정확한 판정은 검사기가 템플릿을 들고 한다.
 

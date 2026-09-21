@@ -15,7 +15,7 @@ from weave.check import Problem, Result, check_render_args, check_template, chec
 #:
 #: Vocabulary, shape or constraint changes bump the minor; a decision-only fix bumps the
 #: patch. Before 1.0 the minor is where breaks land.
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "Problem",
