@@ -121,7 +121,9 @@ def break_share(doc: dict) -> None:
 
 
 TEMPLATE_DEFECTS = [
-    ("parts 의 몫을 글로 연다", break_share, "second column of parts is the share"),
+    ("parts 의 몫을 글로 연다", break_share,
+     ("second column of parts is the share", "'amount' is text",
+      "numeric: ['number', 'money', 'ratio', 'multiple', 'duration', 'age']")),
     ("primitive element 에 순위를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "rank"), "is not one of"),
     ("primitive element 에 등급 게이지를 더한다", lambda d: facet(d, "monthly-premium").__setitem__("element", "gauge"), "is not one of"),
     ("facet 에 점수를 붙인다", set_score, "Additional properties"),
@@ -149,11 +151,23 @@ TEMPLATE_DEFECTS = [
     ("facet 이 하나도 없다", lambda d: d.__setitem__("facets", []), "should be non-empty"),
     ("템플릿 뿌리에 채점 설정을 붙인다", lambda d: d.__setitem__("scoring", {"weights": {}}), "Additional properties"),
     ("facet 을 조건부로 만든다", lambda d: facet(d, "riders").__setitem__("showIf", "premium > 0"), "Additional properties"),
-    ("facet id 가 겹친다", lambda d: d["facets"].append(copy.deepcopy(facet(d, "riders"))), "duplicate facet id"),
-    ("필드 key 가 겹친다", lambda d: facet(d, "contract-terms")["fields"].append(copy.deepcopy(field(d, "contract-terms", "renewal"))), "duplicate field key"),
-    ("열 key 가 겹친다", lambda d: field(d, "riders", "rider-list")["columns"].append(copy.deepcopy(field(d, "riders", "rider-list")["columns"][0])), "duplicate column key"),
+    ("facet id 가 겹친다", lambda d: d["facets"].append(copy.deepcopy(facet(d, "riders"))),
+     ("duplicate facet id: 'riders'", "at: [4, 7]")),
+    ("필드 key 가 겹친다", lambda d: facet(d, "contract-terms")["fields"].append(copy.deepcopy(field(d, "contract-terms", "renewal"))),
+     ("duplicate field key: 'renewal'", "at: [1, 5]")),
+    ("열 key 가 겹친다", lambda d: field(d, "riders", "rider-list")["columns"].append(copy.deepcopy(field(d, "riders", "rider-list")["columns"][0])),
+     ("duplicate column key: 'name'", "at: [0, 3]")),
     ("글이 아닌 열에 닫힌 목록을 건다", lambda d: field(d, "riders", "rider-list")["columns"][1].__setitem__("allowed", ["가", "나"]), "was expected"),
 ]
+
+
+def wanted(expected: str | tuple[str, ...]) -> tuple[str, ...]:
+    """부류 표의 셋째 칸. 글 하나면 그것 하나, 여럿이면 **전부** 있어야 한다.
+
+    여럿을 받는 까닭은 부류 이름만으로는 문구가 **쥔 것을 실었는지**를 못 재기 때문이다.
+    허용값 목록이나 실제 값을 도로 걷어내도 부류 이름은 그대로 남아 표가 초록이 된다.
+    """
+    return (expected,) if isinstance(expected, str) else expected
 
 
 class TemplateDefectsAreBlocked(unittest.TestCase):
@@ -163,7 +177,8 @@ class TemplateDefectsAreBlocked(unittest.TestCase):
                 result = check_template(mutate(TEMPLATE, fn))
                 self.assertFalse(result.ok, f"막히지 않았다: {why}")
                 joined = " | ".join(str(p) for p in result.problems)
-                self.assertIn(expected, joined, f"{why}\n{joined}")
+                for one in wanted(expected):
+                    self.assertIn(one, joined, f"{why}\n{joined}")
 
 
 def fval(doc: dict, facet_id: str, key: str) -> dict:
@@ -180,21 +195,42 @@ VALUE_DEFECTS = [
     ("facet 에 순위를 붙인다", lambda d: d["facets"]["monthly-premium"].__setitem__("rank", 1), "Additional properties"),
     ("facet 에 등급을 붙인다", lambda d: d["facets"]["monthly-premium"].__setitem__("grade", "A"), "Additional properties"),
     ("값 한 벌에 총점을 붙인다", lambda d: d.__setitem__("totalScore", 88), "Additional properties"),
-    ("금액을 소수로 낸다", lambda d: fval(d, "monthly-premium", "premium").__setitem__("value", 87400.5), "not a valid money value"),
-    ("나이를 소수로 낸다", lambda d: fval(d, "contract-terms", "maturity-age").__setitem__("value", 100.5), "not a valid age value"),
-    ("참거짓 자리에 글을 낸다", lambda d: fval(d, "contract-terms", "renewal").__setitem__("value", "예"), "not a valid boolean value"),
-    ("날짜 형식이 다르다", lambda d: fval(d, "contract-terms", "start-date").__setitem__("value", "2026/10/01"), "not a valid date value"),
-    ("구간이 뒤집혔다", lambda d: fval(d, "contract-terms", "entry-age").__setitem__("value", {"min": 65, "max": 15}), "range min is greater than max"),
-    ("구간이 비었다", lambda d: fval(d, "contract-terms", "entry-age").__setitem__("value", {}), "is not valid under any of the given schemas"),
-    ("series 의 at 이 뒤섞였다", lambda d: fval(d, "premium-by-age", "premium-curve")["value"].reverse(), "must ascend"),
-    ("series 의 축 타입이 다르다", lambda d: fval(d, "premium-by-age", "premium-curve")["value"][0].__setitem__("at", "마흔"), "not a valid age value"),
-    ("목록에 선언 없는 열을 넣는다", lambda d: fval(d, "riders", "rider-list")["value"][0].__setitem__("grade", "A"), "column not in the template"),
-    ("목록 칸의 타입이 다르다", lambda d: fval(d, "riders", "rider-list")["value"][0].__setitem__("amount", "3천만"), "not a valid money value"),
-    ("필드가 빠졌다", lambda d: d["facets"]["contract-terms"]["fields"].pop("renewal"), "is missing"),
-    ("템플릿에 없는 필드를 낸다", lambda d: d["facets"]["contract-terms"]["fields"].__setitem__("rating", {"state": "filled", "value": 5}), "field not in the template"),
-    ("facet 이 빠졌다", lambda d: d["facets"].pop("riders"), "is missing"),
-    ("템플릿에 없는 facet 을 낸다", lambda d: d["facets"].__setitem__("ranking", {"fields": {}}), "facet not in the template"),
-    ("템플릿 id 가 다르다", lambda d: d.__setitem__("templateId", "other-template"), "template id does not match"),
+    ("금액을 소수로 낸다", lambda d: fval(d, "monthly-premium", "premium").__setitem__("value", 87400.5),
+     ("not a valid money value: 87400.5", "expected: type=integer")),
+    ("나이를 소수로 낸다", lambda d: fval(d, "contract-terms", "maturity-age").__setitem__("value", 100.5),
+     ("not a valid age value: 100.5", "expected: type=integer")),
+    ("참거짓 자리에 글을 낸다", lambda d: fval(d, "contract-terms", "renewal").__setitem__("value", "예"),
+     ("not a valid boolean value: '예'", "expected: type=boolean")),
+    ("날짜 형식이 다르다", lambda d: fval(d, "contract-terms", "start-date").__setitem__("value", "2026/10/01"),
+     ("not a valid date value: '2026/10/01'", r"pattern=^[0-9]{4}-[0-9]{2}-[0-9]{2}$")),
+    ("구간이 뒤집혔다", lambda d: fval(d, "contract-terms", "entry-age").__setitem__("value", {"min": 65, "max": 15}),
+     ("range min is greater than max", "min=65 max=15")),
+    ("구간이 비었다", lambda d: fval(d, "contract-terms", "entry-age").__setitem__("value", {}),
+     ("is not valid under any of the given schemas", "because:", "should be non-empty")),
+    ("series 의 at 이 뒤섞였다", lambda d: fval(d, "premium-by-age", "premium-curve")["value"].reverse(),
+     ("must ascend", "at=50 stands after at=60")),
+    ("series 의 축 타입이 다르다", lambda d: fval(d, "premium-by-age", "premium-curve")["value"][0].__setitem__("at", "마흔"),
+     ("not a valid age value: '마흔'", "expected: type=integer")),
+    ("목록에 선언 없는 열을 넣는다", lambda d: fval(d, "riders", "rider-list")["value"][0].__setitem__("grade", "A"),
+     ("column not in the template: 'grade'", "the template declares: ['name', 'amount', 'renews']")),
+    ("목록 칸의 타입이 다르다", lambda d: fval(d, "riders", "rider-list")["value"][0].__setitem__("amount", "3천만"),
+     ("not a valid money value: '3천만'", "expected: type=integer")),
+    ("필드가 빠졌다", lambda d: d["facets"]["contract-terms"]["fields"].pop("renewal"),
+     "declared field is missing: 'renewal'"),
+    ("템플릿에 없는 필드를 낸다", lambda d: d["facets"]["contract-terms"]["fields"].__setitem__("rating", {"state": "filled", "value": 5}),
+     ("field not in the template: 'rating'",
+      "the template declares: ['payment-period', 'renewal', 'maturity-age', 'entry-age', 'start-date']")),
+    ("facet 이 빠졌다", lambda d: d["facets"].pop("riders"), "declared facet is missing: 'riders'"),
+    ("템플릿에 없는 facet 을 낸다", lambda d: d["facets"].__setitem__("ranking", {"fields": {}}),
+     ("facet not in the template: 'ranking'", "the template declares: ['monthly-premium',")),
+    ("템플릿 id 가 다르다", lambda d: d.__setitem__("templateId", "other-template"),
+     ("template id does not match", "the valueset says 'other-template'", "the template says 'fixture-template'")),
+    # 값은 자기가 **어떤 모양이었어야 하는지**를 못 보여 준다. 그것은 템플릿만 안다.
+    ("선 자리에 홑값을 낸다", lambda d: fval(d, "premium-by-age", "premium-curve").__setitem__("value", 3),
+     ("is not of type 'array'", "the template declares: shape=series type=money axis=age")),
+    ("목록 자리에 홑값을 낸다", lambda d: fval(d, "riders", "rider-list").__setitem__("value", 3),
+     ("is not of type 'array'",
+      "the template declares: shape=items columns=['name:text', 'amount:money', 'renews:boolean']")),
 ]
 
 
@@ -205,7 +241,101 @@ class ValueDefectsAreBlocked(unittest.TestCase):
                 result = check_valueset(mutate(FILLED, fn), TEMPLATE)
                 self.assertFalse(result.ok, f"막히지 않았다: {why}")
                 joined = " | ".join(str(p) for p in result.problems)
-                self.assertIn(expected, joined, f"{why}\n{joined}")
+                for one in wanted(expected):
+                    self.assertIn(one, joined, f"{why}\n{joined}")
+
+
+class ABrokenTemplateSaysWhatIsBroken(unittest.TestCase):
+    """템플릿이 깨졌으면 값 판정이 멎는다. **멎었다는 말만 하고 끝나면 읽는 쪽은 아무것도 못 한다.**
+
+    무엇이 왜 깨졌는지는 바로 그 자리에서 이미 재어 손에 쥐고 있다.
+    """
+
+    def test_the_template_defects_ride_along(self) -> None:
+        result = check_valueset(FILLED, mutate(TEMPLATE, set_score))
+        self.assertFalse(result.ok)
+        joined = " | ".join(str(problem) for problem in result.problems)
+        self.assertIn("the template itself does not match the schema", joined)
+        self.assertIn("Additional properties are not allowed ('score' was unexpected)", joined,
+                      "무엇이 깨졌는지를 말하지 않는다")
+
+
+class OneDefectIsCarriedOnce(unittest.TestCase):
+    """**결함 하나는 한 줄이다.** 인터프리터는 같은 오류를 두 번 찍지 않는다.
+
+    한 자리가 자기 제약을 갖고 **동시에** 같은 제약을 가진 정의를 통째로 ``$ref`` 하면
+    한 값이 같은 판정에 두 번 걸린다. 나오는 글자는 똑같아서 읽는 쪽은 결함이 **둘**이라고
+    읽고, 하나를 고친 뒤에도 남은 줄을 보고 안 고쳐졌다고 읽는다.
+
+    그래서 부류 표 **전부**에 같은 잣대를 댄다 — 사람이 예로 든 자리만 보면 다음에 붙는
+    자리가 조용히 빠진다.
+    """
+
+    def lines(self, doc: dict, template: dict | None = None) -> list[str]:
+        result = check_valueset(doc, template if template is not None else TEMPLATE)
+        self.assertFalse(result.ok, "막히지 않았다")
+        return [str(problem) for problem in result.problems]
+
+    def assertNoEcho(self, lines: list[str], why: str) -> None:
+        seen: dict[str, int] = {}
+        for line in lines:
+            seen[line] = seen.get(line, 0) + 1
+        twice = sorted(line for line, count in seen.items() if count > 1)
+        self.assertEqual(twice, [], f"{why}: 같은 줄이 두 번 실렸다\n" + "\n".join(lines))
+
+    def test_an_unexpected_property_at_a_slot_is_one_line(self) -> None:
+        lines = self.lines(mutate(FILLED, lambda d: fval(d, "monthly-premium", "premium").__setitem__("confidence", 0.8)))
+        self.assertEqual(len(lines), 1, lines)
+
+    def test_a_state_outside_the_vocabulary_is_one_line(self) -> None:
+        lines = self.lines(mutate(FILLED, lambda d: fval(d, "monthly-premium", "premium").__setitem__("state", "FILLED")))
+        self.assertEqual(len(lines), 1, lines)
+
+    def test_a_note_defect_at_a_slot_is_one_line(self) -> None:
+        lines = self.lines(mutate(FILLED, lambda d: fval(d, "monthly-premium", "premium")["notes"][0].__setitem__("confidence", 0.8)))
+        self.assertEqual(len(lines), 1, lines)
+
+    def test_every_value_defect_is_carried_once(self) -> None:
+        for why, fn, _ in VALUE_DEFECTS:
+            with self.subTest(why):
+                self.assertNoEcho(self.lines(mutate(FILLED, fn)), why)
+
+    def test_every_template_defect_is_carried_once(self) -> None:
+        for why, fn, _ in TEMPLATE_DEFECTS:
+            with self.subTest(why):
+                result = check_template(mutate(TEMPLATE, fn))
+                self.assertFalse(result.ok, f"막히지 않았다: {why}")
+                self.assertNoEcho([str(problem) for problem in result.problems], why)
+
+    def test_a_slot_split_by_a_choice_is_carried_once(self) -> None:
+        """고를 것마다 쪼갠 자리도 같은 잣대다 — 거기가 ``FieldValue`` 를 직접 쓰는 자리다."""
+        template = {
+            "weave": "1", "id": "t", "title": "t",
+            "choices": [{"id": "d", "label": "무엇을 고르나",
+                         "options": [{"id": "a", "label": "가"}, {"id": "b", "label": "나"}]}],
+            "facets": [{"id": "f", "title": "f", "element": "facts", "fields": [
+                {"key": "moves", "label": "탄다", "shape": "single", "type": "money",
+                 "choice": "d", "description": "고른 것마다 다른 금액을 원 단위로."}]}],
+        }
+        for why, entry in [
+            ("덤으로 붙은 자리", {"state": "filled", "value": 1, "confidence": 0.8}),
+            ("어휘 밖의 상태", {"state": "FILLED", "value": 1}),
+        ]:
+            with self.subTest(why):
+                doc = {"weave": "1", "templateId": "t", "subjectId": "s", "facets": {"f": {"fields": {
+                    "moves": {"byOption": {"a": entry, "b": {"state": "empty"}}}}}}}
+                lines = self.lines(doc, template)
+                self.assertNoEcho(lines, why)
+                self.assertEqual(len(lines), 1, lines)
+
+    def test_the_scan_would_notice_an_echo(self) -> None:
+        """**대조군.** 겹친 줄을 넣어 보고 잣대가 그것을 무는지 본다.
+
+        안 물면 위 판정들은 **아무것도 안 잡은 채** 초록으로 지나간다.
+        """
+        with self.assertRaises(AssertionError):
+            self.assertNoEcho(["같은 줄", "같은 줄"], "대조군")
+        self.assertNoEcho(["한 줄", "다른 줄"], "대조군")
 
 
 class SchemaFilesAreSound(unittest.TestCase):
@@ -313,26 +443,33 @@ class RenderArgs(unittest.TestCase):
         self.assertTrue(check_valueset(values(full, one), template).ok)
 
         for why, moves, stays, expected in [
-            ("타는 필드에 값 하나만 준다", one, one, "carries a single value"),
-            ("안 타는 필드를 쪼갠다", full, full, "rides no choice"),
-            ("고를 것을 빠뜨린다", {"byOption": {"a": {"state": "empty"}}}, one, "declared option is missing"),
+            ("타는 필드에 값 하나만 준다", one, one,
+             ("carries a single value", "expected byOption keyed by: ['a', 'b']")),
+            ("안 타는 필드를 쪼갠다", full, full,
+             ("rides no choice but carries a value per option: ['a', 'b']", "expected one value")),
+            ("고를 것을 빠뜨린다", {"byOption": {"a": {"state": "empty"}}}, one,
+             "declared option is missing: 'b'"),
             ("없는 것을 덤으로 준다",
              {"byOption": {"a": {"state": "empty"}, "b": {"state": "empty"}, "c": {"state": "empty"}}},
-             one, "option not in the template"),
+             one, ("option not in the template: 'c'", "the template declares: ['a', 'b']")),
             ("고른 값의 타입이 어긋난다",
              {"byOption": {"a": {"state": "filled", "value": "많이"}, "b": {"state": "empty"}}},
-             one, "not a valid money value"),
+             one, ("not a valid money value: '많이'", "expected: type=integer")),
         ]:
             with self.subTest(why):
                 result = check_valueset(values(moves, stays), template)
                 self.assertFalse(result.ok, f"막히지 않았다: {why}")
-                self.assertIn(expected, " | ".join(str(p) for p in result.problems))
+                joined = " | ".join(str(p) for p in result.problems)
+                for one in wanted(expected):
+                    self.assertIn(one, joined, f"{why}\n{joined}")
 
         # 선언하지 않은 자리를 타면 가리킬 것이 없다.
         astray = {k: v for k, v in template.items() if k != "choices"}
         result = check_template(astray)
         self.assertFalse(result.ok)
-        self.assertIn("choice not declared by the template", " | ".join(str(p) for p in result.problems))
+        astrayed = " | ".join(str(p) for p in result.problems)
+        self.assertIn("choice not declared by the template: 'd'", astrayed)
+        self.assertIn("declared: []", astrayed, "그럼 무엇을 탈 수 있는지를 말하지 않는다")
 
         # **한 자리 안의 것끼리는 닫힌 목록이다.** 자유 글에서 오타를 막는 자리도 같다.
         closed = {
@@ -347,7 +484,9 @@ class RenderArgs(unittest.TestCase):
         self.assertTrue(check_valueset(good, closed).ok)
         bad = {"weave": "1", "templateId": "t", "subjectId": "s",
                "facets": {"f": {"fields": {"src": {"state": "filled", "value": "설계사제안"}}}}}
-        self.assertIn("not an allowed value", " | ".join(str(p) for p in check_valueset(bad, closed).problems))
+        said = " | ".join(str(p) for p in check_valueset(bad, closed).problems)
+        self.assertIn("not an allowed value: '설계사제안'", said)
+        self.assertIn("allowed: ['설계사 제안', '직접 업로드']", said, "허용값을 싣지 않는다")
 
     def test_what_can_be_chosen_is_the_skeleton_not_an_arg(self) -> None:
         """**고른 것은 인자, 고를 수 있는 것은 골격이다.**
@@ -436,8 +575,9 @@ class ColumnVocabulary(unittest.TestCase):
         result = check_valueset(self.values("10년갱신"), self.TEMPLATE)
         self.assertFalse(result.ok, "닫힌 목록 밖의 값이 통과했다")
         joined = " | ".join(str(p) for p in result.problems)
-        self.assertIn("not an allowed value", joined)
+        self.assertIn("not an allowed value: '10년갱신'", joined)
         self.assertIn("'mode'", joined, "어느 칸인지 말하지 않는다")
+        self.assertIn("allowed: ['갱신 없음', '10년 갱신']", joined, "허용값을 싣지 않는다")
 
     def test_a_column_without_a_list_stays_free(self) -> None:
         """**대조군.** 목록을 걸지 않은 열은 그대로 자유 글이다."""

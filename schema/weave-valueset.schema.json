@@ -70,11 +70,8 @@
           "if": { "required": ["byOption"] },
           "then": {
             "not": { "anyOf": [{ "required": ["state"] }, { "required": ["value"] }, { "required": ["notes"] }] }
-          }
-        },
-        {
-          "if": { "not": { "required": ["byOption"] } },
-          "then": { "$ref": "#/$defs/FieldValue" }
+          },
+          "else": { "allOf": [{ "required": ["state"] }, { "$ref": "#/$defs/FilledOrEmpty" }] }
         }
       ]
     },
@@ -94,6 +91,10 @@
           "$ref": "weave-common.schema.json#/$defs/Annotations"
         }
       },
+      "$ref": "#/$defs/FilledOrEmpty"
+    },
+    "FilledOrEmpty": {
+      "description": "상태와 값이 서로를 못박는 매듭. filled 면 value 가 있고 empty 면 없다. 자리가 무엇을 받는지는 여기서 말하지 않는다 — 그것은 FieldValue 가 갖는다. 매듭만 따로 세운 까닭은 쓰는 자리가 둘이기 때문이다. FieldSlot 이 FieldValue 를 통째로 $ref 하면 같은 값이 같은 제약에 두 번 걸려 **같은 결함이 두 번 실린다**.",
       "allOf": [
         {
           "if": { "properties": { "state": { "const": "filled" } }, "required": ["state"] },
