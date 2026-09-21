@@ -429,7 +429,7 @@ subject 명단은 인자가 아니라 **값 한 벌들 자체**다.
 따로 받아 둘 것이 없다.**
 
 ```sh
-pip install "weave @ git+https://github.com/insupire/weave@v0.1.0"
+pip install "weave @ git+https://github.com/insupire/weave@v0.1.1"
 ```
 
 ```python
