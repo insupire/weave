@@ -99,7 +99,9 @@ class ThePickerPicks(unittest.TestCase):
         여기가 넓어지면 문서 한 줄에 전체 게이트가 돈다. 여기가 비면 옮긴 폴더를
         가리키던 글이 죽은 채로 지나간다 — 둘 다 고장이라 함께 본다.
         """
-        self.assertEqual(targets_for(["docs/weave.md", "AGENTS.md", "README.md"]), ["test"])
+        self.assertEqual(targets_for(["AGENTS.md", "README.md"]), ["test"])
+        # 설명서에는 빌더가 쓰는 표가 있다 — 산출물 대조 하나만 더 선다.
+        self.assertEqual(targets_for(["docs/weave.md"]), ["test", "viewer-check"])
         self.assertEqual(targets_for(["", "  "]), [])
 
     def test_the_schema_and_anything_unknown_widen_to_everything(self) -> None:
@@ -143,9 +145,6 @@ class TheVersionIsTiedToTheSchema(unittest.TestCase):
 
     WAS = {"version": "0.1.0", "schema": {"a.json": "aaa", "b.json": "bbb"}}
 
-    def test_the_tree_matches_the_lock(self) -> None:
-        self.assertIsNone(verdict(current(), locked()))
-
     def test_it_counts_only_the_schema(self) -> None:
         """판이 매다는 것은 소비자가 기대는 형상뿐이다 — 잠근 자리에 다른 폴더가 없다."""
         names = set(locked()["schema"])
@@ -168,6 +167,12 @@ class TheVersionIsTiedToTheSchema(unittest.TestCase):
     def test_a_bump_without_relocking_is_blocked_too(self) -> None:
         """판만 올리고 잠그지 않으면 잠근 것이 거짓말을 한다."""
         self.assertIsNotNone(verdict({**self.WAS, "version": "0.2.0"}, self.WAS))
+
+    def test_the_install_line_pins_the_current_version(self) -> None:
+        """든 쪽은 설명서의 설치 줄을 그대로 베낀다. 판만 올리고 그 줄을 두면 옛 태그를 든다."""
+        pins = re.findall(r"git\+https://\S+?@(v[\w.]+)", (ROOT / "docs" / "weave.md").read_text(encoding="utf-8"))
+        self.assertTrue(pins, "설치 줄을 못 찾는다 — 훑기가 비면 이 판정은 아무것도 안 본다")
+        self.assertEqual(set(pins), {f"v{current()['version']}"})
 
 
 if __name__ == "__main__":

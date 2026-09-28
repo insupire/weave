@@ -23,8 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # 얕은 클론을 쓰지 않는다
 
       # 실행기 둘을 여기서 못박는다. python 은 검사기와 빌더, node 는 그리는 쪽의 고정 케이스.
       - uses: actions/setup-python@v5
@@ -39,7 +37,7 @@ jobs:
           python3 --version
           node --version
 
-      # test · types-check · check · viewer-check · viewer-test.
-      # node 가 없으면 viewer-test 가 건너뛰지 않고 이름을 대고 실패한다.
+      # 무엇이 도는지는 Makefile 의 `all` 이 말한다. 여기에 다시 적지 않는다.
+      # node 가 없으면 viewer-test·guard-test 가 건너뛰지 않고 이름을 대고 실패한다.
       - name: make all
         run: make all
