@@ -1,7 +1,7 @@
 """Check templates and valuesets.
 
 Two layers. The first is the canonical JSON Schema looking at structure. The second
-looks only at what JSON Schema cannot say — duplicate keys inside one document, a
+looks only at what JSON Schema cannot say — duplicate ids inside one document, a
 valueset compared against its template, the axis order of a series. The vocabulary
 and the shapes all belong to the first layer.
 """
@@ -377,7 +377,7 @@ def _load(path: str) -> object:
 def main(argv: list[str] | None = None) -> int:
     from weave import __version__  # imported here — at module level it would loop back.
 
-    parser = argparse.ArgumentParser(prog="python -m weave.check", description="weave schema checker")
+    parser = argparse.ArgumentParser(prog="python -m weave", description="weave schema checker")
     # Ask what it measured with from the shell too. The library side reads the same value
     # from `weave.__version__`.
     parser.add_argument("--version", action="version", version=f"weave {__version__}")

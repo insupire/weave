@@ -59,7 +59,7 @@
 | `tools/reference.py` | 스키마를 훑어 **요소 전수 표**를 만든다. 설명 글이 없는 자리를 만나면 멈춘다 |
 | **`viewer.html`** | 빌드 산출물. **weave 의 설명서다.** 브라우저로 열면 바로 돈다. 손으로 고치지 않는다 |
 | `viewer/samples.mjs` · `viewer/catalog.mjs` | 마찬가지로 빌드 산출물 |
-| `tools/build_viewer.py` | 위 셋과 `docs/weave.md` 의 카탈로그 표를 만든다 |
+| `tools/build_viewer.py` | 위 셋과 `docs/weave.md` 의 카탈로그 표·요소 전수 표를 만든다 |
 | `.github/workflows/ci.yml` | 필수 전체 회귀. `make all` 한 줄을 부른다 |
 | **`harness.json`** | **하네스 표면.** 진입점·검사 동사·가드가 어디 있는지를 **밖에서 기계가 읽는** 한 자리 |
 | `tools/relevant.py` | 바꾼 자리에서 돌릴 검사를 고른다. `make relevant` 이 부르고 표의 정본이 여기다 |
@@ -76,7 +76,7 @@
 ## 시작
 
 ```sh
-make setup   # .venv 를 만들고 jsonschema 를 넣는다 (유일한 런타임 의존)
+make setup   # .venv 에 이 저장소를 편집 가능한 설치본으로 넣는다 — 의존은 pyproject.toml 이 말하고 런타임 의존은 jsonschema 하나다
 make all     # test + types-check + version-check + check + viewer-check + viewer-test + guard-test + install-check
 make viewer  # render/ 와 viewer/ 와 samples/ 를 viewer.html 한 장으로 다시 묶는다
 ```
@@ -99,7 +99,7 @@ python -m weave values --template tpl.json values-a.json values-b.json
 python -m weave args args.json
 ```
 
-exit 0 통과 · 1 결함 · 2 읽지 못함.
+exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함. 검사할 파일 자체를 못 읽으면 그 파일이 `FAIL` 로 서고 1 이다.
 
 ## 검사 동사와 변경별 관련 검증
 

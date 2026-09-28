@@ -479,10 +479,6 @@ class BuiltViewerIsNotStale(unittest.TestCase):
                 self.assertIn(load(folder / "sample.json")["name"], page)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CountsAreNotWrittenOutInProse(unittest.TestCase):
     """**닫힌 어휘의 개수를 글로 적지 않는다.**
 
@@ -742,3 +738,7 @@ class TheLanguageDoesNotSayWhatIsShown(unittest.TestCase):
         self.assertGreater(desc["minLength"], 1, "한 마디로 때울 수 있으면 깊이가 축이 아니다")
         self.assertIn("description", field["required"], "채울 수 없는 자리가 생긴다")
         self.assertNotIn("hint", field["required"], "가리키는 말은 없어도 자리를 채운다")
+
+
+if __name__ == "__main__":
+    unittest.main()
