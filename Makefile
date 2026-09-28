@@ -18,9 +18,10 @@ relevant: setup
 
 setup: .venv/.stamp
 
-.venv/.stamp: requirements.txt
+# 의존의 정본은 pyproject.toml 하나다. 저장소를 편집 가능한 설치본으로 넣어 그 선언을 그대로 읽는다.
+.venv/.stamp: pyproject.toml
 	python3 -m venv .venv
-	.venv/bin/pip install --quiet -r requirements.txt
+	.venv/bin/pip install --quiet -e .
 	touch $@
 
 # 고정 케이스. 정상 사례가 통과하고 결함 사례가 막히는 것을 함께 본다.
@@ -35,8 +36,8 @@ check: setup
 		tests/fixtures/ok/values-empty.json \
 		tests/fixtures/ok/values-mixed.json
 	@for d in samples/*/; do \
-		$(PY) -m weave template $$d/template.json || exit 1; \
-		$(PY) -m weave values --template $$d/template.json $$d/values-*.json || exit 1; \
+		$(PY) -m weave template $${d}template.json || exit 1; \
+		$(PY) -m weave values --template $${d}template.json $${d}values-*.json || exit 1; \
 	done
 
 # 닫힌 어휘를 소비자 둘의 언어로 다시 쓴다.
