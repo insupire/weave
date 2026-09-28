@@ -899,10 +899,9 @@ function drawCell(report, where, decl, value) {
 //
 // **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
 // 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
-const COMPARE = {
-  stat: "focus", facts: "focus", bars: "focus", parts: "focus",
-  line: "overlay", rows: "chosen",
-};
+//
+// element 마다의 비교법은 표로 두지 않는다 — 각 element 함수가 그렇게 그리는 것이 전부이고,
+// 설명서 쪽 이름은 `catalog/elements.json` 의 `compare` 가 갖는다.
 
 /**
  * 겹치는 쪽에서 **고른 subject** 가 자리에 못 섰다는 말.

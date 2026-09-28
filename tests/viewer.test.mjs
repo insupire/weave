@@ -15,7 +15,7 @@ import { test } from "node:test";
 
 import { PAGES } from "../viewer/catalog.mjs";
 import {
-  COMPARE, ELEMENTS, KIND_LABEL, NO_ITEM, NO_ITEMS, NO_VALUE, NO_VALUE_MARK, TRACE, UNDRAWABLE, esc,
+  ELEMENTS, KIND_LABEL, NUMERIC, SLOT_SHAPE, NO_ITEM, NO_ITEMS, NO_VALUE, NO_VALUE_MARK, TRACE, UNDRAWABLE, esc,
   formatScalar, renderView, traceOf,
 } from "../render/render.mjs";
 import { ICON } from "../render/icons.mjs";
@@ -134,15 +134,27 @@ const NAMES = { "proposal-a": "가 제안서", "proposal-b": "나 제안서", "p
 
 test("비교하는 법이 primitive element 마다 다르다", () => {
   // 겹칠 자리가 있는 것만 겹친다. 나머지는 focus 가 무엇을 그릴지 고른다.
-  assert.deepEqual(COMPARE, {
+  const said = Object.fromEntries(elementPages().map((p) => [p.id, p.compare]));
+  assert.deepEqual(said, {
     stat: "focus", facts: "focus", bars: "focus", parts: "focus",
     line: "overlay", rows: "chosen",
   });
-  // **하나를 쪼갠 것은 겹칠 수 없다** — 두 subject 의 안이 한 덩어리가 될 수 없다.
-  assert.equal(COMPARE.parts, "focus");
-  // **rows 만 facet 마다 스스로 고른다.** 나머지는 이름 자체가 비교법을 고정한다.
-  assert.equal(COMPARE.rows, "chosen");
-  assert.deepEqual(Object.keys(COMPARE).sort(), Object.keys(ELEMENTS).sort());
+  assert.deepEqual(Object.keys(said).sort(), Object.keys(ELEMENTS).sort());
+  // **facet 마다 스스로 고르는 것은 스키마가 compare 를 받는 element 뿐이다.** 설명서가 「고른다」고
+  // 말하는 자리와 스키마가 compare 를 요구하는 자리가 같아야 한다.
+  const branches = read("schema/weave-template.schema.json").$defs.Facet.allOf;
+  for (const branch of branches) {
+    const element = branch.if.properties.element.const;
+    const takes = (branch.then.required ?? []).includes("compare");
+    assert.equal(takes, said[element] === "chosen", `${element}: 설명서와 스키마가 compare 를 달리 말한다`);
+  }
+});
+
+test("자리의 생김새 표가 스키마의 타입과 같다", () => {
+  // render 는 폴더 밖을 읽지 않으므로 타입을 손으로 옮겨 적었다. 갈리면 여기서 막는다.
+  const defs = read("schema/weave-common.schema.json").$defs;
+  assert.deepEqual([...NUMERIC].sort(), [...defs.NumericType.enum].sort(), "수로 서는 타입이 스키마와 다르다");
+  assert.deepEqual(Object.keys(SLOT_SHAPE).sort(), [...defs.Type.enum].sort(), "칸 모양이 없는 타입이 있다");
 });
 
 test("line 과 겹치는 rows(overlay) 는 subject 를 한 좌표에 겹친다", () => {
@@ -2395,15 +2407,14 @@ test("값이 비는 경우가 샘플에도 남아 있다", () => {
 
 // ---------------------------------------------------------------- primitive element 설명서
 
-test("설명서가 말하는 비교 방법이 렌더와 갈리지 않는다", () => {
-  // 산문 파일(catalog/elements.json)이 적은 것과 렌더가 하는 것이 같아야 한다.
+test("설명서가 비교 방법을 늘 같은 말로 옮긴다", () => {
+  // 비교 방법 이름(catalog/elements.json)과 목차에 서는 말이 한 쌍으로 묶여 있어야 한다.
   const said = {
     overlay: "겹친다",
     focus: "focus 를 따라 바뀐다",
     chosen: "facet 의 compare 로 고른다(focus·overlay)",
   };
   for (const row of elementPages()) {
-    assert.equal(row.compare, COMPARE[row.id], `${row.id}: 설명서와 렌더가 다르다`);
     assert.equal(row.compareSaid, said[row.compare]);
   }
 });

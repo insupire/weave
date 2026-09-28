@@ -228,13 +228,13 @@ function notesHtml(notes, where = "") {
  * 산출물은 표식(`.slot` · `.track` · `.band` · `.plot` · `.sheen`)만 낸다.
  */
 /** 수로 서는 타입. 자리의 생김새를 값의 생김새에 맞추는 유일한 기준이다. */
-const NUMERIC = new Set(["number", "money", "ratio", "multiple", "duration", "age"]);
+export const NUMERIC = new Set(["number", "money", "ratio", "multiple", "duration", "age"]);
 
 /**
  * 자리 하나의 칸 수와 뒤에 붙는 단위. **타입마다 고정**이다 — 값에서 끌어오면
  * 자릿수 자체가 크기를 말해 버린다. 금액 자리는 늘 여섯 칸이고, 87,400 이든 8,740,000 이든 같다.
  */
-const SLOT_SHAPE = {
+export const SLOT_SHAPE = {
   number: [6, ""], money: [6, "원"], ratio: [3, "%"], multiple: [3, "배"],
   duration: [3, "개월"], age: [3, "세"], boolean: [1, ""], text: [1, ""], date: [1, ""],
 };
@@ -310,10 +310,9 @@ function drawCell(report, where, decl, value) {
 //
 // **focus 가 없으면 첫 subject 를 그린다.** 늘어놓기로 돌아가지 않고, 빈 화면을 내지 않고,
 // 무엇을 보고 있는지 이름으로 늘 말한다. 차례는 값 한 벌이 넘어온 차례이고 배치일 뿐 우열이 아니다.
-export const COMPARE = {
-  stat: "focus", facts: "focus", bars: "focus", parts: "focus",
-  line: "overlay", rows: "chosen",
-};
+//
+// element 마다의 비교법은 표로 두지 않는다 — 각 element 함수가 그렇게 그리는 것이 전부이고,
+// 설명서 쪽 이름은 `catalog/elements.json` 의 `compare` 가 갖는다.
 
 /**
  * 겹치는 쪽에서 **고른 subject** 가 자리에 못 섰다는 말.
