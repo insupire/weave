@@ -169,6 +169,12 @@ class TheVersionIsTiedToTheSchema(unittest.TestCase):
         """판만 올리고 잠그지 않으면 잠근 것이 거짓말을 한다."""
         self.assertIsNotNone(verdict({**self.WAS, "version": "0.2.0"}, self.WAS))
 
+    def test_the_install_line_pins_the_current_version(self) -> None:
+        """든 쪽은 설명서의 설치 줄을 그대로 베낀다. 판만 올리고 그 줄을 두면 옛 태그를 든다."""
+        pins = re.findall(r"git\+https://\S+?@(v[\w.]+)", (ROOT / "docs" / "weave.md").read_text(encoding="utf-8"))
+        self.assertTrue(pins, "설치 줄을 못 찾는다 — 훑기가 비면 이 판정은 아무것도 안 본다")
+        self.assertEqual(set(pins), {f"v{current()['version']}"})
+
 
 if __name__ == "__main__":
     unittest.main()
