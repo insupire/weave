@@ -84,7 +84,7 @@ make viewer  # render/ 와 viewer/ 와 samples/ 를 viewer.html 한 장으로 �
 **상주 서버·컨테이너·프리뷰를 세우지 않는다.** `viewer.html` 을 브라우저로 열면 그대로 돈다.
 CDN 도 쓰지 않는다 — 오프라인에서 죽으면 안 된다.
 
-`make viewer-test` 와 `make guard-test` 만 `node` 를 쓰고 `make install-check` 만 망을 쓴다. **셋 다 개발용이고 런타임 의존이 아니다** — 저장소의 런타임 의존은 `jsonschema` 하나 그대로다.
+`make viewer-test` 와 `make guard-test` 만 `node` 를 쓴다. 망은 둘이 쓴다 — `make setup` 이 `.venv` 를 처음 세울 때 `jsonschema` 와 빌드 백엔드 `hatchling` 을 받고, `make install-check` 는 돌 때마다 깨끗한 venv 에 같은 것을 받는다. **node 와 hatchling 은 개발용이고 런타임 의존이 아니다** — 저장소의 런타임 의존은 `jsonschema` 하나 그대로다.
 
 검사기는 라이브러리로도 CLI 로도 쓴다.
 
@@ -99,7 +99,7 @@ python -m weave values --template tpl.json values-a.json values-b.json
 python -m weave args args.json
 ```
 
-exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함. 검사할 파일 자체를 못 읽으면 그 파일이 `FAIL` 로 서고 1 이다.
+exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함 또는 사용법 오류(하위 명령 누락 같은 인자 오류 — argparse 가 낸다). 검사할 파일 자체를 못 읽으면 그 파일이 `FAIL` 로 서고 1 이다.
 
 ## 검사 동사와 변경별 관련 검증
 
