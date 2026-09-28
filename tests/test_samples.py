@@ -439,13 +439,8 @@ class MarkdownPointsAtRealPlaces(unittest.TestCase):
         self.assertIn("samples", self.tops())
 
 
-class BuiltViewerIsNotStale(unittest.TestCase):
-    def test_every_artifact_matches_its_sources(self) -> None:
-        """사람이 여는 한 장과 설명서 표가 지금 소스와 같은지. ``make viewer`` 로 다시 쓴다."""
-        for path, text in build_viewer.artifacts().items():
-            with self.subTest(path.name):
-                self.assertTrue(path.exists(), "python3 tools/build_viewer.py 를 돌린다")
-                self.assertEqual(path.read_text(encoding="utf-8"), text, "갈렸다. make viewer 로 다시 쓴다")
+class BuiltViewerStandsAlone(unittest.TestCase):
+    """산출물이 소스와 같은지는 ``make viewer-check`` 한 자리가 본다. 여기는 한 장이 혼자 서는지만 본다."""
 
     def test_the_page_makes_no_outside_request(self) -> None:
         """의존성 없는 한 장이다. CDN 도 서버도 쓰지 않는다 — 오프라인에서 죽지 않아야 한다.

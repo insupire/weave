@@ -51,7 +51,8 @@ RULES: dict[str, tuple[str, ...]] = {
     "harness.json": ("test",),  # 매니페스트가 참인지는 tests/test_harness.py 가 본다
     # 산문도 자리를 가리킨다 — `make test` 가 가리키는 자리가 사는지 본다.
     # 전체 게이트는 안 돈다: 문서 한 줄에 전부 도는 것이 애초에 막으려던 것이다.
-    "docs/": ("test",),
+    # docs/weave.md 에는 빌더가 쓰는 표가 둘 있어 손으로 고치면 갈린다 — viewer-check 가 본다.
+    "docs/": ("test", "viewer-check"),
     "AGENTS.md": ("test",),
     "README.md": ("test",),
 }

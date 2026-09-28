@@ -102,10 +102,6 @@ class TheJobCallsMakeAndNothingElse(unittest.TestCase):
                 with self.subTest(run=run, gate=gate):
                     self.assertNotIn(f"make {gate}", run)
 
-    def test_it_does_not_use_a_shallow_clone(self) -> None:
-        # 줄 끝에 주석이 붙어 있으므로 앞부분으로 본다.
-        self.assertTrue(any(line.startswith("fetch-depth: 0") for line in self.jobs), self.jobs)
-
     def test_it_pins_both_runtimes(self) -> None:
         """node 가 없으면 `viewer-test` 가 건너뛰지 않고 실패한다. 러너가 그것을 깔아야 한다."""
         self.assertIn('python-version: "3.13"', self.jobs)

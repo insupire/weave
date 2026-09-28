@@ -112,7 +112,7 @@ exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함. 검사할 파일 
 | `make version-check` | **스키마가 바뀌었는데 판이 그대로인가.** `schema/*.json` 만 센다 |
 | `make version` | `schema-lock.json` 을 다시 쓴다. **판을 안 올렸으면 쓰지 않는다** |
 | `make viewer` | `render/` · `viewer/` · `samples/` 를 `viewer.html` 한 장으로 다시 묶는다 |
-| `make viewer-check` | `viewer.html` 이 소스·샘플과 갈렸는지 본다 |
+| `make viewer-check` | `viewer.html` · `viewer/*.mjs` · `docs/weave.md` 의 생성 표가 소스·샘플과 갈렸는지 본다. 이 대조는 여기 한 자리다 |
 | `make viewer-test` | 그리는 쪽의 고정 케이스. `node` 가 있어야 돈다 |
 | `make guard-test` | 작업공간 가드의 고정 케이스. 마찬가지로 `node` 가 있어야 돈다 |
 | `make install-check` | **설치본만으로 검사기가 도는가.** 나무 밖 깨끗한 venv 에 넣고 저장소 밖에서 부른다. 받아 올 것이 있어 망이 있어야 돈다 |
@@ -141,7 +141,7 @@ exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함. 검사할 파일 
 | `harness.json` | `make test` — 적힌 자리와 동사가 실제로 있는지를 `tests/test_harness.py` 가 본다 |
 | `.github/workflows/` · `Makefile` | `make all` 과 **의도한 회귀 하나**. 워크플로를 넣었다는 사실이 보호가 아니다. 트리거의 형태는 `tests/test_ci.py` 가 본다 |
 | CSS 캐스케이드 · 움직임 · `@media` 분기 | `make all` 에 더해 **브라우저로 계산값을 확인한다** — 아래를 본다 |
-| `docs/` · `AGENTS.md` 만 | `make test` — **가리키는 자리가 사는지 본다.** 산문이 없는 파일을 가리켜도 그 전에는 아무도 안 막았다 |
+| `docs/` · `AGENTS.md` 만 | `make test` — **가리키는 자리가 사는지 본다.** 산문이 없는 파일을 가리켜도 그 전에는 아무도 안 막았다. `docs/` 는 빌더가 쓰는 표가 있어 `make viewer-check` 도 |
 
 **`make relevant` 이 이 표를 기계로 읽은 것이다.** 고를 근거가 없는 자리는 **넓혀서 전부** 돈다 — 전체 게이트가 20초대라 넓히는 값이 싸다. 고르는 것은 **확인하는 동사뿐이고** 산출물을 다시 쓰는 `viewer`·`types` 는 사람이 부른다. 표와 판정이 갈리면 둘 다 고친다.
 
