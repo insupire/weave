@@ -130,6 +130,9 @@ TEMPLATE_DEFECTS = [
     ("facet 에 경고색을 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("color", "red"), "Additional properties"),
     ("facet 에 자유 설정 주머니를 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("settings", {"badge": "best"}), "Additional properties"),
     ("facet 에 가중치를 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("weight", 3), "Additional properties"),
+    # 끝에 붙은 줄바꿈도 줄바꿈이다. Python 의 `$` 는 끝 줄바꿈 앞에서도 맞아서 한 번 새었다.
+    ("facet hint 끝에 줄바꿈이 붙는다", lambda d: facet(d, "monthly-premium").__setitem__("hint", "가\n"), "does not match"),
+    ("필드 hint 끝에 줄바꿈이 붙는다", lambda d: field(d, "monthly-premium", "premium").__setitem__("hint", "가\n"), "does not match"),
     ("타입에 등급을 더한다", lambda d: field(d, "monthly-premium", "premium").__setitem__("type", "grade"), "is not one of"),
     ("타입에 점수를 더한다", lambda d: field(d, "monthly-premium", "premium").__setitem__("type", "score"), "is not one of"),
     ("필드에 순위를 붙인다", lambda d: field(d, "monthly-premium", "premium").__setitem__("rank", 1), "Additional properties"),
