@@ -2,8 +2,8 @@
   "schema": {
     "weave-common.schema.json": "34408f88db3bdd24af469a89c2e2f1c3f9943cd8bef2c6384507e23227112ee9",
     "weave-render-args.schema.json": "436011823517aa0c5329e57624213813eb9c4a5d2fab2c24cd5e9df755f172a4",
-    "weave-template.schema.json": "561f6a9b77c87d96afddbd4fb2e1b969d318d061285ef5ae36a12347b2010889",
+    "weave-template.schema.json": "111a108347d9159a08d45c30a735699def47dc13966faa68f46e46f62305c657",
     "weave-valueset.schema.json": "6fca98fe1cea834e4c164bc54df4116ef3096049825c9b9c6286ac49ef536c1c"
   },
-  "version": "0.1.1"
+  "version": "0.2.0"
 }

@@ -62,6 +62,34 @@ class TemplatePasses(unittest.TestCase):
         result = check_template(doc)
         self.assertTrue(result.ok, [str(p) for p in result.problems])
 
+    def test_a_facet_without_need_passes(self) -> None:
+        # 요구와 무관하게 선 facet 은 요구 자리가 없다. 고정 케이스의 나머지 facet 이 그렇다.
+        self.assertTrue(any("need" in f for f in TEMPLATE["facets"]), "요구 자리를 쓰는 facet 이 없다")
+        self.assertTrue(any("need" not in f for f in TEMPLATE["facets"]), "요구 없는 facet 이 없다")
+        doc = mutate(TEMPLATE, lambda d: [f.pop("need", None) for f in d["facets"]])
+        self.assertTrue(check_template(doc).ok)
+
+    def test_a_built_facet_is_checked_inside_its_template(self) -> None:
+        """템플릿을 고치는 쪽이 새로 지은 facet 을 거르는 길. 따로 부르는 함수가 없다 —
+        그 facet 을 넣은 **템플릿 전체**를 ``check_template`` 에 넘긴다. 그래야 이미 있는
+        facet 과 id 가 겹치는지까지 한 번에 본다. 결함 자리는 그 facet 의 차례로 온다."""
+        built = {
+            "id": "monthly-premium",
+            "title": "갱신 뒤 보험료",
+            "element": "stat",
+            "fields": [{"key": "renewed", "label": "갱신 뒤", "shape": "single", "type": "money",
+                        "description": "갱신 뒤 첫 달의 월 보험료를 원 단위 정수로."}],
+            "need": {"text": "나중에 보험료가 오르는 게 걱정된다\n"},
+        }
+        result = check_template(mutate(TEMPLATE, lambda d: d["facets"].append(built)))
+        joined = " | ".join(str(p) for p in result.problems)
+        at = len(TEMPLATE["facets"])
+        self.assertIn(f"$['facets'][{at}]['need']['text']", joined)
+        # 구조가 틀리면 거기서 멈춘다 — 겹친 id 는 구조를 고친 뒤에 드러난다.
+        built["need"]["text"] = built["need"]["text"].strip()
+        result = check_template(mutate(TEMPLATE, lambda d: d["facets"].append(built)))
+        self.assertIn(f"duplicate facet id: 'monthly-premium'  at: [0, {at}]", " | ".join(map(str, result.problems)))
+
     def test_facet_has_no_description_field(self) -> None:
         # 설명은 주석이라는 규칙이 하나로 유지된다.
         facet_schema = documents()["weave-template.schema.json"]["$defs"]["Facet"]
@@ -130,6 +158,22 @@ TEMPLATE_DEFECTS = [
     ("facet 에 경고색을 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("color", "red"), "Additional properties"),
     ("facet 에 자유 설정 주머니를 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("settings", {"badge": "best"}), "Additional properties"),
     ("facet 에 가중치를 붙인다", lambda d: facet(d, "monthly-premium").__setitem__("weight", 3), "Additional properties"),
+    # 요구 자리 — facet 이 왜 여기 있는가. 하나까지이고 글 한 줄이며 그 밖의 것을 싣지 않는다.
+    ("요구에 글이 없다", lambda d: facet(d, "monthly-premium")["need"].pop("text"),
+     ("$['facets'][0]['need']", "'text' is a required property")),
+    ("요구를 여럿 단다", lambda d: facet(d, "monthly-premium").__setitem__("need", [{"text": "가"}, {"text": "나"}]),
+     ("$['facets'][0]['need']", "is not of type 'object'")),
+    ("요구를 맨 글로 단다", lambda d: facet(d, "monthly-premium").__setitem__("need", "매달 내는 돈을 줄이고 싶다"),
+     "is not of type 'object'"),
+    ("요구 글이 두 줄이다", lambda d: facet(d, "monthly-premium")["need"].__setitem__("text", "가\n나"), "does not match"),
+    # 끝에 붙은 줄바꿈도 줄바꿈이다. Python 의 `$` 는 끝 줄바꿈 앞에서도 맞아서 한 번 새었다.
+    ("요구 글 끝에 줄바꿈이 붙는다", lambda d: facet(d, "monthly-premium")["need"].__setitem__("text", "가\n"), "does not match"),
+    ("facet hint 끝에 줄바꿈이 붙는다", lambda d: facet(d, "monthly-premium").__setitem__("hint", "가\n"), "does not match"),
+    ("필드 hint 끝에 줄바꿈이 붙는다", lambda d: field(d, "monthly-premium", "premium").__setitem__("hint", "가\n"), "does not match"),
+    ("요구 글이 비었다", lambda d: facet(d, "monthly-premium")["need"].__setitem__("text", ""), "should be non-empty"),
+    ("요구 글이 너무 길다", lambda d: facet(d, "monthly-premium")["need"].__setitem__("text", "가" * 201), "is too long"),
+    ("요구에 확실성 수치를 붙인다", lambda d: facet(d, "monthly-premium")["need"].__setitem__("confidence", 0.9), "Additional properties"),
+    ("요구에 순위를 붙인다", lambda d: facet(d, "monthly-premium")["need"].__setitem__("rank", 1), "Additional properties"),
     ("타입에 등급을 더한다", lambda d: field(d, "monthly-premium", "premium").__setitem__("type", "grade"), "is not one of"),
     ("타입에 점수를 더한다", lambda d: field(d, "monthly-premium", "premium").__setitem__("type", "score"), "is not one of"),
     ("필드에 순위를 붙인다", lambda d: field(d, "monthly-premium", "premium").__setitem__("rank", 1), "Additional properties"),
