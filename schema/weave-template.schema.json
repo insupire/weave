@@ -95,10 +95,6 @@
         "notes": {
           "description": "템플릿 저작자가 다는 주석. facet 의 설명 글도 여기 산다 — description 필드는 따로 없다. subject 와 무관한 지식은 값이 아니라 여기 둔다.",
           "$ref": "weave-common.schema.json#/$defs/Annotations"
-        },
-        "need": {
-          "description": "이 facet 을 템플릿에 불러온 요구 하나. 없으면 어떤 요구와도 무관하게 선 facet 이다. 주석과 다르다: 주석은 값이나 facet 에 대해 할 말이고 이것은 **이 facet 이 왜 여기 있는가**다.",
-          "$ref": "#/$defs/Need"
         }
       },
       "allOf": [
@@ -190,21 +186,6 @@
           }
         }
       ]
-    },
-    "Need": {
-      "description": "facet 하나를 불러온 요구. facet 은 요구를 하나까지만 갖는다 — 여럿이 불렀으면 가장 가까운 하나다.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["text"],
-      "properties": {
-        "text": {
-          "description": "그 요구를 한 줄로 적은 말. 템플릿을 쓴 쪽이 정리한 말이다 — 누가 한 말을 글자 그대로 옮겼다고 약속하지 않는다.",
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200,
-          "pattern": "^[^\\n\\r]+(?![\\s\\S])"
-        }
-      }
     },
     "Field": {
       "description": "값 하나가 설 자리의 선언. description 이 무엇을 담는 자리인지 말한다.",
