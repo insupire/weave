@@ -3,7 +3,7 @@
 AGENTS.md 「검사 동사와 변경별 관련 검증」의 표를 기계가 읽을 수 있게 옮긴 것이다.
 `make relevant` 이 부르고, 바뀐 파일 이름을 줄마다 stdin 으로 받아 make 타깃을 낸다.
 
-**고르는 것은 확인하는 동사뿐이다.** `viewer`·`types` 처럼 산출물을 다시 쓰는 동사는 넣지 않는다 —
+**고르는 것은 확인하는 동사뿐이다.** `viewer` 처럼 산출물을 다시 쓰는 동사는 넣지 않는다 —
 검사를 부르는 자리가 나무를 고치면 무엇을 쟀는지 알 수 없게 된다. 갈렸으면 `viewer-check` 가
 그 사실을 말하고 다시 쓰는 것은 사람이 한다.
 
@@ -18,7 +18,7 @@ from collections.abc import Iterable
 
 # Makefile 의 `all` 차례. 고른 것도 이 차례로 낸다.
 ALL = (
-    "test", "types-check", "version-check", "check", "viewer-check", "viewer-test", "guard-test",
+    "test", "version-check", "check", "viewer-check", "viewer-test", "guard-test",
     "install-check",
 )
 
@@ -28,8 +28,6 @@ RULES: dict[str, tuple[str, ...]] = {
     # 판의 정본이 여기 산다 — 판만 올리고 잠그지 않은 것도 갈린 것이다.
     "weave/__init__.py": ("test", "version-check", "check", "install-check"),
     "weave/": ("test", "check", "install-check"),
-    "generated/": ("types-check",),
-    "tools/emit_types.py": ("types-check",),
     "tools/version_lock.py": ("test", "version-check"),
     "tools/build_viewer.py": ("viewer-check",),
     "tools/catalog.py": ("test", "viewer-check"),

@@ -64,9 +64,7 @@
 | **`harness.json`** | **하네스 표면.** 진입점·검사 동사·가드가 어디 있는지를 **밖에서 기계가 읽는** 한 자리 |
 | `tools/relevant.py` | 바꾼 자리에서 돌릴 검사를 고른다. `make relevant` 이 부르고 표의 정본이 여기다 |
 | `tools/workspace-guard.mjs` · `.claude/settings.json` | 작업공간 가드와 그 선언. 도구를 부르는 시점에 막는다 |
-| `tools/emit_types.py` | 닫힌 어휘를 소비자 언어로 내보낸다 |
 | `tools/version_lock.py` · **`schema-lock.json`** | **판과 스키마를 묶는다.** 「이 판일 때 스키마가 이러했다」를 적고, 갈리면 `make version-check` 가 막는다 |
-| `generated/` | 그 산출물. 손으로 고치지 않는다 |
 | **`pyproject.toml`** | **패키지 선언.** 검사기를 의존으로 들 수 있게 낸다. 정본 스키마는 자리를 옮기지 않고 설치본 안으로 함께 실린다 |
 | `tests/` | 고정 케이스. 검사기는 `test_check.py`(정상 사례 `fixtures/ok/` · 결함 사례는 파일 안의 변형 표), 샘플과 카탈로그와 문서가 가리키는 자리는 `test_samples.py`, 워크플로의 형태는 `test_ci.py`, 하네스 표면과 고르는 판정은 `test_harness.py`, 그리는 쪽은 `viewer.test.mjs`, 가드는 `workspace-guard.test.mjs`, 설치본이 서는지는 `install_probe.py`(`make install-check` 가 부른다) |
 
@@ -77,7 +75,7 @@
 
 ```sh
 make setup   # .venv 에 이 저장소를 편집 가능한 설치본으로 넣는다 — 의존은 pyproject.toml 이 말하고 런타임 의존은 jsonschema 하나다
-make all     # test + types-check + version-check + check + viewer-check + viewer-test + guard-test + install-check
+make all     # test + version-check + check + viewer-check + viewer-test + guard-test + install-check
 make viewer  # render/ 와 viewer/ 와 samples/ 를 viewer.html 한 장으로 다시 묶는다
 ```
 
@@ -107,8 +105,6 @@ exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함 또는 사용법 �
 | --- | --- |
 | `make test` | 고정 케이스. 정상 사례가 통과하고 결함 사례가 막히는 것을 함께 본다 |
 | `make check` | 검사기를 `tests/fixtures/ok/` 와 `samples/*/` 에 직접 돌린다. CLI 가 사는지 본다 |
-| `make types-check` | `generated/` 가 스키마와 갈렸는지 본다 |
-| `make types` | 갈렸으면 다시 쓴다 |
 | `make version-check` | **스키마가 바뀌었는데 판이 그대로인가.** `schema/*.json` 만 센다 |
 | `make version` | `schema-lock.json` 을 다시 쓴다. **판을 안 올렸으면 쓰지 않는다** |
 | `make viewer` | `render/` · `viewer/` · `samples/` 를 `viewer.html` 한 장으로 다시 묶는다 |
@@ -117,7 +113,7 @@ exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함 또는 사용법 �
 | `make guard-test` | 작업공간 가드의 고정 케이스. 마찬가지로 `node` 가 있어야 돈다 |
 | `make install-check` | **설치본만으로 검사기가 도는가.** 나무 밖 깨끗한 venv 에 넣고 저장소 밖에서 부른다. 받아 올 것이 있어 망이 있어야 돈다 |
 | `make relevant` | **아래 표를 대신 읽어** 바뀐 자리에 필요한 것만 돌린다. 견줄 기준은 `BASE`(기본 `origin/develop`) |
-| `make all` | `test` · `types-check` · `version-check` · `check` · `viewer-check` · `viewer-test` · `guard-test` · `install-check` |
+| `make all` | `test` · `version-check` · `check` · `viewer-check` · `viewer-test` · `guard-test` · `install-check` |
 
 **이 sprint 의 남은 weave 변경은 작업 브랜치 하나에 쌓는다.** 중간 PR 도 `develop` 머지도 하지 않고 sprint 종료 때 PR 하나로 올린다(PM `orchestrator.md` §4).
 
@@ -127,14 +123,13 @@ exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함 또는 사용법 �
 
 | 무엇을 고쳤나 | 돌릴 것 |
 | --- | --- |
-| `schema/` | `make all` — **`__version__` 을 올리고** `make types version` 으로 `generated/` 와 `schema-lock.json` 을 같이 커밋한다 |
+| `schema/` | `make all` — **`__version__` 을 올리고** `make version` 으로 `schema-lock.json` 을 같이 커밋한다 |
 | `weave/` (검사기) | `make test check install-check` — 스키마를 찾는 자리가 여기 있어 설치본이 함께 선다 |
 | `render/` · `viewer/` | `make viewer viewer-test test` — **`viewer.html` 을 같이 커밋한다** |
 | `samples/` · `catalog/` | `make viewer check test viewer-test` — 마찬가지로 산출물을 같이 커밋한다 |
 | `schema/weave-render-args` | `make all` — 소비자 둘에게 알린다 |
 | `samples/*/values-*.json` | 파일 이름 차례가 **화면 차례**다. 값 한 벌들이 곧 명단이기 때문이다 |
 | `tests/fixtures/` | `make test check` |
-| `tools/emit_types.py` · `generated/` | `make types-check` |
 | `tools/workspace-guard.mjs` · `.claude/` | `make guard-test` |
 | `pyproject.toml` | `make install-check` — 패키지 선언이 갈리면 설치본이 먼저 죽는다 |
 | `weave/__init__.py` (판) · `schema-lock.json` | `make version-check` |
@@ -143,13 +138,12 @@ exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함 또는 사용법 �
 | CSS 캐스케이드 · 움직임 · `@media` 분기 | `make all` 에 더해 **브라우저로 계산값을 확인한다** — 아래를 본다 |
 | `docs/` · `AGENTS.md` 만 | `make test` — **가리키는 자리가 사는지 본다.** 산문이 없는 파일을 가리켜도 그 전에는 아무도 안 막았다. `docs/` 는 빌더가 쓰는 표가 있어 `make viewer-check` 도 |
 
-**`make relevant` 이 이 표를 기계로 읽은 것이다.** 고를 근거가 없는 자리는 **넓혀서 전부** 돈다 — 전체 게이트가 20초대라 넓히는 값이 싸다. 고르는 것은 **확인하는 동사뿐이고** 산출물을 다시 쓰는 `viewer`·`types` 는 사람이 부른다. 표와 판정이 갈리면 둘 다 고친다.
+**`make relevant` 이 이 표를 기계로 읽은 것이다.** 고를 근거가 없는 자리는 **넓혀서 전부** 돈다 — 전체 게이트가 20초대라 넓히는 값이 싸다. 고르는 것은 **확인하는 동사뿐이고** 산출물을 다시 쓰는 `viewer` 는 사람이 부른다. 표와 판정이 갈리면 둘 다 고친다.
 
 **`make all` 은 어느 규칙이 이기는지 못 본다.** 고정 케이스는 스타일시트를 **글자로** 읽으므로
 「`@media` 안에 이 규칙을 적었는가」까지만 보고 **더 구체적인 선택자가 그것을 이기는지**는 못 본다.
-실제로 `@media (prefers-reduced-motion)` 안에 숫자를 지우는 규칙을 적어 뒀는데 숫자를 내던 더 구체적인
-선택자가 이겨 **`0 0 0 0 0 0 원` 이 그대로 서 있었고 판정은 통과시켰다**(그 릴은 지금 없다 — 사고의
-교훈만 남긴다). 움직임도 같다 — 지나가는지 멎었는지는 정지한 마크업에 안 적혀 있다.
+`@media (prefers-reduced-motion)` 안에 숫자를 지우는 규칙을 적어도 숫자를 내는 더 구체적인 선택자가
+이기면 숫자가 그대로 서고 판정은 통과시킨다. 움직임도 같다 — 지나가는지 멎었는지는 정지한 마크업에 안 적혀 있다.
 
 확인하는 법 둘. **계산값을 묻는다** — 페이지를 헤드리스로 띄워 `getComputedStyle(el, "::before").content`
 와 `animationName`·`animationDuration` 을 세어 본다(`--force-prefers-reduced-motion` 으로 분기도 함께).
@@ -188,18 +182,13 @@ exit 0 통과 · 1 결함 · 2 `--template` 을 읽지 못함 또는 사용법 �
 - **잘못 정규화한 값.** `ratio` 에 `50`(= 5000%) 을 넣어도 수치로는 옳다. 정수 여부(`money`·`age`·`duration`)와 날짜 형식만 본다.
 - **`text` 로 우회하는 등급.** `text` 값에 "A등급" 을 담는 것은 막을 수 없다. **`allowed` 는 그것의 더 날카로운 판이다** — 필드에도 열에도 `["A등급","B등급","C등급"]` 을 걸 수 있고, 자연어가 아니라 **닫힌 목록**이라 소비자가 그대로 갈래로 쓴다. 막으려면 스키마가 도메인 어휘를 알아야 해서 막지 못한다(`docs/weave.md` §스키마가 못 지키는 것).
 - **값 한 벌이 없는 subject.** 아직 채워지지 않은 것이므로 검사기가 할 말이 없다. 몇 벌이 와야 하는지는 부르는 쪽이 안다.
-- **`generated/weave-vocab.ts` 가 실제로 컴파일되는지.** 이 저장소에 TS 툴체인이 없다. 소비자 쪽 빌드가 처음 확인한다.
 - **참조 뷰어가 브라우저에서 어떻게 보이는지.** 고정 케이스는 나온 HTML 의 글과 표시를 보고, DOM 흉내 위에서 한 장이 돌기까지만 본다. 실제 화면은 `viewer.html` 을 사람이 열어 본다.
 - **소비자의 렌더가 이 계약을 지키는지.** 뜻을 기계로 재는 자리가 **참조 렌더의 고정 케이스뿐**이다 — 소비자가 0 선을 걷어 내거나 주석을 조용히 접어도 여기서는 초록이다. 규칙 4 의 「참조 뷰어는 무엇이 올바른 렌더인지의 기준」은 **읽는 사람에게 거는 기준**이지 재는 자가 아니다. 적어 두지 않으면 다음 사람이 **재고 있다고 믿는다.** 재는 길(렌더 엔진을 소비자와 **함께 쓰는 형태**)은 열려 있고 무엇을 할지는 PM 이 들고 있다.
 - **뷰어는 아무것도 판정하지 않는다.** JSON 으로 읽히는지만 본다. 뷰어에서 멀쩡해 보여도 스키마에 맞는다는 뜻이 아니다. 판정은 `python -m weave` 가 한다.
 
-## 타입을 내보내는 길
+## 모델 타입은 소비자가 뽑는다
 
-정본은 `schema/` 하나이고 소비자 둘은 여기서 파생한다. 두 갈래다.
-
-**1. 닫힌 어휘 — 이 저장소가 낸다.** `tools/emit_types.py` 가 `weave-common.schema.json` 에서 `generated/weave_vocab.py` 와 `generated/weave-vocab.ts` 를 쓴다. 렌더가 분기하는 지점이자 갈리면 바로 화면이 깨지는 지점이라 `make types-check` 로 붙잡는다. 의존성 없이 stdlib 로 돈다.
-
-**2. 모델 전체 — 소비자가 자기 빌드에서 뽑는다.** 이 저장소는 생성기를 들이지 않는다.
+정본은 `schema/` 하나이고 이 저장소는 타입 산출물과 생성기를 들이지 않는다. 소비자가 자기 빌드에서 스키마로 뽑는다.
 
 ```sh
 # Python 소비자 — 패키지 이름과 실행 파일 이름이 다르다. 루트 클래스 이름은 --class-name 이 준다(아래 ⚠️)
@@ -410,7 +399,7 @@ npx json-schema-to-typescript@15 --cwd=schema schema/weave-valueset.schema.json 
 
 가드가 **실제로 무는지**는 코드를 일부러 깨 보고 빨개지는지로만 안다. 그때 셋을 지킨다.
 
-1. **파생 산출물을 먼저 다시 만든다.** `make all` 은 `viewer.html` 과 `generated/` 를 만들지 않고 **어긋났는지만** 본다 — 그대로 재면 소스에 심은 변형이 드리프트 판정에서 먼저 죽고, 정작 그 뜻을 보는 판정에는 닿지 않는다.
+1. **파생 산출물을 먼저 다시 만든다.** `make all` 은 `viewer.html` 을 만들지 않고 **어긋났는지만** 본다 — 그대로 재면 소스에 심은 변형이 드리프트 판정에서 먼저 죽고, 정작 그 뜻을 보는 판정에는 닿지 않는다.
 2. **손대지 않은 나무가 초록인지 먼저 확인한다.** 여기가 빨가면 그 뒤의 「죽었다」는 전부 거짓이다. 실제로 로그인 셸(`bash -lc`)로 돌려 `node` 가 없어 **심은 것 144개가 전부 거짓으로 죽은** 적이 있다.
 3. **살아남을 것이 분명한 변형(대조군)을 몇 개 섞는다.** 그것마저 죽으면 검사가 아예 안 돈 것이다.
 
@@ -471,7 +460,7 @@ primitive element·타입·모양·주석 갈래는 **닫힌 목록이고 좁히
 3. 순위·등급으로 쓰일 길이 없는가
 4. `docs/weave.md` 가 얼마나 커지는가 — **설명서 크기가 곧 그것을 싣는 쪽의 짐이다**
 
-어휘를 바꾸면 `generated/` 를 같이 커밋하고, **소비자 둘이 있으므로 PM 에 알린다.** 누가 그 자리에 있는지는 PM 이 안다.
+어휘를 바꾸면 **소비자 둘이 있으므로 PM 에 알린다.** 누가 그 자리에 있는지는 PM 이 안다.
 
 ## 권한 밖
 

@@ -2,13 +2,13 @@ PY := .venv/bin/python
 # 무엇과 견줘 바뀐 자리를 고르는가. `make relevant BASE=<ref>` 로 바꾼다.
 BASE ?= origin/develop
 
-.PHONY: all relevant setup test check types types-check viewer viewer-check \
+.PHONY: all relevant setup test check viewer viewer-check \
         node-check viewer-test guard-test version version-check install-check clean
 
-all: test types-check version-check check viewer-check viewer-test guard-test install-check
+all: test version-check check viewer-check viewer-test guard-test install-check
 
 # 변경에 필요한 검사만. 고르는 표의 정본은 tools/relevant.py 이고 AGENTS.md 가 그것을 사람 말로 적는다.
-# **확인하는 동사만 고른다** — 산출물을 다시 쓰는 viewer·types 는 사람이 부른다.
+# **확인하는 동사만 고른다** — 산출물을 다시 쓰는 viewer 는 사람이 부른다.
 relevant: setup
 	@changed="$$(git diff --name-only $(BASE)...HEAD; git diff --name-only; \
 	             git ls-files --others --exclude-standard)"; \
@@ -39,14 +39,6 @@ check: setup
 		$(PY) -m weave template $${d}template.json || exit 1; \
 		$(PY) -m weave values --template $${d}template.json $${d}values-*.json || exit 1; \
 	done
-
-# 닫힌 어휘를 소비자 둘의 언어로 다시 쓴다.
-types:
-	python3 tools/emit_types.py
-
-# generated/ 가 스키마와 갈렸는지 본다.
-types-check:
-	python3 tools/emit_types.py --check
 
 # **스키마가 바뀌었는데 판이 그대로인가.** 판이 매다는 것은 소비자가 기대는 형상뿐이라
 # schema/*.json 만 센다 — 설명서나 카탈로그로 판이 움직이면 그 판은 아무것도 약속하지 않는다.
