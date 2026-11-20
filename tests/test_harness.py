@@ -81,7 +81,6 @@ class ThePickerPicks(unittest.TestCase):
         cases = {
             "weave/check.py": ["test", "check", "install-check"],
             "render/render.mjs": ["test", "viewer-check", "viewer-test"],
-            "generated/weave-vocab.ts": ["types-check"],
             "tools/workspace-guard.mjs": ["guard-test"],
             ".claude/settings.json": ["guard-test"],
             "tests/fixtures/ok/template.json": ["test", "check"],
@@ -111,15 +110,15 @@ class ThePickerPicks(unittest.TestCase):
                 self.assertEqual(targets_for([path]), list(ALL))
 
     def test_it_unions_and_keeps_the_makefile_order(self) -> None:
-        picked = targets_for(["generated/weave-vocab.ts", "weave/check.py", "viewer.html"])
-        self.assertEqual(picked, ["test", "types-check", "check", "viewer-check", "install-check"])
+        picked = targets_for(["tools/version_lock.py", "weave/check.py", "viewer.html"])
+        self.assertEqual(picked, ["test", "version-check", "check", "viewer-check", "install-check"])
 
     def test_it_never_picks_a_verb_that_rewrites_the_tree(self) -> None:
         """고르는 것은 확인하는 동사뿐이다. 검사를 부르는 자리가 나무를 고치면 무엇을 쟀는지 모른다."""
         for targets in list(RULES.values()) + [ALL]:
             for target in targets:
                 with self.subTest(target):
-                    self.assertNotIn(target, {"viewer", "types", "version", "setup", "clean"})
+                    self.assertNotIn(target, {"viewer", "version", "setup", "clean"})
 
     def test_every_target_it_can_name_is_a_real_target(self) -> None:
         for target in ALL:
